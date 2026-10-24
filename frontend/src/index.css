@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/* Custom Theme untuk PKM Control Center - Colorful Brutalist */
+@theme {
+  /* Warna utama */
+  --color-cream: #F5F0E8;
+  --color-cream-dark: #E8E0D0;
+  --color-ink: #1A1A1A;
+  --color-pink: #FF3D8B;
+  --color-yellow: #FFD93D;
+  --color-purple: #B8A4E8;
+  --color-purple-dark: #8B74C9;
+  --color-white: #FFFFFF;
+  
+  /* Font */
+  --font-display: 'Archivo Black', sans-serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+/* Base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography */
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-cream-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink);
+  border: 2px solid var(--color-cream-dark);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-pink);
+}
