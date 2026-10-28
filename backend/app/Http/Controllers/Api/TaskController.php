@@ -82,6 +82,13 @@ class TaskController extends Controller
     {
         $user = $request->user();
 
+        // Otorisasi role: hanya admin dan project_manager yang dapat menambah tugas
+        if (!$user || !in_array($user->role, ['admin', 'project_manager'])) {
+            return response()->json([
+                'message' => 'Hanya Super Admin dan Project Manager yang memiliki izin menambah tugas.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'project_id' => ['required', 'exists:projects,id'],
             'title' => ['required', 'string', 'max:255'],
@@ -150,6 +157,14 @@ class TaskController extends Controller
     public function update(Request $request, $id)
     {
         $user = $request->user();
+
+        // Otorisasi role: hanya admin dan project_manager yang dapat mengubah tugas
+        if (!$user || !in_array($user->role, ['admin', 'project_manager'])) {
+            return response()->json([
+                'message' => 'Hanya Super Admin dan Project Manager yang memiliki izin mengubah tugas.',
+            ], 403);
+        }
+
         $task = Task::findOrFail($id);
 
         $validated = $request->validate([
@@ -211,6 +226,14 @@ class TaskController extends Controller
     public function destroy(Request $request, $id)
     {
         $user = $request->user();
+
+        // Otorisasi role: hanya admin dan project_manager yang dapat menghapus tugas
+        if (!$user || !in_array($user->role, ['admin', 'project_manager'])) {
+            return response()->json([
+                'message' => 'Hanya Super Admin dan Project Manager yang memiliki izin menghapus tugas.',
+            ], 403);
+        }
+
         $task = Task::with('project')->findOrFail($id);
         $taskTitle = $task->title;
         $projectName = $task->project ? $task->project->name : null;

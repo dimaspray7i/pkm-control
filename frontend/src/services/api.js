@@ -26,7 +26,9 @@ api.interceptors.response.use(
       // Token tidak valid, hapus dari localStorage
       localStorage.removeItem('auth_token')
       localStorage.removeItem('user')
-      window.location.href = '/login'
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
     }
     console.error('API Error:', error)
     return Promise.reject(error)

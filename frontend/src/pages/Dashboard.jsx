@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../services/api'
 import { 
@@ -10,7 +11,7 @@ import {
   Calendar,
   Send, 
   Sparkles, 
-  Minus,
+  Minus, 
   ArrowRight,
   Globe,
   Laptop,
@@ -19,7 +20,7 @@ import {
   Check,
   Loader2,
   RotateCcw,
-  MoreHorizontal
+  ExternalLink
 } from 'lucide-react'
 import { 
   ResponsiveContainer, 
@@ -37,6 +38,7 @@ import PageHeader from '../components/ui/PageHeader'
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -46,6 +48,7 @@ export default function Dashboard() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiHistory, setAiHistory] = useState([])
   const [aiCollapsed, setAiCollapsed] = useState(false)
+  const [aiMode, setAiMode] = useState(null) // null | 'Rule-Based Engine' | 'LLM Eksternal'
 
   const aiChatBottomRef = useRef(null)
 
@@ -61,9 +64,19 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
-      const res = await api.get('/dashboard')
-      setData(res.data)
-      setError(null)
+      const [dashRes, aiCtxRes] = await Promise.allSettled([
+        api.get('/dashboard'),
+        api.get('/ai/context'),
+      ])
+      if (dashRes.status === 'fulfilled') {
+        setData(dashRes.value.data)
+        setError(null)
+      } else {
+        throw dashRes.reason
+      }
+      if (aiCtxRes.status === 'fulfilled') {
+        setAiMode(aiCtxRes.value.data.mode || null)
+      }
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err)
       setError('Gagal memuat data dari server backend Laravel.')
@@ -77,7 +90,8 @@ export default function Dashboard() {
   }, [])
 
   // Toggle Task Completion (Real interaction with backend)
-  const handleToggleTask = async (taskId) => {
+  const handleToggleTask = async (taskId, e) => {
+    if (e) e.stopPropagation()
     try {
       await api.post(`/tasks/${taskId}/toggle`)
       // Refresh dashboard data to update KPI and status
@@ -98,12 +112,13 @@ export default function Dashboard() {
     setAiLoading(true)
 
     try {
-      const res = await api.post('/ai/ask', { question })
+      const res = await api.post('/ai/ask', { prompt: question, question })
       setAiHistory((prev) => [
         ...prev,
         {
           type: 'ai',
-          answer: res.data.answer,
+          answer: res.data.reply || res.data.answer || 'Analisis selesai.',
+          mode: res.data.mode,
           recommendations: res.data.recommendations || []
         }
       ])
@@ -139,7 +154,7 @@ export default function Dashboard() {
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
         <Loader2 size={32} className="animate-spin text-[#FF2F92]" />
         <p className="font-display text-lg uppercase tracking-wider text-[#171717]">
-          MEMUAT DATA DASHBOARD...
+          MEMUAT DATA DASHBOARD DARI DATABASE...
         </p>
       </div>
     )
@@ -161,66 +176,72 @@ export default function Dashboard() {
   }
 
   const kpi = data?.kpi || {
-    active_projects: { value: 12, change: '↑ 2 dari bulan lalu' },
-    completed_projects: { value: 8, change: '↑ 3 dari bulan lalu' },
-    at_risk_projects: { value: 3, change: '↓ 1 dari bulan lalu' },
-    pending_tasks: { value: 47, change: '↓ 12 dari kemarin' },
-    overdue_tasks: { value: 6, change: '↓ 4 dari kemarin' },
-    total_progress: 68
+    active_projects: { value: 0, change: 'Aktif di sistem' },
+    completed_projects: { value: 0, change: 'Proyek tuntas' },
+    at_risk_projects: { value: 0, change: 'Kondisi aman' },
+    pending_tasks: { value: 0, change: 'Antrean pekerjaan' },
+    overdue_tasks: { value: 0, change: 'Nihil keterlambatan' },
+    total_progress: 0
   }
 
-  const trendData = data?.trend_data || [
-    { date: '17 Mei', on_track: 70, at_risk: 45, delayed: 30 },
-    { date: '18 Mei', on_track: 72, at_risk: 42, delayed: 35 },
-    { date: '19 Mei', on_track: 75, at_risk: 48, delayed: 32 },
-    { date: '20 Mei', on_track: 73, at_risk: 46, delayed: 38 },
-    { date: '21 Mei', on_track: 78, at_risk: 50, delayed: 34 },
-    { date: '22 Mei', on_track: 74, at_risk: 47, delayed: 40 },
-    { date: '23 Mei', on_track: 80, at_risk: 52, delayed: 36 }
+  const trendData = data?.trend_data || []
+  const donutData = data?.donut_data || [
+    { name: 'On Track', value: 0, color: '#10B981' },
+    { name: 'At Risk', value: 0, color: '#FBBF24' },
+    { name: 'Delayed', value: 0, color: '#FF2F92' }
   ]
 
-  const donutData = data?.donut_data || [
-    { name: 'On Track', value: 8, color: '#10B981' },
-    { name: 'At Risk', value: 3, color: '#FBBF24' },
-    { name: 'Delayed', value: 1, color: '#FF2F92' }
-  ]
+  const onTrackVal = donutData.find(d => d.name === 'On Track')?.value || 0
+  const atRiskVal = donutData.find(d => d.name === 'At Risk')?.value || 0
+  const delayedVal = donutData.find(d => d.name === 'Delayed')?.value || 0
+  const totalDonut = onTrackVal + atRiskVal + delayedVal || 1
+  const onTrackPct = Math.round((onTrackVal / totalDonut) * 100)
+  const atRiskPct = Math.round((atRiskVal / totalDonut) * 100)
+  const delayedPct = Math.round((delayedVal / totalDonut) * 100)
 
   const latestProjects = data?.latest_projects || []
   const priorityTasks = data?.priority_tasks || []
   const recentActivities = data?.recent_activities || []
-  const riskProjects = data?.risk_projects || [
-    { id: 1, name: 'Sistem Internal', deadline: '2025-05-30', risk_level: 'high', progress: 40 },
-    { id: 2, name: 'Aplikasi Mobile', deadline: '2025-06-05', risk_level: 'high', progress: 55 },
-    { id: 3, name: 'Website Klien A', deadline: '2025-06-20', risk_level: 'low', progress: 85 }
-  ]
+  const riskProjects = data?.risk_projects || []
 
-  const displayName = user?.name || 'Andi Saputra'
+  const displayName = user?.name || 'Budi Santoso'
+  const currentDate = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const currentTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
 
   return (
-    <div className="space-y-4 pb-2">
+    <div className="space-y-4 pb-4">
       {/* ================= 1. HEADER WELCOME ================= */}
       <PageHeader
-        title={`SELAMAT DATANG, ${displayName}`}
+        title={`SELAMAT DATANG, ${displayName.toUpperCase()}`}
         subtitle="Berikut adalah ringkasan performa bisnis, aktivitas tim, dan mitigasi risiko proyek hari ini."
         tag="DASHBOARD UTAMA"
         actions={
-          <div className="bg-white px-3.5 py-2 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center gap-2.5">
+          <div 
+            onClick={() => navigate('/reports')}
+            className="bg-white px-3.5 py-2 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center gap-2.5 cursor-pointer hover:bg-[#FFD83D]/30 transition-all"
+            title="Buka Laporan & Kalender"
+          >
             <Calendar size={15} strokeWidth={2.4} className="text-[#FF2F92]" />
             <div className="text-[10px] font-black text-[#171717] leading-tight">
-              <p>Jumat, 23 Mei 2025</p>
-              <p className="text-[9px] text-[#171717]/60 font-semibold">14:32 WIB</p>
+              <p>{currentDate}</p>
+              <p className="text-[9px] text-[#171717]/60 font-semibold">{currentTime}</p>
             </div>
             <ArrowRight size={13} strokeWidth={2.5} className="text-[#171717]/60 ml-0.5" />
           </div>
         }
       />
 
-      {/* ================= 2. 5 KPI CARDS IN 1 ROW ================= */}
+      {/* ================= 2. 5 KPI CARDS IN 1 ROW (CLICKABLE NAVIGATION) ================= */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* Card 1: PROYEK AKTIF (Hot Pink) */}
         <div 
-          className="p-3 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717] flex flex-col justify-between"
+          onClick={() => navigate('/projects')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && navigate('/projects')}
+          className="p-3 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717] flex flex-col justify-between cursor-pointer hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_#171717] transition-all"
           style={{ backgroundColor: '#FF2F92', color: '#FFFFFF' }}
+          title="Klik untuk melihat seluruh Proyek Aktif"
         >
           <div className="flex items-center justify-between">
             <span className="text-[9px] font-black uppercase tracking-wider text-white">PROYEK AKTIF</span>
@@ -230,14 +251,19 @@ export default function Dashboard() {
             {kpi.active_projects.value}
           </p>
           <p className="text-[9px] font-bold text-white/90">
-            {kpi.active_projects.change}
+            {kpi.active_projects.change} →
           </p>
         </div>
 
         {/* Card 2: PROYEK SELESAI (Yellow) */}
         <div 
-          className="p-3 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717] flex flex-col justify-between"
+          onClick={() => navigate('/projects?status=completed')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && navigate('/projects?status=completed')}
+          className="p-3 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717] flex flex-col justify-between cursor-pointer hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_#171717] transition-all"
           style={{ backgroundColor: '#FFD83D', color: '#171717' }}
+          title="Klik untuk filter Proyek Selesai"
         >
           <div className="flex items-center justify-between">
             <span className="text-[9px] font-black uppercase tracking-wider text-[#171717]">PROYEK SELESAI</span>
@@ -247,14 +273,19 @@ export default function Dashboard() {
             {kpi.completed_projects.value}
           </p>
           <p className="text-[9px] font-bold text-[#171717]/80">
-            {kpi.completed_projects.change}
+            {kpi.completed_projects.change} →
           </p>
         </div>
 
         {/* Card 3: BERISIKO TERLAMBAT (Lavender) */}
         <div 
-          className="p-3 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717] flex flex-col justify-between"
+          onClick={() => navigate('/projects?status=at_risk')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && navigate('/projects?status=at_risk')}
+          className="p-3 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717] flex flex-col justify-between cursor-pointer hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_#171717] transition-all"
           style={{ backgroundColor: '#B8A0F0', color: '#171717' }}
+          title="Klik untuk memitigasi Proyek Berisiko"
         >
           <div className="flex items-center justify-between">
             <span className="text-[9px] font-black uppercase tracking-wider text-[#171717]">BERISIKO TERLAMBAT</span>
@@ -264,13 +295,18 @@ export default function Dashboard() {
             {kpi.at_risk_projects.value}
           </p>
           <p className="text-[9px] font-bold text-[#171717]/80">
-            {kpi.at_risk_projects.change}
+            {kpi.at_risk_projects.change} →
           </p>
         </div>
 
         {/* Card 4: TUGAS BELUM SELESAI (White) */}
         <div 
-          className="p-3 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717] bg-white flex flex-col justify-between"
+          onClick={() => navigate('/tasks?filter=all')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && navigate('/tasks?filter=all')}
+          className="p-3 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717] bg-white flex flex-col justify-between cursor-pointer hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_#171717] transition-all"
+          title="Klik untuk melihat Tugas Belum Selesai"
         >
           <div className="flex items-center justify-between">
             <span className="text-[9px] font-black uppercase tracking-wider text-[#171717]">TUGAS BELUM SELESAI</span>
@@ -280,14 +316,19 @@ export default function Dashboard() {
             {kpi.pending_tasks.value}
           </p>
           <p className="text-[9px] font-bold text-[#171717]/70">
-            {kpi.pending_tasks.change}
+            {kpi.pending_tasks.change} →
           </p>
         </div>
 
         {/* Card 5: LEWAT DEADLINE (Pink / Coral) */}
         <div 
-          className="p-3 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717] flex flex-col justify-between col-span-2 sm:col-span-1"
+          onClick={() => navigate('/tasks?filter=overdue')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && navigate('/tasks?filter=overdue')}
+          className="p-3 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717] flex flex-col justify-between col-span-2 sm:col-span-1 cursor-pointer hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_#171717] transition-all"
           style={{ backgroundColor: '#FF2F92', color: '#FFFFFF' }}
+          title="Klik untuk menindaklanjuti Tugas Overdue"
         >
           <div className="flex items-center justify-between">
             <span className="text-[9px] font-black uppercase tracking-wider text-white">LEWAT DEADLINE</span>
@@ -297,7 +338,7 @@ export default function Dashboard() {
             {kpi.overdue_tasks.value}
           </p>
           <p className="text-[9px] font-bold text-white/90">
-            {kpi.overdue_tasks.change}
+            {kpi.overdue_tasks.change} →
           </p>
         </div>
       </div>
@@ -308,29 +349,32 @@ export default function Dashboard() {
         {/* LEFT COLUMN: CHARTS + 3 MODULAR BOTTOM CARDS (8 cols) */}
         <div className="lg:col-span-8 min-w-0 space-y-3.5">
           
-          {/* CARD: PROGRES PROYEK (Full width across left column) */}
+          {/* CARD: PROGRES PROYEK */}
           <div className="bg-white p-3.5 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717]">
             {/* Top row: Title & Legend & Link */}
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#171717]/10 pb-2 mb-2">
               <h3 className="font-display text-sm uppercase tracking-tight text-[#171717]">
-                PROGRES PROYEK
+                PROGRES PORTOFOLIO PROYEK
               </h3>
               
               <div className="flex items-center gap-3 text-[9px] font-black">
                 <span className="flex items-center gap-1 text-[#171717]">
-                  <span className="w-2 h-2 rounded-full bg-[#10B981]"></span> On Track 68% (8)
+                  <span className="w-2 h-2 rounded-full bg-[#10B981]"></span> On Track {onTrackPct}% ({onTrackVal})
                 </span>
                 <span className="flex items-center gap-1 text-[#171717]">
-                  <span className="w-2 h-2 rounded-full bg-[#FBBF24]"></span> At Risk 18% (2)
+                  <span className="w-2 h-2 rounded-full bg-[#FBBF24]"></span> At Risk {atRiskPct}% ({atRiskVal})
                 </span>
                 <span className="flex items-center gap-1 text-[#171717]">
-                  <span className="w-2 h-2 rounded-full bg-[#FF2F92]"></span> Delayed 14% (2)
+                  <span className="w-2 h-2 rounded-full bg-[#FF2F92]"></span> Delayed {delayedPct}% ({delayedVal})
                 </span>
               </div>
 
-              <a href="/projects" className="text-[9.5px] font-bold text-[#FF2F92] hover:underline">
+              <button 
+                onClick={() => navigate('/projects')}
+                className="text-[9.5px] font-bold text-[#FF2F92] hover:underline cursor-pointer"
+              >
                 Lihat Semua →
-              </a>
+              </button>
             </div>
 
             {/* Inner Content: Donut on Left (40%), Line Chart on Right (60%) */}
@@ -359,16 +403,24 @@ export default function Dashboard() {
                   </PieChart>
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <span className="font-display text-xl leading-none text-[#171717]">{kpi.total_progress}%</span>
-                    <span className="text-[8px] font-black uppercase text-[#171717]/70 mt-0.5">Total Progres</span>
+                    <span className="text-[8px] font-black uppercase text-[#171717]/70 mt-0.5">Rata-rata Progres</span>
                   </div>
                 </div>
               </div>
 
               {/* Line Chart: Tren Progress 7 Hari Terakhir */}
               <div className="md:col-span-7 min-w-0">
-                <p className="text-[10px] font-black text-[#171717] mb-1">
-                  Tren Progress 7 Hari Terakhir
-                </p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[10px] font-black text-[#171717]">
+                    Tren Operasional 7 Hari (Estimasi Berbasis DB)
+                  </p>
+                  <span 
+                    className="text-[8px] font-bold text-[#171717]/50 bg-[#F5F1E9] border border-[#171717]/20 px-1.5 py-0.5 rounded"
+                    title="Tren dihitung dari snapshot status proyek saat ini, bukan dari data historis yang disimpan per hari."
+                  >
+                    ⓘ Estimasi
+                  </span>
+                </div>
                 <div className="h-28 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={trendData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
@@ -384,11 +436,11 @@ export default function Dashboard() {
                           fontSize: '10px',
                           fontWeight: 'bold',
                           padding: '4px 8px'
-                        }}
+                        }} 
                       />
-                      <Line type="monotone" dataKey="on_track" stroke="#10B981" strokeWidth={1.8} dot={{ r: 2 }} isAnimationActive={false} />
-                      <Line type="monotone" dataKey="at_risk" stroke="#FBBF24" strokeWidth={1.8} dot={{ r: 2 }} isAnimationActive={false} />
-                      <Line type="monotone" dataKey="delayed" stroke="#FF2F92" strokeWidth={2} dot={{ r: 2.5, fill: '#FF2F92' }} isAnimationActive={false} />
+                      <Line type="monotone" dataKey="on_track" stroke="#10B981" strokeWidth={2} dot={{ r: 2.5 }} isAnimationActive={false} name="On Track" />
+                      <Line type="monotone" dataKey="at_risk" stroke="#FBBF24" strokeWidth={2} dot={{ r: 2.5 }} isAnimationActive={false} name="At Risk" />
+                      <Line type="monotone" dataKey="delayed" stroke="#FF2F92" strokeWidth={2} dot={{ r: 2.5, fill: '#FF2F92' }} isAnimationActive={false} name="Delayed" />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -404,9 +456,12 @@ export default function Dashboard() {
               <div>
                 <div className="flex items-center justify-between border-b border-[#171717]/10 pb-1.5 mb-2">
                   <h3 className="font-display text-xs uppercase text-[#171717]">PROYEK TERBARU</h3>
-                  <a href="/projects" className="text-[9px] font-bold text-[#171717]/70 hover:text-[#FF2F92]">
+                  <button 
+                    onClick={() => navigate('/projects')}
+                    className="text-[9px] font-bold text-[#171717]/70 hover:text-[#FF2F92] cursor-pointer"
+                  >
                     Lihat Semua →
-                  </a>
+                  </button>
                 </div>
 
                 <div className="space-y-2">
@@ -426,7 +481,12 @@ export default function Dashboard() {
                       proj.category === 'code' ? Code2 : Globe
 
                     return (
-                      <div key={proj.id} className="p-1.5 border border-neutral-200 rounded bg-[#FAF7F2]">
+                      <div 
+                        key={proj.id} 
+                        onClick={() => navigate(`/projects?search=${encodeURIComponent(proj.name)}`)}
+                        className="p-1.5 border border-neutral-200 rounded bg-[#FAF7F2] hover:bg-[#FFF0F8] hover:border-[#FF2F92]/50 cursor-pointer transition-all"
+                        title="Klik untuk membuka detail proyek"
+                      >
                         <div className="flex items-start justify-between gap-1.5">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <div className="w-5 h-5 bg-white border border-[#171717] rounded flex items-center justify-center text-[#171717] shrink-0">
@@ -463,9 +523,12 @@ export default function Dashboard() {
               <div>
                 <div className="flex items-center justify-between border-b border-[#171717]/10 pb-1.5 mb-2">
                   <h3 className="font-display text-xs uppercase text-[#171717]">TUGAS PRIORITAS</h3>
-                  <a href="/tasks" className="text-[9px] font-bold text-[#171717]/70 hover:text-[#FF2F92]">
+                  <button 
+                    onClick={() => navigate('/tasks')}
+                    className="text-[9px] font-bold text-[#171717]/70 hover:text-[#FF2F92] cursor-pointer"
+                  >
                     Lihat Semua →
-                  </a>
+                  </button>
                 </div>
 
                 <div className="space-y-1.5">
@@ -479,26 +542,30 @@ export default function Dashboard() {
                       <div 
                         key={task.id}
                         className={`p-1.5 border border-neutral-200 rounded transition-all ${
-                          task.is_completed ? 'bg-neutral-100 opacity-60' : 'bg-white'
+                          task.is_completed ? 'bg-neutral-100 opacity-60' : 'bg-white hover:bg-[#FAF7F2]'
                         }`}
                       >
                         <div className="flex items-center gap-1.5">
                           <button
-                            onClick={() => handleToggleTask(task.id)}
+                            onClick={(e) => handleToggleTask(task.id, e)}
                             className={`w-3.5 h-3.5 border border-[#171717] rounded-sm flex items-center justify-center shrink-0 cursor-pointer ${
-                              task.is_completed ? 'bg-[#10B981] text-white' : 'bg-white'
+                              task.is_completed ? 'bg-[#10B981] text-white' : 'bg-white hover:bg-[#FFD83D]'
                             }`}
-                            title="Tandai selesai"
+                            title={task.is_completed ? "Tandai belum selesai" : "Tandai selesai"}
                           >
                             {task.is_completed && <Check size={10} strokeWidth={3} />}
                           </button>
 
-                          <div className="flex-1 min-w-0">
+                          <div 
+                            className="flex-1 min-w-0 cursor-pointer"
+                            onClick={() => navigate(`/tasks?search=${encodeURIComponent(task.title)}`)}
+                            title="Buka detail tugas di halaman Tugas"
+                          >
                             <p className={`text-[10px] font-bold text-[#171717] truncate leading-tight ${task.is_completed ? 'line-through text-[#171717]/40' : ''}`}>
                               {task.title}
                             </p>
                             <p className="text-[7.5px] font-semibold text-[#171717]/55 truncate">
-                              {task.project?.name || 'PKM'}
+                              {task.project?.name || 'PKM'} • PIC: {task.assignee_name || '-'}
                             </p>
                           </div>
 
@@ -507,7 +574,7 @@ export default function Dashboard() {
                               {task.priority}
                             </span>
                             <span className="text-[7.5px] font-bold text-[#171717]/60">
-                              {task.deadline ? new Date(task.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '26 Mei'}
+                              {task.deadline ? new Date(task.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '—'}
                             </span>
                           </div>
                         </div>
@@ -523,9 +590,12 @@ export default function Dashboard() {
               <div>
                 <div className="flex items-center justify-between border-b border-[#171717]/10 pb-1.5 mb-2">
                   <h3 className="font-display text-xs uppercase text-[#171717]">AKTIVITAS TERBARU</h3>
-                  <a href="/reports" className="text-[9px] font-bold text-[#171717]/70 hover:text-[#FF2F92]">
+                  <button 
+                    onClick={() => navigate('/reports')}
+                    className="text-[9px] font-bold text-[#171717]/70 hover:text-[#FF2F92] cursor-pointer"
+                  >
                     Lihat Semua →
-                  </a>
+                  </button>
                 </div>
 
                 <div className="space-y-2">
@@ -578,22 +648,40 @@ export default function Dashboard() {
                   AI BUSINESS ANALYST
                 </h3>
               </div>
-              <button 
-                onClick={() => setAiCollapsed(!aiCollapsed)}
-                className="text-[#171717]/60 hover:text-[#171717] cursor-pointer"
-                title={aiCollapsed ? "Buka panel AI" : "Ciutkan panel AI"}
-              >
-                <Minus size={14} strokeWidth={2.5} />
-              </button>
+              <div className="flex items-center gap-1">
+                <button 
+                  onClick={() => navigate('/ai-analyst')}
+                  className="text-[9px] font-black text-[#FF2F92] hover:underline flex items-center gap-0.5 cursor-pointer mr-1"
+                  title="Buka halaman penuh AI Analyst"
+                >
+                  <span>Penuh</span>
+                  <ExternalLink size={10} />
+                </button>
+                <button 
+                  onClick={() => setAiCollapsed(!aiCollapsed)}
+                  className="text-[#171717]/60 hover:text-[#171717] cursor-pointer"
+                  title={aiCollapsed ? "Buka panel AI" : "Ciutkan panel AI"}
+                >
+                  <Minus size={14} strokeWidth={2.5} />
+                </button>
+              </div>
             </div>
 
             {!aiCollapsed && (
               <>
-                {/* Intro Greeting Speech Bubble (Exact Reference Copy & Style) */}
+                {/* Intro Greeting + AI Mode Badge */}
                 <div className="p-2.5 bg-[#EBE5FB] border border-[#171717] rounded-md shadow-[2px_2px_0px_#171717] mb-2.5">
                   <p className="text-[10px] font-medium text-[#171717] leading-relaxed">
-                    <strong>Halo! Saya AI Business Analyst.</strong> Saya siap membantu menganalisis data proyek, memberikan insight, dan rekomendasi untuk keputusan yang lebih baik.
+                    <strong>Halo! Saya AI Business Analyst PKM.</strong> Saya terhubung langsung ke basis data real-time untuk mengevaluasi risiko, beban kerja tim, dan target deadline.
                   </p>
+                  {aiMode && (
+                    <div className="mt-1.5 flex items-center gap-1">
+                      <span className="text-[8px] font-black uppercase px-1.5 py-0.5 bg-white border border-[#171717] rounded text-[#171717]">
+                        Mode:
+                      </span>
+                      <span className="text-[8px] font-bold text-[#171717]/70 truncate">{aiMode}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Suggestion Chips Section */}
@@ -632,13 +720,20 @@ export default function Dashboard() {
                       return (
                         <div key={idx} className="space-y-1.5">
                           <div className="p-2 bg-white border border-[#171717] rounded shadow-[1px_1px_0px_#171717]">
-                            <div className="flex items-center gap-1 text-[#FF2F92] font-black text-[9px] uppercase mb-1">
-                              <Sparkles size={11} />
-                              <span>Analisis PKM AI</span>
+                            <div className="flex items-center justify-between text-[#FF2F92] font-black text-[9px] uppercase mb-1">
+                              <span className="flex items-center gap-1">
+                                <Sparkles size={11} />
+                                <span>Analisis PKM AI</span>
+                              </span>
+                              {msg.mode && (
+                                <span className="text-[8px] px-1 py-0.2 bg-[#FAF7F2] border border-[#171717]/30 text-[#171717] rounded">
+                                  {msg.mode}
+                                </span>
+                              )}
                             </div>
-                            <p className="text-[9.5px] font-medium text-[#171717] leading-relaxed whitespace-pre-line">
+                            <div className="text-[9.5px] font-medium text-[#171717] leading-relaxed whitespace-pre-line">
                               {msg.answer}
-                            </p>
+                            </div>
                           </div>
 
                           {msg.recommendations && msg.recommendations.length > 0 && (
@@ -696,49 +791,60 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* CARD 2: RISIKO PROYEK (Exact Reference Position & Design) */}
+          {/* CARD 2: RISIKO PROYEK */}
           <div className="bg-white p-3.5 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717]">
             <div className="flex items-center justify-between border-b border-[#171717]/10 pb-2 mb-2">
               <h3 className="font-display text-sm uppercase tracking-tight text-[#171717]">
                 RISIKO PROYEK
               </h3>
-              <a href="/projects" className="text-[9.5px] font-bold text-[#FF2F92] hover:underline">
+              <button 
+                onClick={() => navigate('/projects?status=at_risk')}
+                className="text-[9.5px] font-bold text-[#FF2F92] hover:underline cursor-pointer"
+              >
                 Lihat Semua →
-              </a>
+              </button>
             </div>
 
             <div className="space-y-2">
-              {riskProjects.map((proj) => {
-                const badgeColor = 
-                  proj.risk_level === 'high' ? 'bg-[#FF2F92] text-white' :
-                  proj.risk_level === 'medium' ? 'bg-[#FFD83D] text-[#171717]' :
-                  'bg-[#B8A0F0] text-[#171717]'
+              {riskProjects.length === 0 ? (
+                <p className="py-3 text-center text-xs font-bold text-[#171717]/50">
+                  Tidak ada proyek berisiko saat ini.
+                </p>
+              ) : (
+                riskProjects.map((proj) => {
+                  const badgeColor = 
+                    proj.risk_level === 'high' ? 'bg-[#FF2F92] text-white' :
+                    proj.risk_level === 'medium' ? 'bg-[#FFD83D] text-[#171717]' :
+                    'bg-[#B8A0F0] text-[#171717]'
 
-                const IconAlert = proj.risk_level === 'low' ? CheckCircle2 : AlertTriangle
+                  const IconAlert = proj.risk_level === 'low' ? CheckCircle2 : AlertTriangle
 
-                return (
-                  <div 
-                    key={proj.id}
-                    className="p-2 border border-neutral-200 rounded bg-[#FAF7F2] flex items-center justify-between gap-2"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className={`w-5 h-5 rounded-full ${badgeColor} border border-[#171717] flex items-center justify-center shrink-0`}>
-                        <IconAlert size={10} strokeWidth={2.5} />
+                  return (
+                    <div 
+                      key={proj.id}
+                      onClick={() => navigate(`/projects?search=${encodeURIComponent(proj.name)}`)}
+                      className="p-2 border border-neutral-200 rounded bg-[#FAF7F2] hover:bg-[#FFF0F8] hover:border-[#FF2F92]/50 flex items-center justify-between gap-2 cursor-pointer transition-all"
+                      title="Buka proyek di halaman Manajemen Proyek"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={`w-5 h-5 rounded-full ${badgeColor} border border-[#171717] flex items-center justify-center shrink-0`}>
+                          <IconAlert size={10} strokeWidth={2.5} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black text-[#171717] leading-tight truncate">{proj.name}</p>
+                          <p className="text-[8px] font-semibold text-[#171717]/60 truncate">
+                            Deadline {proj.deadline ? new Date(proj.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                          </p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-black text-[#171717] leading-tight truncate">{proj.name}</p>
-                        <p className="text-[8px] font-semibold text-[#171717]/60 truncate">
-                          Deadline {proj.deadline ? new Date(proj.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '30 Mei 2025'}
-                        </p>
-                      </div>
+
+                      <span className={`text-[7.5px] font-black uppercase px-1.5 py-0.2 border border-[#171717] rounded-sm shrink-0 ${badgeColor}`}>
+                        {proj.risk_level === 'high' ? 'High' : proj.risk_level === 'medium' ? 'Medium' : 'Low'}
+                      </span>
                     </div>
-
-                    <span className={`text-[7.5px] font-black uppercase px-1.5 py-0.2 border border-[#171717] rounded-sm shrink-0 ${badgeColor}`}>
-                      {proj.risk_level === 'high' ? 'High' : proj.risk_level === 'medium' ? 'Medium' : 'Low'}
-                    </span>
-                  </div>
-                )
-              })}
+                  )
+                })
+              )}
             </div>
           </div>
 

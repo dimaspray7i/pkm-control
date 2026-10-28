@@ -23,6 +23,7 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Dashboard & Business Analytics
     Route::get('/dashboard', [DashboardController::class, 'index']);
+    Route::get('/search', [DashboardController::class, 'search']);
 
     // AI Analyst (Live LLM + Rule-Based fallback on DB context)
     Route::post('/ai/ask', [AiAnalystController::class, 'ask']);

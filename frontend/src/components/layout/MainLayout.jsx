@@ -7,20 +7,22 @@ export default function MainLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <div className="flex min-h-screen bg-[#F5F1E9] font-body overflow-x-hidden selection:bg-[#FF2F92]/20">
-      {/* Sidebar with Mobile Drawer support */}
+    <div className="flex h-screen w-screen overflow-hidden bg-[#F5F1E9] font-body selection:bg-[#FF2F92]/20">
+      {/* Sidebar with Desktop Sticky & Mobile Drawer support */}
       <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       
-      {/* Main Column */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main Content Column */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        {/* Topbar sticky header */}
         <Topbar onToggleMobile={() => setMobileOpen(!mobileOpen)} />
         
-        <main className="flex-1 px-4 sm:px-6 py-4 md:py-6 overflow-y-auto">
+        {/* Main scrollable body */}
+        <main className="flex-1 overflow-y-auto min-h-0 px-4 sm:px-6 py-4 md:py-6">
           <Outlet />
         </main>
 
         {/* Dashboard Bottom Footer Bar */}
-        <footer className="border-t border-[#171717] bg-[#F5F1E9] px-4 sm:px-6 py-2 flex items-center justify-between text-xs font-bold text-[#171717] select-none">
+        <footer className="shrink-0 border-t border-[#171717] bg-[#F5F1E9] px-4 sm:px-6 py-2 flex items-center justify-between text-xs font-bold text-[#171717] select-none z-20">
           {/* Left: Starburst badge & Slogan */}
           <div className="flex items-center gap-2">
             <div className="w-3.5 h-3.5 text-[#FF2F92]">

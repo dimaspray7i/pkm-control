@@ -4,8 +4,20 @@ import api from '../services/api'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('user')
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
+  
+  const [loading, setLoading] = useState(() => {
+    const token = localStorage.getItem('auth_token')
+    const savedUser = localStorage.getItem('user')
+    return Boolean(token && !savedUser)
+  })
 
   useEffect(() => {
     checkAuth()
@@ -14,6 +26,7 @@ export function AuthProvider({ children }) {
   const checkAuth = async () => {
     const token = localStorage.getItem('auth_token')
     if (!token) {
+      setUser(null)
       setLoading(false)
       return
     }
@@ -21,10 +34,12 @@ export function AuthProvider({ children }) {
     try {
       const response = await api.get('/me')
       setUser(response.data.user)
+      localStorage.setItem('user', JSON.stringify(response.data.user))
     } catch (error) {
       console.error('Auth check failed:', error)
       localStorage.removeItem('auth_token')
       localStorage.removeItem('user')
+      setUser(null)
     } finally {
       setLoading(false)
     }
@@ -58,7 +73,7 @@ export function AuthProvider({ children }) {
   }
 
   const hasAnyRole = (roles) => {
-    return roles.includes(user?.role)
+    return Boolean(roles?.includes(user?.role))
   }
 
   return (

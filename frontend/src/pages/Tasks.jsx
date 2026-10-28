@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import api from '../services/api'
 import { Check, Clock, AlertTriangle, Search, Loader2, RotateCcw, CheckSquare, Filter, Plus, Calendar, Edit3, Trash2, X } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
@@ -17,12 +18,22 @@ export default function Tasks() {
   const [tasks, setTasks]         = useState([])
   const [projects, setProjects]   = useState([])
   const [teamMembers, setTeamMembers] = useState([])
+  const [searchParams] = useSearchParams()
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(null)
-  const [search, setSearch]       = useState('')
-  const [filter, setFilter]       = useState('all') // all | high | medium | low | completed | overdue
-  const [projectFilter, setProjectFilter] = useState('all')
+  const [search, setSearch]       = useState(searchParams.get('search') || '')
+  const [filter, setFilter]       = useState(searchParams.get('filter') || 'all') // all | high | medium | low | completed | overdue
+  const [projectFilter, setProjectFilter] = useState(searchParams.get('project_id') || 'all')
   const [toggling, setToggling]   = useState(null)
+
+  useEffect(() => {
+    const q = searchParams.get('search')
+    const f = searchParams.get('filter')
+    const p = searchParams.get('project_id')
+    if (q !== null) setSearch(q)
+    if (f !== null) setFilter(f)
+    if (p !== null) setProjectFilter(p)
+  }, [searchParams])
 
   // Modals state
   const [isAddOpen, setIsAddOpen]       = useState(false)

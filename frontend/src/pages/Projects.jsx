@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import api from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import {
@@ -27,11 +28,19 @@ export default function Projects() {
   const { user } = useAuth()
   const canManage = user?.role === 'admin' || user?.role === 'project_manager'
 
+  const [searchParams] = useSearchParams()
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
-  const [search, setSearch]   = useState('')
-  const [filter, setFilter]   = useState('all') // all | on_track | at_risk | delayed | completed
+  const [search, setSearch]   = useState(searchParams.get('search') || '')
+  const [filter, setFilter]   = useState(searchParams.get('status') || 'all') // all | on_track | at_risk | delayed | completed
+
+  useEffect(() => {
+    const q = searchParams.get('search')
+    const st = searchParams.get('status')
+    if (q !== null) setSearch(q)
+    if (st !== null) setFilter(st)
+  }, [searchParams])
 
   // Feedback notifications
   const [feedback, setFeedback] = useState(null) // { type: 'success' | 'error', message: string }
