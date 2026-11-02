@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
+import GlobalAiAssistant from '../ai/GlobalAiAssistant'
 
 export default function MainLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -54,6 +55,9 @@ export default function MainLayout() {
           </div>
         </footer>
       </div>
+
+      {/* Global AI Assistant Floating Trigger */}
+      <GlobalAiAssistant />
     </div>
   )
 }

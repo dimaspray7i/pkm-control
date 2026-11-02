@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\MilestoneController;
 use App\Http\Controllers\Api\ProjectController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
 use App\Models\Activity;
@@ -28,6 +29,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // AI Analyst (Live LLM + Rule-Based fallback on DB context)
     Route::post('/ai/ask', [AiAnalystController::class, 'ask']);
     Route::get('/ai/context', [AiAnalystController::class, 'context']);
+
+    // Reports 2.0 (Dynamic Business Intelligence)
+    Route::get('/reports', [ReportController::class, 'index']);
 
     // Project Management (Full CRUD)
     Route::get('/projects', [ProjectController::class, 'index']);

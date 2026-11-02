@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\AiAnalystService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class AiAnalystController extends Controller
@@ -22,18 +23,29 @@ class AiAnalystController extends Controller
     {
         $prompt = $request->input('prompt') ?: $request->input('question');
 
-        if (empty($prompt) || strlen(trim($prompt)) < 3) {
+        if (empty($prompt) || strlen(trim($prompt)) < 2) {
             return response()->json([
                 'success' => false,
-                'message' => 'Pertanyaan atau prompt analisis wajib diisi minimal 3 karakter.',
+                'message' => 'Pertanyaan atau prompt analisis wajib diisi minimal 2 karakter.',
             ], 422);
         }
 
-        $result = $this->aiService->ask($prompt, $request->input('category', 'general'));
+        $category = $request->input('category', 'general');
+        $history = $request->input('history', []);
+        $pageContext = $request->input('page_context');
+        $user = $request->user();
+
+        $result = $this->aiService->ask(
+            $prompt,
+            $category,
+            is_array($history) ? $history : [],
+            $pageContext,
+            $user
+        );
         
-        // Add answer alias and recommendations for frontend compatibility
+        // Backward-compatible fields
         $result['answer'] = $result['reply'] ?? '';
-        $result['timestamp'] = now()->format('H:i, d M Y');
+        $result['timestamp'] = $result['timestamp'] ?? Carbon::now()->format('H:i, d M Y');
 
         return response()->json($result);
     }
