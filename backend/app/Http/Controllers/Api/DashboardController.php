@@ -43,8 +43,8 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        // 4. Recent Activities from DB
-        $recentActivities = Activity::orderBy('created_at', 'desc')->limit(6)->get()->map(function ($act) {
+        // 4. Recent Activities from DB (Max 5 items)
+        $recentActivities = Activity::orderBy('created_at', 'desc')->limit(5)->get()->map(function ($act) {
             return [
                 'id' => $act->id,
                 'user_name' => $act->user_name,
@@ -158,31 +158,47 @@ class DashboardController extends Controller
             ]);
         }
 
-        $projects = Project::where('name', 'like', "%{$query}%")
-            ->orWhere('code', 'like', "%{$query}%")
-            ->orWhere('client', 'like', "%{$query}%")
-            ->limit(6)
-            ->get(['id', 'code', 'name', 'client', 'category', 'status', 'progress']);
+        try {
+            $projects = Project::where('name', 'like', "%{$query}%")
+                ->orWhere('code', 'like', "%{$query}%")
+                ->orWhere('client', 'like', "%{$query}%")
+                ->limit(6)
+                ->get(['id', 'code', 'name', 'client', 'category', 'status', 'progress']);
 
-        $tasks = Task::with('project:id,code,name')
-            ->where('title', 'like', "%{$query}%")
-            ->orWhere('assignee_name', 'like', "%{$query}%")
-            ->limit(6)
-            ->get(['id', 'project_id', 'title', 'priority', 'status', 'is_completed', 'assignee_name', 'deadline']);
+            $tasks = Task::with('project:id,code,name')
+                ->where('title', 'like', "%{$query}%")
+                ->orWhere('assignee_name', 'like', "%{$query}%")
+                ->limit(6)
+                ->get(['id', 'project_id', 'title', 'priority', 'status', 'is_completed', 'assignee_name', 'deadline']);
 
-        $team = User::where('name', 'like', "%{$query}%")
-            ->orWhere('email', 'like', "%{$query}%")
-            ->limit(6)
-            ->get(['id', 'name', 'email', 'role', 'phone', 'is_active']);
+            $user = $request->user();
+            $teamFields = ($user && in_array($user->role, ['admin', 'project_manager', 'pimpinan']))
+                ? ['id', 'name', 'email', 'role', 'phone', 'is_active']
+                : ['id', 'name', 'role'];
 
-        $total = $projects->count() + $tasks->count() + $team->count();
+            $team = User::where('name', 'like', "%{$query}%")
+                ->orWhere('email', 'like', "%{$query}%")
+                ->limit(6)
+                ->get($teamFields);
 
-        return response()->json([
-            'query' => $query,
-            'projects' => $projects,
-            'tasks' => $tasks,
-            'team' => $team,
-            'total' => $total,
-        ]);
+            $total = $projects->count() + $tasks->count() + $team->count();
+
+            return response()->json([
+                'query' => $query,
+                'projects' => $projects,
+                'tasks' => $tasks,
+                'team' => $team,
+                'total' => $total,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'query' => $query,
+                'projects' => [],
+                'tasks' => [],
+                'team' => [],
+                'total' => 0,
+                'error' => 'Gagal memproses pencarian.',
+            ], 500);
+        }
     }
 }

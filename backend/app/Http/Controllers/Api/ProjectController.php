@@ -22,8 +22,12 @@ class ProjectController extends Controller
             $query->where('status', $request->status);
         }
 
-        if ($request->filled('category')) {
+        if ($request->filled('category') && $request->category !== 'all') {
             $query->where('category', $request->category);
+        }
+
+        if ($request->filled('risk_level') && $request->risk_level !== 'all') {
+            $query->where('risk_level', $request->risk_level);
         }
 
         if ($request->filled('search')) {
@@ -62,7 +66,6 @@ class ProjectController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'client' => ['required', 'string', 'max:255'],
             'category' => ['required', 'string', Rule::in(['web', 'mobile', 'system', 'code'])],
-            'progress' => ['nullable', 'integer', 'min:0', 'max:100'],
             'target_progress' => ['nullable', 'integer', 'min:0', 'max:100'],
             'status' => ['nullable', 'string', Rule::in(['on_track', 'at_risk', 'delayed', 'completed'])],
             'risk_level' => ['nullable', 'string', Rule::in(['none', 'low', 'medium', 'high'])],
@@ -83,8 +86,8 @@ class ProjectController extends Controller
                 'name' => trim($validated['name']),
                 'client' => trim($validated['client']),
                 'category' => $validated['category'] ?? 'web',
-                'progress' => $validated['progress'] ?? 0,
-                'target_progress' => $validated['target_progress'] ?? ($validated['progress'] ?? 0),
+                'progress' => 0, // Progres awal selalu 0%, dihitung otomatis saat tugas ditambahkan
+                'target_progress' => $validated['target_progress'] ?? 0,
                 'status' => $validated['status'] ?? 'on_track',
                 'risk_level' => $validated['risk_level'] ?? 'low',
                 'risk_factor' => $validated['risk_factor'] ?? null,
@@ -111,16 +114,53 @@ class ProjectController extends Controller
     }
 
     /**
-     * Tampilkan detail proyek tunggal beserta tugasnya.
+     * Tampilkan detail proyek tunggal beserta tugas, milestone, dan aktivitasnya.
      */
     public function show($id)
     {
-        $project = Project::with(['tasks' => function ($q) {
-            $q->orderBy('created_at', 'desc');
-        }])->findOrFail($id);
+        if (!is_numeric($id)) {
+            return response()->json([
+                'message' => 'Proyek tidak ditemukan (ID tidak valid).',
+            ], 404);
+        }
+
+        $project = Project::with([
+            'tasks' => function ($q) {
+                $q->orderByRaw("FIELD(priority, 'high', 'medium', 'low')")
+                  ->orderBy('created_at', 'desc');
+            },
+            'milestones' => function ($q) {
+                $q->orderBy('phase_order', 'asc');
+            }
+        ])->find($id);
+
+        if (!$project) {
+            return response()->json([
+                'message' => 'Proyek tidak ditemukan.',
+            ], 404);
+        }
+
+        // Sinkronisasi otomatis progres aktual dari tugas terkait
+        $actualProgress = $project->syncProgress();
+        $totalTasks = $project->tasks->count();
+        $completedTasks = $project->tasks->filter(function ($t) {
+            return $t->is_completed || $t->status === 'completed';
+        })->count();
+
+        $project->setAttribute('completed_tasks_count', $completedTasks);
+        $project->setAttribute('total_tasks_count', $totalTasks);
+        $project->setAttribute('actual_progress', $actualProgress);
+
+        $activities = Activity::where('project_name', $project->name)
+            ->orWhere('target_name', $project->name)
+            ->orWhere('action', 'like', "%{$project->code}%")
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
 
         return response()->json([
             'project' => $project,
+            'activities' => $activities,
         ]);
     }
 
@@ -145,7 +185,6 @@ class ProjectController extends Controller
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'client' => ['sometimes', 'required', 'string', 'max:255'],
             'category' => ['sometimes', 'required', 'string', Rule::in(['web', 'mobile', 'system', 'code'])],
-            'progress' => ['nullable', 'integer', 'min:0', 'max:100'],
             'target_progress' => ['nullable', 'integer', 'min:0', 'max:100'],
             'status' => ['nullable', 'string', Rule::in(['on_track', 'at_risk', 'delayed', 'completed'])],
             'risk_level' => ['nullable', 'string', Rule::in(['none', 'low', 'medium', 'high'])],
@@ -165,7 +204,7 @@ class ProjectController extends Controller
                 'name' => isset($validated['name']) ? trim($validated['name']) : $project->name,
                 'client' => isset($validated['client']) ? trim($validated['client']) : $project->client,
                 'category' => $validated['category'] ?? $project->category,
-                'progress' => $validated['progress'] ?? $project->progress,
+                'progress' => $project->calculateActualProgress(), // Progres selalu dihitung otomatis dari data tugas
                 'target_progress' => $validated['target_progress'] ?? $project->target_progress,
                 'status' => $validated['status'] ?? $project->status,
                 'risk_level' => $validated['risk_level'] ?? $project->risk_level,
@@ -206,19 +245,37 @@ class ProjectController extends Controller
             ], 403);
         }
 
-        $project = Project::withCount('tasks')->findOrFail($id);
+        if (!is_numeric($id)) {
+            return response()->json([
+                'message' => 'Proyek tidak ditemukan (ID tidak valid).',
+            ], 404);
+        }
+
+        $project = Project::withCount(['tasks', 'milestones'])->find($id);
+        if (!$project) {
+            return response()->json([
+                'message' => 'Proyek tidak ditemukan.',
+            ], 404);
+        }
+
         $projectName = $project->name;
         $projectCode = $project->code;
         $tasksCount = $project->tasks_count;
+        $milestonesCount = $project->milestones_count;
 
-        DB::transaction(function () use ($project, $user, $projectName, $projectCode, $tasksCount) {
-            // Hapus proyek (tugas di-cascade secara otomatis sesuai FK schema)
+        DB::transaction(function () use ($project, $user, $projectName, $projectCode, $tasksCount, $milestonesCount) {
+            // Hapus proyek (tugas dan milestone di-cascade secara otomatis sesuai FK schema)
             $project->delete();
 
-            // Catat log aktivitas penghapusan
+            // Catat log aktivitas penghapusan dengan rincian data terkait
+            $detailList = [];
+            if ($tasksCount > 0) $detailList[] = "{$tasksCount} tugas";
+            if ($milestonesCount > 0) $detailList[] = "{$milestonesCount} milestone";
+            $suffix = !empty($detailList) ? ' beserta ' . implode(' dan ', $detailList) . ' terkait' : '';
+
             Activity::create([
                 'user_name' => $user->name,
-                'action' => 'menghapus proyek "' . $projectName . '" (' . $projectCode . ')' . ($tasksCount > 0 ? " beserta {$tasksCount} tugas terkait" : ''),
+                'action' => 'menghapus proyek "' . $projectName . '" (' . $projectCode . ')' . $suffix,
                 'target_name' => $projectName,
                 'project_name' => $projectName,
                 'avatar_color' => 'purple',

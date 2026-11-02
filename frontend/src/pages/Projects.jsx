@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom'
 import api from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import {
   Globe, Laptop, Smartphone, Code2,
   AlertTriangle, CheckCircle2, Clock, Search,
   Filter, MoreHorizontal, Loader2, RotateCcw, FolderKanban, Plus, X,
-  Pencil, Trash2, Check, AlertCircle, Calendar
+  Pencil, Trash2, Check, AlertCircle, Calendar, Eye
 } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
 
@@ -27,6 +27,8 @@ const CategoryIcon = ({ cat }) => {
 export default function Projects() {
   const { user } = useAuth()
   const canManage = user?.role === 'admin' || user?.role === 'project_manager'
+  const navigate = useNavigate()
+  const location = useLocation()
 
   const [searchParams] = useSearchParams()
   const [projects, setProjects] = useState([])
@@ -41,6 +43,13 @@ export default function Projects() {
     if (q !== null) setSearch(q)
     if (st !== null) setFilter(st)
   }, [searchParams])
+
+  useEffect(() => {
+    if (location.state?.deletedName) {
+      showNotification('success', `Proyek "${location.state.deletedName}" berhasil dihapus.`)
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state])
 
   // Feedback notifications
   const [feedback, setFeedback] = useState(null) // { type: 'success' | 'error', message: string }
@@ -126,9 +135,9 @@ export default function Projects() {
       const payload = {
         ...formData,
         code: formData.code.trim().toUpperCase(),
-        progress: Number(formData.progress),
-        target_progress: Number(formData.target_progress || formData.progress),
+        target_progress: Number(formData.target_progress || 0),
       }
+      delete payload.progress // Progres selalu dihitung otomatis oleh backend
       const res = await api.post('/projects', payload)
       showNotification('success', res.data.message || 'Proyek baru berhasil ditambahkan!')
       setShowAddModal(false)
@@ -157,9 +166,9 @@ export default function Projects() {
       const payload = {
         ...formData,
         code: formData.code.trim().toUpperCase(),
-        progress: Number(formData.progress),
-        target_progress: Number(formData.target_progress || formData.progress),
+        target_progress: Number(formData.target_progress || 0),
       }
+      delete payload.progress // Progres selalu dihitung otomatis oleh backend
       const res = await api.put(`/projects/${editProject.id}`, payload)
       showNotification('success', res.data.message || 'Data proyek berhasil diperbarui!')
       setEditProject(null)
@@ -340,17 +349,21 @@ export default function Projects() {
                 className="bg-white p-4 border border-[#171717] rounded-lg shadow-[3px_3px_0px_#171717] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_#171717] transition-all flex flex-col justify-between"
               >
                 <div>
-                  {/* Card Top Row */}
-                  <div className="flex items-start justify-between gap-2 mb-2.5">
+                  {/* Card Top Row - Clickable to Detail */}
+                  <div 
+                    onClick={() => navigate(`/projects/${proj.id}`)}
+                    className="flex items-start justify-between gap-2 mb-2.5 cursor-pointer group"
+                    title="Klik untuk membuka detail proyek"
+                  >
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-8 h-8 rounded-md bg-[#FAF7F2] border border-[#171717] flex items-center justify-center text-[#171717] shrink-0">
+                      <div className="w-8 h-8 rounded-md bg-[#FAF7F2] border border-[#171717] flex items-center justify-center text-[#171717] shrink-0 group-hover:bg-[#FFD83D] transition-colors">
                         <CategoryIcon cat={proj.category} />
                       </div>
                       <div className="min-w-0">
                         <span className="text-[9px] font-black tracking-wider uppercase text-[#171717]/60">
                           {proj.code}
                         </span>
-                        <h3 className="font-display text-base leading-tight uppercase text-[#171717] truncate max-w-[190px]" title={proj.name}>
+                        <h3 className="font-display text-base leading-tight uppercase text-[#171717] truncate max-w-[190px] group-hover:text-[#FF2F92] transition-colors" title={proj.name}>
                           {proj.name}
                         </h3>
                       </div>
@@ -385,27 +398,38 @@ export default function Projects() {
                     </div>
                   </div>
 
-                  {/* Action buttons (only for Admin & PM) */}
-                  {canManage && (
-                    <div className="flex items-center justify-end gap-1.5 pt-1">
-                      <button
-                        onClick={() => handleOpenEdit(proj)}
-                        className="px-2 py-1 bg-[#FAF7F2] hover:bg-[#FFD83D] text-[#171717] border border-[#171717] rounded text-[10px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer"
-                        title="Edit Proyek"
-                      >
-                        <Pencil size={11} />
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        onClick={() => setDeleteProject(proj)}
-                        className="px-2 py-1 bg-[#FAF7F2] hover:bg-[#FF2F92] hover:text-white text-[#171717] border border-[#171717] rounded text-[10px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer"
-                        title="Hapus Proyek"
-                      >
-                        <Trash2 size={11} />
-                        <span>Hapus</span>
-                      </button>
-                    </div>
-                  )}
+                  {/* Action buttons (Detail for everyone, Edit & Delete for Admin/PM) */}
+                  <div className="flex items-center justify-between gap-1.5 pt-1">
+                    <button
+                      onClick={() => navigate(`/projects/${proj.id}`)}
+                      className="px-2.5 py-1 bg-white hover:bg-[#FFD83D] text-[#171717] border border-[#171717] rounded text-[10px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer shadow-[1px_1px_0px_#171717]"
+                      title="Lihat Detail Proyek"
+                    >
+                      <Eye size={11} />
+                      <span>Detail</span>
+                    </button>
+
+                    {canManage && (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleOpenEdit(proj)}
+                          className="px-2 py-1 bg-[#FAF7F2] hover:bg-[#FFD83D] text-[#171717] border border-[#171717] rounded text-[10px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer"
+                          title="Edit Proyek"
+                        >
+                          <Pencil size={11} />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={() => setDeleteProject(proj)}
+                          className="px-2 py-1 bg-[#FAF7F2] hover:bg-[#FF2F92] hover:text-white text-[#171717] border border-[#171717] rounded text-[10px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer"
+                          title="Hapus Proyek"
+                        >
+                          <Trash2 size={11} />
+                          <span>Hapus</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )
@@ -528,15 +552,17 @@ export default function Projects() {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Progres Kerja (%)</label>
+                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Target Progres (%)</label>
                   <input 
                     type="number" 
                     min="0"
                     max="100"
-                    value={formData.progress}
-                    onChange={(e) => setFormData({ ...formData, progress: e.target.value })}
+                    value={formData.target_progress}
+                    onChange={(e) => setFormData({ ...formData, target_progress: e.target.value })}
                     className="w-full pkm-input"
+                    placeholder="Contoh: 80"
                   />
+                  <p className="text-[8.5px] text-[#171717]/60 mt-1 font-semibold">Progres awal otomatis 0%.</p>
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Target Deadline</label>
@@ -695,16 +721,27 @@ export default function Projects() {
                 </div>
               </div>
 
+              <div className="p-2.5 bg-[#F5F1E9] border border-[#171717] rounded text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase text-[#171717]">Progres Aktual (Auto)</span>
+                  <span className="font-mono font-black text-sm text-[#FF2F92]">{editProject.progress ?? 0}%</span>
+                </div>
+                <p className="text-[10px] text-[#171717]/70">
+                  Dihitung otomatis dari tugas yang selesai ({editProject.completed_tasks_count ?? 0} dari {editProject.total_tasks_count ?? 0} tugas).
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Progres Kerja (%)</label>
+                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Target Progres (%)</label>
                   <input 
                     type="number" 
                     min="0"
                     max="100"
-                    value={formData.progress}
-                    onChange={(e) => setFormData({ ...formData, progress: e.target.value })}
+                    value={formData.target_progress}
+                    onChange={(e) => setFormData({ ...formData, target_progress: e.target.value })}
                     className="w-full pkm-input"
+                    placeholder="Contoh: 80"
                   />
                 </div>
                 <div>
@@ -767,8 +804,14 @@ export default function Projects() {
               <p>
                 Apakah Anda yakin ingin menghapus proyek <strong className="text-[#171717]">{deleteProject.name}</strong> ({deleteProject.code})?
               </p>
-              <div className="p-3 bg-[#FFD83D]/40 border border-[#171717]/25 rounded text-[11px] text-[#171717]">
-                ⚠️ <strong>Peringatan Relasi Database:</strong> Seluruh tugas (tasks) yang terhubung ke proyek ini akan ikut terhapus secara permanen. Tindakan ini tidak dapat dibatalkan.
+              <div className="p-3 bg-[#FFD83D]/40 border border-[#171717]/25 rounded text-[11px] text-[#171717] space-y-1">
+                <p className="font-black">⚠️ Peringatan Relasi Database:</p>
+                <p>
+                  Seluruh data tugas (tasks) dan tahapan milestone yang terhubung ke proyek ini akan ikut terhapus secara permanen dari basis data.
+                </p>
+                <p className="text-[10px] text-[#171717]/75">
+                  Tindakan ini tidak dapat dibatalkan.
+                </p>
               </div>
             </div>
 

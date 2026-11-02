@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { 
   Bell, 
   Search, 
@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import api from '../../services/api'
+import api, { getValidToken } from '../../services/api'
 
 export default function Topbar({ onToggleMobile }) {
   const { user, logout } = useAuth()
@@ -35,8 +35,10 @@ export default function Topbar({ onToggleMobile }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState(null)
   const [isSearching, setIsSearching] = useState(false)
+  const [searchError, setSearchError] = useState(null)
   const [searchSelectedIndex, setSearchSelectedIndex] = useState(0)
   const searchInputRef = useRef(null)
+  const searchAbortRef = useRef(null)
 
   // Notifications state
   const [activities, setActivities] = useState([])
@@ -45,6 +47,7 @@ export default function Topbar({ onToggleMobile }) {
 
   // Fetch real activities for notification panel
   const fetchNotifications = async () => {
+    if (!getValidToken()) return
     try {
       setLoadingNotifs(true)
       const res = await api.get('/activities')
@@ -123,37 +126,120 @@ export default function Topbar({ onToggleMobile }) {
     }
   }, [isSearchOpen])
 
-  // Debounced search query
+  // Debounced search query dengan pembatalan request lama (AbortController)
   useEffect(() => {
     if (!searchQuery.trim() || searchQuery.length < 2) {
+      if (searchAbortRef.current) {
+        searchAbortRef.current.abort()
+      }
       setSearchResults(null)
       setIsSearching(false)
+      setSearchError(null)
       return
     }
 
+    // Batalkan request pencarian sebelumnya yang masih berjalan
+    if (searchAbortRef.current) {
+      searchAbortRef.current.abort()
+    }
+    const controller = new AbortController()
+    searchAbortRef.current = controller
+
     const timer = setTimeout(async () => {
+      // Check if controller was already aborted before firing
+      if (controller.signal.aborted) return
+
       try {
         setIsSearching(true)
-        const res = await api.get(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
-        setSearchResults(res.data)
+        setSearchError(null)
+        const res = await api.get(`/search?q=${encodeURIComponent(searchQuery.trim())}`, {
+          signal: controller.signal
+        })
+
+        // Don't update state if this request was already superseded
+        if (controller.signal.aborted) return
+
+        // Normalize response: ensure all fields are arrays, handle any API shape
+        const raw = res.data
+        if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+          setSearchResults({
+            query: raw.query || searchQuery.trim(),
+            total: typeof raw.total === 'number' ? raw.total : 0,
+            projects: Array.isArray(raw.projects) ? raw.projects : [],
+            tasks: Array.isArray(raw.tasks) ? raw.tasks : [],
+            team: Array.isArray(raw.team) ? raw.team : [],
+          })
+        } else {
+          // Unexpected response shape — treat as empty
+          setSearchResults({ query: searchQuery.trim(), total: 0, projects: [], tasks: [], team: [] })
+        }
         setSearchSelectedIndex(0)
       } catch (err) {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED' || err.name === 'AbortError') {
+          // Normal abort from AbortController — ignore silently
+          return
+        }
+        // Don't show error if request was aborted
+        if (controller.signal.aborted) return
         console.error('Search error:', err)
+        if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+          setSearchError('Pencarian melebihi batas waktu. Periksa koneksi atau coba lagi.')
+        } else {
+          setSearchError('Gagal memuat hasil pencarian dari server.')
+        }
       } finally {
-        setIsSearching(false)
+        if (!controller.signal.aborted) {
+          setIsSearching(false)
+        }
       }
-    }, 250)
+    }, 300)
 
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      if (searchAbortRef.current) {
+        searchAbortRef.current.abort()
+      }
+    }
   }, [searchQuery])
 
-  // Flattened search items for keyboard up/down selection
-  const flatSearchItems = []
-  if (searchResults) {
-    (searchResults.projects || []).forEach(p => flatSearchItems.push({ type: 'project', data: p }))
-    (searchResults.tasks || []).forEach(t => flatSearchItems.push({ type: 'task', data: t }))
-    (searchResults.team || []).forEach(u => flatSearchItems.push({ type: 'team', data: u }))
+  // Helper to safely extract an array from any API shape (direct array, paginator .data, or indexed object)
+  const extractArray = (val) => {
+    if (!val) return []
+    if (Array.isArray(val)) return val
+    if (typeof val === 'object') {
+      if (Array.isArray(val.data)) return val.data
+      const values = Object.values(val)
+      if (values.length > 0 && typeof values[0] === 'object') return values
+    }
+    return []
   }
+
+  // Normalize search results: ensure all categories are always arrays
+  const normalizeSearchResults = (raw) => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+    const projects = extractArray(raw.projects)
+    const tasks = extractArray(raw.tasks)
+    const team = extractArray(raw.team)
+    const total = typeof raw.total === 'number' ? raw.total : (projects.length + tasks.length + team.length)
+    return {
+      query: raw.query || '',
+      total,
+      projects,
+      tasks,
+      team,
+    }
+  }
+
+  // Flattened search items for keyboard up/down selection — always safe arrays
+  const normalizedResults = useMemo(() => normalizeSearchResults(searchResults), [searchResults])
+  const flatSearchItems = useMemo(() => {
+    if (!normalizedResults) return []
+    const items = []
+    normalizedResults.projects.forEach(p => items.push({ type: 'project', data: p }))
+    normalizedResults.tasks.forEach(t => items.push({ type: 'task', data: t }))
+    normalizedResults.team.forEach(u => items.push({ type: 'team', data: u }))
+    return items
+  }, [normalizedResults])
 
   const handleSearchKeyDown = (e) => {
     if (flatSearchItems.length === 0) return
@@ -175,7 +261,7 @@ export default function Topbar({ onToggleMobile }) {
     setIsSearchOpen(false)
     setSearchQuery('')
     if (item.type === 'project') {
-      navigate(`/projects?search=${encodeURIComponent(item.data.name)}`)
+      navigate(`/projects/${item.data.id}`)
     } else if (item.type === 'task') {
       navigate(`/tasks?search=${encodeURIComponent(item.data.title)}`)
     } else if (item.type === 'team') {
@@ -446,21 +532,37 @@ export default function Topbar({ onToggleMobile }) {
                   <Loader2 size={24} className="animate-spin text-[#FF2F92]" />
                   <span>Mencari di database MySQL...</span>
                 </div>
-              ) : searchResults && searchResults.total === 0 ? (
+              ) : searchError ? (
+                <div className="py-8 px-4 text-center space-y-3">
+                  <div className="p-3 bg-[#FFD83D] border border-[#171717] rounded-md shadow-[2px_2px_0px_#171717] max-w-md mx-auto text-xs font-bold text-[#171717]">
+                    <p>{searchError}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const q = searchQuery;
+                      setSearchQuery('');
+                      setTimeout(() => setSearchQuery(q), 50);
+                    }}
+                    className="px-3 py-1 bg-[#171717] text-white text-[10px] font-black uppercase rounded hover:bg-[#333] cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    Coba Lagi
+                  </button>
+                </div>
+              ) : normalizedResults && normalizedResults.total === 0 ? (
                 <div className="py-8 text-center text-xs font-semibold text-[#171717]/60">
                   <p className="font-display text-sm uppercase text-[#171717]">Tidak Ada Hasil</p>
                   <p className="mt-1">Tidak ditemukan data yang cocok dengan "{searchQuery}".</p>
                 </div>
-              ) : searchResults ? (
+              ) : normalizedResults ? (
                 <div className="space-y-3">
                   {/* Proyek Results */}
-                  {searchResults.projects && searchResults.projects.length > 0 && (
+                  {normalizedResults.projects.length > 0 && (
                     <div>
                       <p className="text-[10px] font-black uppercase text-[#171717]/60 tracking-wider mb-1.5 flex items-center gap-1.5">
-                        <FolderKanban size={13} className="text-[#FF2F92]" /> Proyek Bisnis ({searchResults.projects.length})
+                        <FolderKanban size={13} className="text-[#FF2F92]" /> Proyek Bisnis ({normalizedResults.projects.length})
                       </p>
                       <div className="space-y-1">
-                        {searchResults.projects.map((p) => {
+                        {normalizedResults.projects.map((p) => {
                           const itemIndex = flatSearchItems.findIndex(it => it.type === 'project' && it.data.id === p.id)
                           const isSelected = itemIndex === searchSelectedIndex
 
@@ -477,7 +579,7 @@ export default function Topbar({ onToggleMobile }) {
                               <div className="min-w-0 flex-1">
                                 <p className="font-black text-xs truncate leading-tight">{p.name}</p>
                                 <p className={`text-[10px] truncate mt-0.5 ${isSelected ? 'text-white/80' : 'text-[#171717]/60'}`}>
-                                  {p.code} • Klien: {p.client} • Progres: {p.progress}%
+                                  {p.code} • Klien: {p.client} • Progres: {p.progress ?? 0}%
                                 </p>
                               </div>
                               <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${
@@ -493,13 +595,13 @@ export default function Topbar({ onToggleMobile }) {
                   )}
 
                   {/* Tugas Results */}
-                  {searchResults.tasks && searchResults.tasks.length > 0 && (
+                  {normalizedResults.tasks.length > 0 && (
                     <div>
                       <p className="text-[10px] font-black uppercase text-[#171717]/60 tracking-wider mb-1.5 flex items-center gap-1.5">
-                        <CheckSquare size={13} className="text-[#B8A0F0]" /> Tugas Operasional ({searchResults.tasks.length})
+                        <CheckSquare size={13} className="text-[#B8A0F0]" /> Tugas Operasional ({normalizedResults.tasks.length})
                       </p>
                       <div className="space-y-1">
-                        {searchResults.tasks.map((t) => {
+                        {normalizedResults.tasks.map((t) => {
                           const itemIndex = flatSearchItems.findIndex(it => it.type === 'task' && it.data.id === t.id)
                           const isSelected = itemIndex === searchSelectedIndex
 
@@ -534,13 +636,13 @@ export default function Topbar({ onToggleMobile }) {
                   )}
 
                   {/* Tim Results */}
-                  {searchResults.team && searchResults.team.length > 0 && (
+                  {normalizedResults.team.length > 0 && (
                     <div>
                       <p className="text-[10px] font-black uppercase text-[#171717]/60 tracking-wider mb-1.5 flex items-center gap-1.5">
-                        <Users size={13} className="text-[#FFD83D]" /> Anggota Tim ({searchResults.team.length})
+                        <Users size={13} className="text-[#FFD83D]" /> Anggota Tim ({normalizedResults.team.length})
                       </p>
                       <div className="space-y-1">
-                        {searchResults.team.map((u) => {
+                        {normalizedResults.team.map((u) => {
                           const itemIndex = flatSearchItems.findIndex(it => it.type === 'team' && it.data.id === u.id)
                           const isSelected = itemIndex === searchSelectedIndex
 
@@ -557,7 +659,7 @@ export default function Topbar({ onToggleMobile }) {
                               <div className="min-w-0 flex-1">
                                 <p className="font-black text-xs truncate leading-tight">{u.name}</p>
                                 <p className={`text-[10px] truncate mt-0.5 ${isSelected ? 'text-white/80' : 'text-[#171717]/60'}`}>
-                                  {u.email} • {u.phone || 'No Phone'}
+                                  {u.email} {u.phone ? `• ${u.phone}` : ''}
                                 </p>
                               </div>
                               <span className={`text-[8.5px] font-black uppercase px-2 py-0.5 rounded border ${

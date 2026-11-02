@@ -31,4 +31,22 @@ class Task extends Model
     {
         return $this->belongsTo(Project::class);
     }
+
+    /**
+     * Booted model hooks untuk otomatis menghitung ulang progres proyek.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (Task $task) {
+            if ($task->project_id) {
+                Project::recalculateProgressFor($task->project_id);
+            }
+        });
+
+        static::deleted(function (Task $task) {
+            if ($task->project_id) {
+                Project::recalculateProgressFor($task->project_id);
+            }
+        });
+    }
 }

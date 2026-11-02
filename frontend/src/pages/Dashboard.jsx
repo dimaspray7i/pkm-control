@@ -51,6 +51,7 @@ export default function Dashboard() {
   const [aiMode, setAiMode] = useState(null) // null | 'Rule-Based Engine' | 'LLM Eksternal'
 
   const aiChatBottomRef = useRef(null)
+  const abortControllerRef = useRef(null)
 
   // Quick suggestion prompts matching reference
   const SUGGESTION_PROMPTS = [
@@ -62,31 +63,57 @@ export default function Dashboard() {
 
   // Fetch Dashboard data from Backend API
   const fetchDashboardData = async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     try {
       setLoading(true)
+      setError(null)
       const [dashRes, aiCtxRes] = await Promise.allSettled([
-        api.get('/dashboard'),
-        api.get('/ai/context'),
+        api.get('/dashboard', { signal: controller.signal }),
+        api.get('/ai/context', { signal: controller.signal }),
       ])
+
+      if (controller.signal.aborted) return
+
       if (dashRes.status === 'fulfilled') {
         setData(dashRes.value.data)
         setError(null)
       } else {
-        throw dashRes.reason
+        const err = dashRes.reason
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return
+        throw err
       }
+
       if (aiCtxRes.status === 'fulfilled') {
-        setAiMode(aiCtxRes.value.data.mode || null)
+        setAiMode(aiCtxRes.value.data?.mode || null)
       }
     } catch (err) {
+      if (controller.signal.aborted) return
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return
       console.error('Failed to fetch dashboard data:', err)
-      setError('Gagal memuat data dari server backend Laravel.')
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('Batas waktu request ke server terlampaui (Timeout). Silakan periksa koneksi atau klik Coba Lagi.')
+      } else {
+        setError(err.response?.data?.message || 'Gagal memuat data dari server backend Laravel.')
+      }
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) {
+        setLoading(false)
+      }
     }
   }
 
   useEffect(() => {
     fetchDashboardData()
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
   }, [])
 
   // Toggle Task Completion (Real interaction with backend)
@@ -449,31 +476,38 @@ export default function Dashboard() {
           </div>
 
           {/* ROW: 3 MODULAR COLUMNS */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
             
             {/* Col 1: Proyek Terbaru */}
-            <div className="bg-white p-3 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717] flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between border-b border-[#171717]/10 pb-1.5 mb-2">
-                  <h3 className="font-display text-xs uppercase text-[#171717]">PROYEK TERBARU</h3>
-                  <button 
-                    onClick={() => navigate('/projects')}
-                    className="text-[9px] font-bold text-[#171717]/70 hover:text-[#FF2F92] cursor-pointer"
-                  >
-                    Lihat Semua →
-                  </button>
-                </div>
+            <div className="bg-white p-3 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717]">
+              <div className="flex items-center justify-between border-b border-[#171717]/10 pb-1.5 mb-2">
+                <h3 className="font-display text-xs uppercase text-[#171717]">PROYEK TERBARU</h3>
+                <button 
+                  onClick={() => navigate('/projects')}
+                  className="text-[9px] font-bold text-[#171717]/70 hover:text-[#FF2F92] cursor-pointer"
+                >
+                  Lihat Semua →
+                </button>
+              </div>
 
+              {latestProjects.length === 0 ? (
+                <div className="py-6 text-center">
+                  <p className="text-[10px] font-bold text-[#171717]/50">Belum ada proyek aktif.</p>
+                  <button onClick={() => navigate('/projects')} className="mt-2 text-[9px] font-black text-[#FF2F92] hover:underline">+ Buat Proyek Baru</button>
+                </div>
+              ) : (
                 <div className="space-y-2">
-                  {latestProjects.map((proj) => {
+                  {latestProjects.slice(0, 4).map((proj) => {
                     const statusColor = 
                       proj.status === 'on_track' ? 'bg-[#10B981] text-white' :
                       proj.status === 'at_risk' ? 'bg-[#FFD83D] text-[#171717]' :
+                      proj.status === 'completed' ? 'bg-[#B8A0F0] text-[#171717]' :
                       'bg-[#FF2F92] text-white'
                     
                     const statusLabel = 
                       proj.status === 'on_track' ? 'On Track' :
-                      proj.status === 'at_risk' ? 'At Risk' : 'Delayed'
+                      proj.status === 'at_risk' ? 'At Risk' :
+                      proj.status === 'completed' ? 'Selesai' : 'Delayed'
 
                     const IconComp = 
                       proj.category === 'mobile' ? Smartphone :
@@ -483,17 +517,17 @@ export default function Dashboard() {
                     return (
                       <div 
                         key={proj.id} 
-                        onClick={() => navigate(`/projects?search=${encodeURIComponent(proj.name)}`)}
+                        onClick={() => navigate(`/projects/${proj.id}`)}
                         className="p-1.5 border border-neutral-200 rounded bg-[#FAF7F2] hover:bg-[#FFF0F8] hover:border-[#FF2F92]/50 cursor-pointer transition-all"
-                        title="Klik untuk membuka detail proyek"
+                        title={proj.name}
                       >
                         <div className="flex items-start justify-between gap-1.5">
-                          <div className="flex items-center gap-1.5 min-w-0">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
                             <div className="w-5 h-5 bg-white border border-[#171717] rounded flex items-center justify-center text-[#171717] shrink-0">
                               <IconComp size={11} />
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-[10px] font-black text-[#171717] leading-tight truncate">{proj.name}</p>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[10px] font-black text-[#171717] leading-tight truncate" title={proj.name}>{proj.name}</p>
                               <p className="text-[8px] font-semibold text-[#171717]/60 truncate">{proj.code} • {proj.client}</p>
                             </div>
                           </div>
@@ -502,12 +536,12 @@ export default function Dashboard() {
                         <div className="mt-1 flex items-center justify-between gap-1.5">
                           <div className="flex-1 bg-neutral-200 h-1.5 rounded-full overflow-hidden">
                             <div 
-                              className={`h-full ${proj.status === 'on_track' ? 'bg-[#10B981]' : proj.status === 'at_risk' ? 'bg-[#FBBF24]' : 'bg-[#FF2F92]'}`}
-                              style={{ width: `${proj.progress}%` }}
+                              className={`h-full ${proj.status === 'on_track' ? 'bg-[#10B981]' : proj.status === 'at_risk' ? 'bg-[#FBBF24]' : proj.status === 'completed' ? 'bg-[#B8A0F0]' : 'bg-[#FF2F92]'}`}
+                              style={{ width: `${proj.progress ?? 0}%` }}
                             ></div>
                           </div>
-                          <span className="text-[8px] font-black">{proj.progress}%</span>
-                          <span className={`text-[7.5px] font-black px-1 py-0.2 border border-[#171717] rounded-sm ${statusColor}`}>
+                          <span className="text-[8px] font-black shrink-0">{proj.progress ?? 0}%</span>
+                          <span className={`text-[7.5px] font-black px-1 py-0.5 border border-[#171717] rounded-sm shrink-0 ${statusColor}`}>
                             {statusLabel}
                           </span>
                         </div>
@@ -515,22 +549,27 @@ export default function Dashboard() {
                     )
                   })}
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Col 2: Tugas Prioritas */}
-            <div className="bg-white p-3 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717] flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between border-b border-[#171717]/10 pb-1.5 mb-2">
-                  <h3 className="font-display text-xs uppercase text-[#171717]">TUGAS PRIORITAS</h3>
-                  <button 
-                    onClick={() => navigate('/tasks')}
-                    className="text-[9px] font-bold text-[#171717]/70 hover:text-[#FF2F92] cursor-pointer"
-                  >
-                    Lihat Semua →
-                  </button>
-                </div>
+            <div className="bg-white p-3 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717]">
+              <div className="flex items-center justify-between border-b border-[#171717]/10 pb-1.5 mb-2">
+                <h3 className="font-display text-xs uppercase text-[#171717]">TUGAS PRIORITAS</h3>
+                <button 
+                  onClick={() => navigate('/tasks')}
+                  className="text-[9px] font-bold text-[#171717]/70 hover:text-[#FF2F92] cursor-pointer"
+                >
+                  Lihat Semua →
+                </button>
+              </div>
 
+              {priorityTasks.length === 0 ? (
+                <div className="py-6 text-center">
+                  <p className="text-[10px] font-bold text-[#171717]/50">Tidak ada tugas tertunda.</p>
+                  <button onClick={() => navigate('/tasks')} className="mt-2 text-[9px] font-black text-[#FF2F92] hover:underline">Kelola Tugas</button>
+                </div>
+              ) : (
                 <div className="space-y-1.5">
                   {priorityTasks.slice(0, 5).map((task) => {
                     const priorityBadge = 
@@ -545,10 +584,10 @@ export default function Dashboard() {
                           task.is_completed ? 'bg-neutral-100 opacity-60' : 'bg-white hover:bg-[#FAF7F2]'
                         }`}
                       >
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-start gap-1.5">
                           <button
                             onClick={(e) => handleToggleTask(task.id, e)}
-                            className={`w-3.5 h-3.5 border border-[#171717] rounded-sm flex items-center justify-center shrink-0 cursor-pointer ${
+                            className={`w-3.5 h-3.5 border border-[#171717] rounded-sm flex items-center justify-center shrink-0 cursor-pointer mt-0.5 ${
                               task.is_completed ? 'bg-[#10B981] text-white' : 'bg-white hover:bg-[#FFD83D]'
                             }`}
                             title={task.is_completed ? "Tandai belum selesai" : "Tandai selesai"}
@@ -559,45 +598,51 @@ export default function Dashboard() {
                           <div 
                             className="flex-1 min-w-0 cursor-pointer"
                             onClick={() => navigate(`/tasks?search=${encodeURIComponent(task.title)}`)}
-                            title="Buka detail tugas di halaman Tugas"
+                            title={task.title}
                           >
                             <p className={`text-[10px] font-bold text-[#171717] truncate leading-tight ${task.is_completed ? 'line-through text-[#171717]/40' : ''}`}>
                               {task.title}
                             </p>
-                            <p className="text-[7.5px] font-semibold text-[#171717]/55 truncate">
-                              {task.project?.name || 'PKM'} • PIC: {task.assignee_name || '-'}
+                            <p className="text-[8px] font-semibold text-[#171717]/55 truncate">
+                              {task.project?.name || 'PKM'} • {task.assignee_name || 'Belum Ditugaskan'}
                             </p>
                           </div>
 
-                          <div className="flex items-center gap-1 shrink-0">
-                            <span className={`text-[7px] font-black uppercase px-1 py-0.2 border border-[#171717] rounded-sm ${priorityBadge}`}>
+                          <div className="flex flex-col items-end gap-0.5 shrink-0">
+                            <span className={`text-[7px] font-black uppercase px-1 py-0.5 border border-[#171717] rounded-sm ${priorityBadge}`}>
                               {task.priority}
                             </span>
-                            <span className="text-[7.5px] font-bold text-[#171717]/60">
-                              {task.deadline ? new Date(task.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '—'}
-                            </span>
+                            {task.deadline && (
+                              <span className="text-[7.5px] font-bold text-[#171717]/60">
+                                {new Date(task.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
                     )
                   })}
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Col 3: Aktivitas Terbaru */}
-            <div className="bg-white p-3 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717] flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between border-b border-[#171717]/10 pb-1.5 mb-2">
-                  <h3 className="font-display text-xs uppercase text-[#171717]">AKTIVITAS TERBARU</h3>
-                  <button 
-                    onClick={() => navigate('/reports')}
-                    className="text-[9px] font-bold text-[#171717]/70 hover:text-[#FF2F92] cursor-pointer"
-                  >
-                    Lihat Semua →
-                  </button>
-                </div>
+            <div className="bg-white p-3 border border-[#171717] rounded-md shadow-[3px_3px_0px_#171717]">
+              <div className="flex items-center justify-between border-b border-[#171717]/10 pb-1.5 mb-2">
+                <h3 className="font-display text-xs uppercase text-[#171717]">AKTIVITAS TERBARU</h3>
+                <button 
+                  onClick={() => navigate('/reports')}
+                  className="text-[9px] font-bold text-[#171717]/70 hover:text-[#FF2F92] cursor-pointer"
+                >
+                  Lihat Semua →
+                </button>
+              </div>
 
+              {recentActivities.length === 0 ? (
+                <div className="py-6 text-center">
+                  <p className="text-[10px] font-bold text-[#171717]/50">Belum ada aktivitas tercatat hari ini.</p>
+                </div>
+              ) : (
                 <div className="space-y-2">
                   {recentActivities.slice(0, 5).map((act, index) => {
                     const avatarPalette = [
@@ -608,27 +653,28 @@ export default function Dashboard() {
                       'bg-[#FFB3D1] text-[#171717]'
                     ]
                     const avatarBg = avatarPalette[index % avatarPalette.length]
+                    const initial = (act.user_name || '?').charAt(0).toUpperCase()
 
                     return (
                       <div key={act.id} className="flex items-start gap-1.5">
                         <div className={`w-5 h-5 rounded-full ${avatarBg} border border-[#171717] flex items-center justify-center text-[8.5px] font-black shrink-0 mt-0.5`}>
-                          {act.user_name.charAt(0)}
+                          {initial}
                         </div>
 
                         <div className="flex-1 min-w-0">
                           <p className="text-[9.5px] text-[#171717] leading-tight">
-                            <strong className="font-bold">{act.user_name}</strong>{' '}
-                            <span className="text-[#171717]/75">{act.action}</span>
+                            <strong className="font-bold">{act.user_name || 'Sistem'}</strong>{' '}
+                            <span className="text-[#171717]/75 line-clamp-1">{act.action}</span>
                           </p>
-                          <p className="text-[7.5px] font-semibold text-[#171717]/50 mt-0.5">
-                            {act.project_name ? `${act.project_name} • ` : ''}{act.time_ago}
+                          <p className="text-[7.5px] font-semibold text-[#171717]/50 mt-0.5 truncate">
+                            {act.project_name ? `${act.project_name} • ` : ''}{act.time_ago || 'Baru saja'}
                           </p>
                         </div>
                       </div>
                     )
                   })}
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -822,9 +868,9 @@ export default function Dashboard() {
                   return (
                     <div 
                       key={proj.id}
-                      onClick={() => navigate(`/projects?search=${encodeURIComponent(proj.name)}`)}
+                      onClick={() => navigate(`/projects/${proj.id}`)}
                       className="p-2 border border-neutral-200 rounded bg-[#FAF7F2] hover:bg-[#FFF0F8] hover:border-[#FF2F92]/50 flex items-center justify-between gap-2 cursor-pointer transition-all"
-                      title="Buka proyek di halaman Manajemen Proyek"
+                      title="Buka detail proyek"
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <div className={`w-5 h-5 rounded-full ${badgeColor} border border-[#171717] flex items-center justify-center shrink-0`}>

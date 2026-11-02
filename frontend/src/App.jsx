@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ui/ProtectedRoute'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Projects from './pages/Projects'
+import ProjectDetail from './pages/ProjectDetail'
 import Tasks from './pages/Tasks'
 import Development from './pages/Development'
 import AIAnalyst from './pages/AiAnalyst'
@@ -30,6 +31,7 @@ function AppRoutes() {
       >
         <Route index element={<Dashboard />} />
         <Route path="projects" element={<Projects />} />
+        <Route path="projects/:id" element={<ProjectDetail />} />
         <Route path="tasks" element={<Tasks />} />
         <Route path="development" element={<Development />} />
         <Route 

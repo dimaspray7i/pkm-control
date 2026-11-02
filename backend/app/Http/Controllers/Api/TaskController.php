@@ -261,23 +261,45 @@ class TaskController extends Controller
     public function toggle(Request $request, $id)
     {
         $user = $request->user();
+
+        // RBAC: Pimpinan hanya memiliki akses pemantauan (view-only)
+        if ($user && $user->role === 'pimpinan') {
+            return response()->json([
+                'message' => 'Pimpinan hanya memiliki hak akses pemantauan (view-only).',
+            ], 403);
+        }
+
         $task = Task::with('project')->findOrFail($id);
+
+        // RBAC: Member (karyawan) hanya dapat mengubah status tugas yang ditugaskan kepadanya
+        if ($user && $user->role === 'member' && !empty($task->assignee_name)) {
+            $userLower = strtolower(trim($user->name));
+            $assigneeLower = strtolower(trim($task->assignee_name));
+            if (strpos($userLower, $assigneeLower) === false && strpos($assigneeLower, $userLower) === false) {
+                return response()->json([
+                    'message' => 'Anda hanya berhak memperbarui status tugas yang ditugaskan kepada Anda (' . $task->assignee_name . ').',
+                ], 403);
+            }
+        }
 
         $task->is_completed = !$task->is_completed;
         $task->status = $task->is_completed ? 'completed' : 'pending';
         $task->save();
 
         Activity::create([
-            'user_name' => $user ? $user->name : 'Budi Santoso',
+            'user_name' => $user ? $user->name : 'Sistem PKM',
             'action' => $task->is_completed ? 'menyelesaikan tugas "' . $task->title . '"' : 'membuka kembali tugas "' . $task->title . '"',
             'target_name' => $task->title,
             'project_name' => $task->project ? $task->project->name : null,
             'avatar_color' => 'yellow',
         ]);
 
+        $projectProgress = $task->project ? $task->project->calculateActualProgress() : 0;
+
         return response()->json([
             'message' => 'Status tugas berhasil diperbarui.',
             'task' => $task,
+            'project_progress' => $projectProgress,
         ]);
     }
 }
