@@ -25,15 +25,19 @@ class UserController extends Controller
         }
 
         if ($request->has('is_active') && $request->is_active !== 'all') {
-            $query->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN));
+            $query->where(
+                'is_active',
+                filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)
+            );
         }
 
         if ($request->filled('search')) {
             $search = $request->search;
+
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%");
             });
         }
 
@@ -51,6 +55,7 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $currentUser = $request->user();
+
         if ($currentUser && $currentUser->role !== 'admin') {
             return response()->json([
                 'success' => false,
@@ -61,7 +66,10 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
-            'role' => ['required', Rule::in(['admin', 'pimpinan', 'project_manager', 'member'])],
+            'role' => [
+                'required',
+                Rule::in(['admin', 'pimpinan', 'project_manager', 'member']),
+            ],
             'phone' => 'nullable|string|max:30',
             'password' => 'required|string|min:6',
             'is_active' => 'boolean',
@@ -108,6 +116,7 @@ class UserController extends Controller
     public function show($id)
     {
         $user = User::findOrFail($id);
+
         return response()->json([
             'user' => $user,
         ]);
@@ -119,6 +128,7 @@ class UserController extends Controller
     public function update(Request $request, $id)
     {
         $currentUser = $request->user();
+
         if ($currentUser && $currentUser->role !== 'admin') {
             return response()->json([
                 'success' => false,
@@ -130,8 +140,18 @@ class UserController extends Controller
 
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
-            'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
-            'role' => ['sometimes', 'required', Rule::in(['admin', 'pimpinan', 'project_manager', 'member'])],
+            'email' => [
+                'sometimes',
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users')->ignore($user->id),
+            ],
+            'role' => [
+                'sometimes',
+                'required',
+                Rule::in(['admin', 'pimpinan', 'project_manager', 'member']),
+            ],
             'phone' => 'nullable|string|max:30',
             'password' => 'nullable|string|min:6',
             'is_active' => 'sometimes|boolean',
@@ -145,8 +165,12 @@ class UserController extends Controller
                 'name' => $validated['name'] ?? $user->name,
                 'email' => $validated['email'] ?? $user->email,
                 'role' => $validated['role'] ?? $user->role,
-                'phone' => array_key_exists('phone', $validated) ? $validated['phone'] : $user->phone,
-                'is_active' => array_key_exists('is_active', $validated) ? $validated['is_active'] : $user->is_active,
+                'phone' => array_key_exists('phone', $validated)
+                    ? $validated['phone']
+                    : $user->phone,
+                'is_active' => array_key_exists('is_active', $validated)
+                    ? $validated['is_active']
+                    : $user->is_active,
             ];
 
             if (!empty($validated['password'])) {
@@ -177,6 +201,7 @@ class UserController extends Controller
     public function destroy(Request $request, $id)
     {
         $currentUser = $request->user();
+
         if ($currentUser && $currentUser->role !== 'admin') {
             return response()->json([
                 'success' => false,
@@ -214,36 +239,62 @@ class UserController extends Controller
     }
 
     /**
-     * Team directory endpoint with aggregated task workload.
+     * Team directory endpoint with optimized aggregated task workload.
      */
     public function team()
     {
-        $users = User::where('is_active', true)->get();
+        $today = now()->toDateString();
 
-        $teamData = $users->map(function ($u) {
-            // Count tasks assigned to this user's name
-            $totalTasks = Task::where('assignee_name', $u->name)->count();
-            $completedTasks = Task::where('assignee_name', $u->name)->where('is_completed', true)->count();
+        $users = User::where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        // Aggregate task statistics in one database query.
+        $taskStats = Task::query()
+            ->select('assignee_name')
+            ->selectRaw('COUNT(*) AS total_tasks')
+            ->selectRaw(
+                'SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END) AS completed_tasks'
+            )
+            ->selectRaw(
+                'SUM(
+                    CASE
+                        WHEN is_completed = 0
+                        AND deadline IS NOT NULL
+                        AND deadline < ?
+                        THEN 1
+                        ELSE 0
+                    END
+                ) AS overdue_tasks',
+                [$today]
+            )
+            ->groupBy('assignee_name')
+            ->get()
+            ->keyBy('assignee_name');
+
+        $teamData = $users->map(function ($user) use ($taskStats) {
+            $stats = $taskStats->get($user->name);
+
+            $totalTasks = (int) ($stats->total_tasks ?? 0);
+            $completedTasks = (int) ($stats->completed_tasks ?? 0);
+            $overdueTasks = (int) ($stats->overdue_tasks ?? 0);
             $pendingTasks = $totalTasks - $completedTasks;
-            $overdueTasks = Task::where('assignee_name', $u->name)
-                ->where('is_completed', false)
-                ->whereNotNull('deadline')
-                ->where('deadline', '<', now()->toDateString())
-                ->count();
 
             return [
-                'id' => $u->id,
-                'name' => $u->name,
-                'email' => $u->email,
-                'role' => $u->role,
-                'phone' => $u->phone ?? '-',
-                'status' => $u->is_active ? 'active' : 'inactive',
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'phone' => $user->phone ?? '-',
+                'status' => $user->is_active ? 'active' : 'inactive',
                 'stats' => [
                     'total_tasks' => $totalTasks,
                     'completed_tasks' => $completedTasks,
                     'pending_tasks' => $pendingTasks,
                     'overdue_tasks' => $overdueTasks,
-                    'completion_rate' => $totalTasks > 0 ? (int) round(($completedTasks / $totalTasks) * 100) : 100,
+                    'completion_rate' => $totalTasks > 0
+                        ? (int) round(($completedTasks / $totalTasks) * 100)
+                        : 100,
                 ],
             ];
         });
@@ -273,12 +324,17 @@ class UserController extends Controller
         ]);
 
         if (!empty($validated['new_password'])) {
-            if (empty($validated['current_password']) || !Hash::check($validated['current_password'], $user->password)) {
+            if (
+                empty($validated['current_password']) ||
+                !Hash::check($validated['current_password'], $user->password)
+            ) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Password saat ini salah.',
                     'errors' => [
-                        'current_password' => ['Password saat ini yang Anda masukkan salah.'],
+                        'current_password' => [
+                            'Password saat ini yang Anda masukkan salah.',
+                        ],
                     ],
                 ], 422);
             }
@@ -287,9 +343,11 @@ class UserController extends Controller
         }
 
         $user->name = $validated['name'];
+
         if (array_key_exists('phone', $validated)) {
             $user->phone = $validated['phone'];
         }
+
         $user->save();
 
         Activity::create([
