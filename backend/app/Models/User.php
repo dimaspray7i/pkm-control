@@ -35,6 +35,16 @@ class User extends Authenticatable
         ];
     }
 
+    public function projects()
+    {
+        return $this->hasMany(Project::class, 'pic_id');
+    }
+
+    public function tasks()
+    {
+        return $this->hasMany(Task::class, 'assignee_id');
+    }
+
     // Helper untuk cek role
     public function isAdmin(): bool
     {

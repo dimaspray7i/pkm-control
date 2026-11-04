@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Activity;
+use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -239,46 +240,64 @@ class UserController extends Controller
     }
 
     /**
-     * Team directory endpoint with optimized aggregated task workload.
+     * Team directory endpoint with search, filters, sorting, and aggregated workload.
      */
-    public function team()
+    public function team(Request $request)
     {
         $today = now()->toDateString();
 
-        $users = User::where('is_active', true)
-            ->orderBy('name')
-            ->get();
+        $query = User::query();
 
-        // Aggregate task statistics in one database query.
-        $taskStats = Task::query()
-            ->select('assignee_name')
-            ->selectRaw('COUNT(*) AS total_tasks')
-            ->selectRaw(
-                'SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END) AS completed_tasks'
-            )
-            ->selectRaw(
-                'SUM(
-                    CASE
-                        WHEN is_completed = 0
-                        AND deadline IS NOT NULL
-                        AND deadline < ?
-                        THEN 1
-                        ELSE 0
-                    END
-                ) AS overdue_tasks',
-                [$today]
-            )
-            ->groupBy('assignee_name')
-            ->get()
-            ->keyBy('assignee_name');
+        // Filter status
+        if ($request->has('status') && $request->status !== 'all') {
+            $isActive = $request->status === 'active' || filter_var($request->status, FILTER_VALIDATE_BOOLEAN);
+            $query->where('is_active', $isActive);
+        }
 
-        $teamData = $users->map(function ($user) use ($taskStats) {
-            $stats = $taskStats->get($user->name);
+        // Filter role
+        if ($request->filled('role') && $request->role !== 'all') {
+            $query->where('role', $request->role);
+        }
 
-            $totalTasks = (int) ($stats->total_tasks ?? 0);
-            $completedTasks = (int) ($stats->completed_tasks ?? 0);
-            $overdueTasks = (int) ($stats->overdue_tasks ?? 0);
+        // Search name, email, phone
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $query->with(['projects' => function ($q) {
+            $q->select('id', 'code', 'name', 'client', 'status', 'progress', 'pic_id');
+        }])->get();
+
+        // Dapatkan task statistics per user (baik via assignee_id maupun fallback assignee_name)
+        $userIds = $users->pluck('id')->toArray();
+        $userNames = $users->pluck('name')->toArray();
+
+        $tasks = Task::where(function ($q) use ($userIds, $userNames) {
+            $q->whereIn('assignee_id', $userIds)
+              ->orWhereIn('assignee_name', $userNames);
+        })->get();
+
+        $teamData = $users->map(function ($user) use ($tasks, $today) {
+            $userTasks = $tasks->filter(function ($t) use ($user) {
+                return (int) $t->assignee_id === (int) $user->id
+                    || ($t->assignee_name && strcasecmp(trim($t->assignee_name), trim($user->name)) === 0);
+            });
+
+            $totalTasks = $userTasks->count();
+            $completedTasks = $userTasks->filter(fn($t) => $t->is_completed || $t->status === 'completed')->count();
+            $inProgressTasks = $userTasks->filter(fn($t) => !$t->is_completed && $t->status === 'in_progress')->count();
             $pendingTasks = $totalTasks - $completedTasks;
+            $overdueTasks = $userTasks->filter(function ($t) use ($today) {
+                return !$t->is_completed && $t->status !== 'completed' && $t->deadline && $t->deadline < $today;
+            })->count();
+
+            $projects = $user->projects;
+            $projectsCount = $projects->count();
 
             return [
                 'id' => $user->id,
@@ -287,21 +306,133 @@ class UserController extends Controller
                 'role' => $user->role,
                 'phone' => $user->phone ?? '-',
                 'status' => $user->is_active ? 'active' : 'inactive',
+                'is_active' => (bool) $user->is_active,
+                'projects_count' => $projectsCount,
+                'projects' => $projects,
                 'stats' => [
                     'total_tasks' => $totalTasks,
                     'completed_tasks' => $completedTasks,
+                    'in_progress_tasks' => $inProgressTasks,
                     'pending_tasks' => $pendingTasks,
                     'overdue_tasks' => $overdueTasks,
                     'completion_rate' => $totalTasks > 0
                         ? (int) round(($completedTasks / $totalTasks) * 100)
-                        : 100,
+                        : 0,
                 ],
             ];
         });
 
+        // Sorting
+        $sort = $request->input('sort', 'name');
+        $order = strtolower($request->input('order', 'asc')) === 'desc' ? 'desc' : 'asc';
+
+        if ($sort === 'tasks_count') {
+            $teamData = $order === 'desc'
+                ? $teamData->sortByDesc('stats.total_tasks')->values()
+                : $teamData->sortBy('stats.total_tasks')->values();
+        } elseif ($sort === 'projects_count') {
+            $teamData = $order === 'desc'
+                ? $teamData->sortByDesc('projects_count')->values()
+                : $teamData->sortBy('projects_count')->values();
+        } elseif ($sort === 'completion_rate') {
+            $teamData = $order === 'desc'
+                ? $teamData->sortByDesc('stats.completion_rate')->values()
+                : $teamData->sortBy('stats.completion_rate')->values();
+        } else {
+            $teamData = $order === 'desc'
+                ? $teamData->sortByDesc('name')->values()
+                : $teamData->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
+        }
+
+        // Global workload summary
+        $allTasks = Task::all();
+        $totalMembers = User::count();
+        $activeMembers = User::where('is_active', true)->count();
+        $totalSystemTasks = $allTasks->count();
+        $inProgressSystemTasks = $allTasks->filter(fn($t) => !$t->is_completed && $t->status === 'in_progress')->count();
+        $pendingSystemTasks = $allTasks->filter(fn($t) => !$t->is_completed && $t->status !== 'completed')->count();
+        $overdueSystemTasks = $allTasks->filter(fn($t) => !$t->is_completed && $t->status !== 'completed' && $t->deadline && $t->deadline < $today)->count();
+
         return response()->json([
             'team' => $teamData,
             'total' => $teamData->count(),
+            'summary' => [
+                'total_members' => $totalMembers,
+                'active_members' => $activeMembers,
+                'total_tasks' => $totalSystemTasks,
+                'in_progress_tasks' => $inProgressSystemTasks,
+                'pending_tasks' => $pendingSystemTasks,
+                'overdue_tasks' => $overdueSystemTasks,
+            ],
+        ]);
+    }
+
+    /**
+     * Detail personel lengkap: profil, proyek yang ditangani (PIC), dan tugas terhubung.
+     */
+    public function teamMember($id)
+    {
+        $today = now()->toDateString();
+        $user = User::findOrFail($id);
+
+        // Ambil proyek di mana user adalah PIC
+        $projects = Project::where('pic_id', $user->id)
+            ->select('id', 'code', 'name', 'client', 'status', 'progress', 'category', 'deadline')
+            ->get()
+            ->map(function ($p) {
+                $p->setAttribute('role_in_project', 'PIC Proyek');
+                return $p;
+            });
+
+        // Ambil tugas yang ditugaskan ke user
+        $tasks = Task::with([
+            'project:id,code,name',
+            'milestone:id,title,phase_order,status',
+        ])
+        ->where(function ($q) use ($user) {
+            $q->where('assignee_id', $user->id)
+              ->orWhere('assignee_name', $user->name);
+        })
+        ->orderBy('is_completed', 'asc')
+        ->orderByRaw("FIELD(priority, 'high', 'medium', 'low')")
+        ->orderByRaw("deadline IS NULL, deadline ASC")
+        ->get();
+
+        $totalTasks = $tasks->count();
+        $completedTasks = $tasks->filter(fn($t) => $t->is_completed || $t->status === 'completed')->count();
+        $inProgressTasks = $tasks->filter(fn($t) => !$t->is_completed && $t->status === 'in_progress')->count();
+        $pendingTasks = $totalTasks - $completedTasks;
+        $overdueTasks = $tasks->filter(function ($t) use ($today) {
+            return !$t->is_completed && $t->status !== 'completed' && $t->deadline && $t->deadline < $today;
+        })->count();
+
+        $completionRate = $totalTasks > 0
+            ? (int) round(($completedTasks / $totalTasks) * 100)
+            : 0;
+
+        return response()->json([
+            'success' => true,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'phone' => $user->phone ?? '-',
+                'status' => $user->is_active ? 'active' : 'inactive',
+                'is_active' => (bool) $user->is_active,
+                'created_at' => $user->created_at ? $user->created_at->format('Y-m-d') : null,
+            ],
+            'projects' => $projects,
+            'tasks' => $tasks,
+            'stats' => [
+                'total_projects' => $projects->count(),
+                'total_tasks' => $totalTasks,
+                'completed_tasks' => $completedTasks,
+                'in_progress_tasks' => $inProgressTasks,
+                'pending_tasks' => $pendingTasks,
+                'overdue_tasks' => $overdueTasks,
+                'completion_rate' => $completionRate,
+            ],
         ]);
     }
 

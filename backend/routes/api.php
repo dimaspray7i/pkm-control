@@ -64,6 +64,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/users/{id}', [UserController::class, 'update']);
     Route::delete('/users/{id}', [UserController::class, 'destroy']);
     Route::get('/team', [UserController::class, 'team']);
+    Route::get('/team/{id}', [UserController::class, 'teamMember']);
 
     // Activities Log
     Route::get('/activities', function () {
