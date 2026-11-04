@@ -35,11 +35,12 @@ class ProjectController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('code', 'like', "%{$search}%")
-                  ->orWhere('client', 'like', "%{$search}%");
+                  ->orWhere('client', 'like', "%{$search}%")
+                  ->orWhere('pic_name', 'like', "%{$search}%");
             });
         }
 
-        $projects = $query->orderBy('created_at', 'desc')->get();
+        $projects = $query->with('pic:id,name,email,role')->orderBy('created_at', 'desc')->get();
 
         return response()->json([
             'projects' => $projects,
@@ -66,6 +67,8 @@ class ProjectController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'client' => ['required', 'string', 'max:255'],
             'category' => ['required', 'string', Rule::in(['web', 'mobile', 'system', 'code'])],
+            'pic_id' => ['nullable', 'exists:users,id'],
+            'pic_name' => ['nullable', 'string', 'max:255'],
             'target_progress' => ['nullable', 'integer', 'min:0', 'max:100'],
             'status' => ['nullable', 'string', Rule::in(['on_track', 'at_risk', 'delayed', 'completed'])],
             'risk_level' => ['nullable', 'string', Rule::in(['none', 'low', 'medium', 'high'])],
@@ -78,14 +81,26 @@ class ProjectController extends Controller
             'client.required' => 'Nama klien wajib diisi.',
             'category.in' => 'Kategori harus berupa web, mobile, system, atau code.',
             'status.in' => 'Status tidak valid.',
+            'pic_id.exists' => 'Person in Charge (PIC) yang dipilih tidak terdaftar di sistem.',
         ]);
 
         $project = DB::transaction(function () use ($validated, $user) {
+            // Resolve PIC name if pic_id provided
+            $picName = $validated['pic_name'] ?? null;
+            if (!empty($validated['pic_id']) && empty($picName)) {
+                $assignedUser = \App\Models\User::find($validated['pic_id']);
+                if ($assignedUser) {
+                    $picName = $assignedUser->name;
+                }
+            }
+
             $proj = Project::create([
                 'code' => strtoupper(trim($validated['code'])),
                 'name' => trim($validated['name']),
                 'client' => trim($validated['client']),
                 'category' => $validated['category'] ?? 'web',
+                'pic_id' => $validated['pic_id'] ?? null,
+                'pic_name' => $picName,
                 'progress' => 0, // Progres awal selalu 0%, dihitung otomatis saat tugas ditambahkan
                 'target_progress' => $validated['target_progress'] ?? 0,
                 'status' => $validated['status'] ?? 'on_track',
@@ -125,6 +140,7 @@ class ProjectController extends Controller
         }
 
         $project = Project::with([
+            'pic:id,name,email,role,phone',
             'tasks' => function ($q) {
                 $q->orderByRaw("FIELD(priority, 'high', 'medium', 'low')")
                   ->orderBy('created_at', 'desc');
@@ -185,6 +201,8 @@ class ProjectController extends Controller
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'client' => ['sometimes', 'required', 'string', 'max:255'],
             'category' => ['sometimes', 'required', 'string', Rule::in(['web', 'mobile', 'system', 'code'])],
+            'pic_id' => ['nullable', 'exists:users,id'],
+            'pic_name' => ['nullable', 'string', 'max:255'],
             'target_progress' => ['nullable', 'integer', 'min:0', 'max:100'],
             'status' => ['nullable', 'string', Rule::in(['on_track', 'at_risk', 'delayed', 'completed'])],
             'risk_level' => ['nullable', 'string', Rule::in(['none', 'low', 'medium', 'high'])],
@@ -196,14 +214,31 @@ class ProjectController extends Controller
             'code.unique' => 'Kode proyek sudah digunakan oleh proyek lain.',
             'name.required' => 'Nama proyek wajib diisi.',
             'client.required' => 'Nama klien wajib diisi.',
+            'pic_id.exists' => 'Person in Charge (PIC) yang dipilih tidak terdaftar di sistem.',
         ]);
 
         $project = DB::transaction(function () use ($project, $validated, $user) {
+            $picId = array_key_exists('pic_id', $validated) ? $validated['pic_id'] : $project->pic_id;
+            
+            // If pic_id is updated, automatically re-resolve or update pic_name
+            if (array_key_exists('pic_id', $validated)) {
+                if (!empty($picId)) {
+                    $assignedUser = \App\Models\User::find($picId);
+                    $picName = $assignedUser ? $assignedUser->name : ($validated['pic_name'] ?? null);
+                } else {
+                    $picName = null;
+                }
+            } else {
+                $picName = array_key_exists('pic_name', $validated) ? $validated['pic_name'] : $project->pic_name;
+            }
+
             $project->update([
                 'code' => isset($validated['code']) ? strtoupper(trim($validated['code'])) : $project->code,
                 'name' => isset($validated['name']) ? trim($validated['name']) : $project->name,
                 'client' => isset($validated['client']) ? trim($validated['client']) : $project->client,
                 'category' => $validated['category'] ?? $project->category,
+                'pic_id' => $picId,
+                'pic_name' => $picName,
                 'progress' => $project->calculateActualProgress(), // Progres selalu dihitung otomatis dari data tugas
                 'target_progress' => $validated['target_progress'] ?? $project->target_progress,
                 'status' => $validated['status'] ?? $project->status,

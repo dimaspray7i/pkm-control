@@ -300,7 +300,15 @@ export default function Development() {
                         <p className="font-bold text-xs text-[#171717] leading-tight">{ms.title}</p>
                         <p className="text-[10px] text-[#171717]/60 mt-1 leading-snug line-clamp-2">{ms.description}</p>
 
-                        <div className="mt-3">
+                        {/* Connected Tasks Badge / Count */}
+                        <div className="mt-2 flex items-center justify-between text-[9px] font-bold text-[#171717]/70 bg-white/70 px-2 py-1 rounded border border-[#171717]/10">
+                          <span>Tugas Sprint:</span>
+                          <span className="font-black text-[#171717]">
+                            {ms.completed_tasks ?? 0} / {ms.total_tasks ?? 0} Selesai
+                          </span>
+                        </div>
+
+                        <div className="mt-2.5">
                           <div className="flex justify-between text-[10px] font-black mb-1">
                             <span className="uppercase text-[9px] text-[#171717]/60">
                               Status: <span className="font-bold text-[#171717]">{ms.status}</span>

@@ -18,11 +18,20 @@ class TaskController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Task::with('project');
+        $query = Task::with([
+            'project:id,code,name,client,status',
+            'milestone:id,project_id,title,phase_order,status',
+            'assignee:id,name,email,role'
+        ]);
 
         // Filter berdasarkan proyek
         if ($request->filled('project_id') && $request->project_id !== 'all') {
             $query->where('project_id', $request->project_id);
+        }
+
+        // Filter berdasarkan milestone / sprint
+        if ($request->filled('milestone_id') && $request->milestone_id !== 'all') {
+            $query->where('milestone_id', $request->milestone_id);
         }
 
         // Filter prioritas
@@ -58,6 +67,9 @@ class TaskController extends Controller
                   ->orWhereHas('project', function ($pq) use ($search) {
                       $pq->where('name', 'like', "%{$search}%")
                         ->orWhere('code', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('milestone', function ($mq) use ($search) {
+                      $mq->where('title', 'like', "%{$search}%");
                   });
             });
         }
@@ -91,36 +103,66 @@ class TaskController extends Controller
 
         $validated = $request->validate([
             'project_id' => ['required', 'exists:projects,id'],
+            'milestone_id' => ['nullable', 'exists:milestones,id'],
             'title' => ['required', 'string', 'max:255'],
             'priority' => ['required', Rule::in(['low', 'medium', 'high'])],
             'status' => ['nullable', Rule::in(['pending', 'in_progress', 'completed'])],
             'deadline' => ['nullable', 'date'],
+            'assignee_id' => ['nullable', 'exists:users,id'],
             'assignee_name' => ['nullable', 'string', 'max:255'],
             'is_completed' => ['nullable', 'boolean'],
         ], [
             'project_id.required' => 'Proyek wajib dipilih.',
             'project_id.exists' => 'Proyek yang dipilih tidak valid.',
+            'milestone_id.exists' => 'Sprint/Milestone yang dipilih tidak valid.',
             'title.required' => 'Judul tugas wajib diisi.',
             'priority.required' => 'Prioritas tugas wajib dipilih.',
             'priority.in' => 'Prioritas harus low, medium, atau high.',
+            'assignee_id.exists' => 'Personel PIC yang dipilih tidak terdaftar di sistem.',
         ]);
+
+        // Validasi lintas relasi: jika milestone_id disediakan, harus berasal dari project_id yang sama
+        if (!empty($validated['milestone_id'])) {
+            $ms = \App\Models\Milestone::find($validated['milestone_id']);
+            if (!$ms || (int) $ms->project_id !== (int) $validated['project_id']) {
+                return response()->json([
+                    'message' => 'Sprint/Milestone yang dipilih tidak sesuai dengan proyek yang ditentukan.',
+                    'errors' => [
+                        'milestone_id' => ['Sprint/Milestone harus berasal dari proyek yang sama.'],
+                    ],
+                ], 422);
+            }
+        }
 
         $task = DB::transaction(function () use ($validated, $user) {
             $isCompleted = !empty($validated['is_completed']) || ($validated['status'] ?? '') === 'completed';
             $status = $isCompleted ? 'completed' : ($validated['status'] ?? 'pending');
 
+            // Resolusi nama PIC dari assignee_id jika ada
+            $assigneeId = $validated['assignee_id'] ?? null;
+            $assigneeName = $validated['assignee_name'] ?? null;
+            if (!empty($assigneeId) && empty($assigneeName)) {
+                $u = \App\Models\User::find($assigneeId);
+                if ($u) $assigneeName = $u->name;
+            } elseif (empty($assigneeId) && !empty($assigneeName)) {
+                $u = \App\Models\User::where('name', trim($assigneeName))->first();
+                if ($u) $assigneeId = $u->id;
+            }
+
             $t = Task::create([
                 'project_id' => $validated['project_id'],
+                'milestone_id' => $validated['milestone_id'] ?? null,
                 'title' => trim($validated['title']),
                 'priority' => $validated['priority'],
                 'status' => $status,
                 'is_completed' => $isCompleted,
                 'deadline' => $validated['deadline'] ?? null,
-                'assignee_name' => !empty($validated['assignee_name']) ? trim($validated['assignee_name']) : null,
+                'assignee_id' => $assigneeId,
+                'assignee_name' => !empty($assigneeName) ? trim($assigneeName) : null,
             ]);
 
-            // Muat relasi proyek untuk log aktivitas
-            $t->load('project');
+            // Muat relasi proyek dan milestone untuk log aktivitas
+            $t->load(['project', 'milestone', 'assignee']);
 
             Activity::create([
                 'user_name' => $user ? $user->name : 'Sistem PKM',
@@ -144,7 +186,11 @@ class TaskController extends Controller
      */
     public function show($id)
     {
-        $task = Task::with('project')->findOrFail($id);
+        $task = Task::with([
+            'project:id,code,name,client,status',
+            'milestone:id,project_id,title,phase_order,status',
+            'assignee:id,name,email,role'
+        ])->findOrFail($id);
 
         return response()->json([
             'task' => $task,
@@ -169,18 +215,35 @@ class TaskController extends Controller
 
         $validated = $request->validate([
             'project_id' => ['required', 'exists:projects,id'],
+            'milestone_id' => ['nullable', 'exists:milestones,id'],
             'title' => ['required', 'string', 'max:255'],
             'priority' => ['required', Rule::in(['low', 'medium', 'high'])],
             'status' => ['nullable', Rule::in(['pending', 'in_progress', 'completed'])],
             'deadline' => ['nullable', 'date'],
+            'assignee_id' => ['nullable', 'exists:users,id'],
             'assignee_name' => ['nullable', 'string', 'max:255'],
             'is_completed' => ['nullable', 'boolean'],
         ], [
             'project_id.required' => 'Proyek wajib dipilih.',
             'project_id.exists' => 'Proyek yang dipilih tidak valid.',
+            'milestone_id.exists' => 'Sprint/Milestone yang dipilih tidak valid.',
             'title.required' => 'Judul tugas wajib diisi.',
             'priority.required' => 'Prioritas tugas wajib dipilih.',
+            'assignee_id.exists' => 'Personel PIC yang dipilih tidak terdaftar di sistem.',
         ]);
+
+        // Validasi lintas relasi: jika milestone_id disediakan, harus berasal dari project_id yang sama
+        if (!empty($validated['milestone_id'])) {
+            $ms = \App\Models\Milestone::find($validated['milestone_id']);
+            if (!$ms || (int) $ms->project_id !== (int) $validated['project_id']) {
+                return response()->json([
+                    'message' => 'Sprint/Milestone yang dipilih tidak sesuai dengan proyek yang ditentukan.',
+                    'errors' => [
+                        'milestone_id' => ['Sprint/Milestone harus berasal dari proyek yang sama.'],
+                    ],
+                ], 422);
+            }
+        }
 
         $task = DB::transaction(function () use ($task, $validated, $user) {
             $isCompleted = isset($validated['is_completed'])
@@ -191,17 +254,32 @@ class TaskController extends Controller
                 ? $validated['status']
                 : ($isCompleted ? 'completed' : 'pending');
 
+            // Resolusi nama dan ID PIC
+            $assigneeId = array_key_exists('assignee_id', $validated) ? $validated['assignee_id'] : $task->assignee_id;
+            if (array_key_exists('assignee_id', $validated)) {
+                if (!empty($assigneeId)) {
+                    $u = \App\Models\User::find($assigneeId);
+                    $assigneeName = $u ? $u->name : ($validated['assignee_name'] ?? null);
+                } else {
+                    $assigneeName = null;
+                }
+            } else {
+                $assigneeName = array_key_exists('assignee_name', $validated) ? trim($validated['assignee_name']) : $task->assignee_name;
+            }
+
             $task->update([
                 'project_id' => $validated['project_id'],
+                'milestone_id' => array_key_exists('milestone_id', $validated) ? $validated['milestone_id'] : $task->milestone_id,
                 'title' => trim($validated['title']),
                 'priority' => $validated['priority'],
                 'status' => $status,
                 'is_completed' => $isCompleted,
                 'deadline' => $validated['deadline'] ?? $task->deadline,
-                'assignee_name' => array_key_exists('assignee_name', $validated) ? trim($validated['assignee_name']) : $task->assignee_name,
+                'assignee_id' => $assigneeId,
+                'assignee_name' => $assigneeName,
             ]);
 
-            $task->load('project');
+            $task->load(['project', 'milestone', 'assignee']);
 
             Activity::create([
                 'user_name' => $user ? $user->name : 'Sistem PKM',

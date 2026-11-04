@@ -18,6 +18,8 @@ export default function Tasks() {
   const [tasks, setTasks]         = useState([])
   const [projects, setProjects]   = useState([])
   const [teamMembers, setTeamMembers] = useState([])
+  const [projectMilestones, setProjectMilestones] = useState([]) // Milestones for selected project
+  const [loadingMilestones, setLoadingMilestones] = useState(false)
   const [searchParams] = useSearchParams()
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(null)
@@ -48,11 +50,30 @@ export default function Tasks() {
   const [formData, setFormData] = useState({
     title: '',
     project_id: '',
+    milestone_id: '',
     priority: 'medium',
     status: 'pending',
     deadline: '',
+    assignee_id: '',
     assignee_name: '',
   })
+
+  // Load milestones whenever project_id changes in form
+  const loadMilestonesForProject = async (projectId) => {
+    if (!projectId) {
+      setProjectMilestones([])
+      return
+    }
+    try {
+      setLoadingMilestones(true)
+      const res = await api.get(`/projects/${projectId}/milestones`)
+      setProjectMilestones(res.data.data || [])
+    } catch {
+      setProjectMilestones([])
+    } finally {
+      setLoadingMilestones(false)
+    }
+  }
 
   const fetchTasks = async () => {
     try {
@@ -81,40 +102,54 @@ export default function Tasks() {
       const res = await api.post(`/tasks/${taskId}/toggle`)
       const updated = res.data.task
       setTasks(prev => prev.map(t =>
-        t.id === taskId ? { ...t, is_completed: updated.is_completed, status: updated.status } : t
+        t.id === taskId ? { ...t, ...updated } : t
       ))
-    } catch {
-      alert('Gagal memperbarui status tugas.')
+      setFeedback({ type: 'success', message: res.data.message || 'Status tugas berhasil diperbarui!' })
+      setTimeout(() => setFeedback(null), 3000)
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal memperbarui status tugas.')
     } finally {
       setToggling(null)
     }
   }
 
   const openAddModal = () => {
+    const defaultProjectId = projects.length > 0 ? String(projects[0].id) : ''
     setFormData({
       title: '',
-      project_id: projects.length > 0 ? String(projects[0].id) : '',
+      project_id: defaultProjectId,
+      milestone_id: '',
       priority: 'medium',
       status: 'pending',
       deadline: '',
+      assignee_id: teamMembers.length > 0 ? String(teamMembers[0].id) : '',
       assignee_name: teamMembers.length > 0 ? teamMembers[0].name : (user?.name || ''),
     })
     setFormErrors({})
     setIsAddOpen(true)
+    if (defaultProjectId) {
+      loadMilestonesForProject(defaultProjectId)
+    }
   }
 
   const openEditModal = (task) => {
     setSelectedTask(task)
+    const taskProjId = String(task.project_id)
     setFormData({
       title: task.title,
-      project_id: String(task.project_id),
+      project_id: taskProjId,
+      milestone_id: task.milestone_id ? String(task.milestone_id) : '',
       priority: task.priority || 'medium',
       status: task.status || (task.is_completed ? 'completed' : 'pending'),
       deadline: task.deadline ? task.deadline.split('T')[0] : '',
+      assignee_id: task.assignee_id ? String(task.assignee_id) : '',
       assignee_name: task.assignee_name || '',
     })
     setFormErrors({})
     setIsEditOpen(true)
+    if (taskProjId) {
+      loadMilestonesForProject(taskProjId)
+    }
   }
 
   const openDeleteModal = (task) => {
@@ -129,13 +164,16 @@ export default function Tasks() {
     setFormErrors({})
 
     try {
+      const selectedMember = teamMembers.find(m => String(m.id) === String(formData.assignee_id))
       const payload = {
-        title: formData.title,
+        title: formData.title.trim(),
         project_id: parseInt(formData.project_id),
+        milestone_id: formData.milestone_id ? parseInt(formData.milestone_id) : null,
         priority: formData.priority,
         status: formData.status,
         deadline: formData.deadline || null,
-        assignee_name: formData.assignee_name || null,
+        assignee_id: formData.assignee_id ? parseInt(formData.assignee_id) : null,
+        assignee_name: selectedMember ? selectedMember.name : (formData.assignee_name || null),
         is_completed: formData.status === 'completed',
       }
       const res = await api.post('/tasks', payload)
@@ -161,13 +199,16 @@ export default function Tasks() {
     setFormErrors({})
 
     try {
+      const selectedMember = teamMembers.find(m => String(m.id) === String(formData.assignee_id))
       const payload = {
-        title: formData.title,
+        title: formData.title.trim(),
         project_id: parseInt(formData.project_id),
+        milestone_id: formData.milestone_id ? parseInt(formData.milestone_id) : null,
         priority: formData.priority,
         status: formData.status,
         deadline: formData.deadline || null,
-        assignee_name: formData.assignee_name || null,
+        assignee_id: formData.assignee_id ? parseInt(formData.assignee_id) : null,
+        assignee_name: selectedMember ? selectedMember.name : (formData.assignee_name || null),
         is_completed: formData.status === 'completed',
       }
       const res = await api.put(`/tasks/${selectedTask.id}`, payload)
@@ -380,8 +421,12 @@ export default function Tasks() {
                     }`}>
                       {task.title}
                     </p>
-                    <p className="text-[10px] font-semibold text-[#171717]/60 truncate mt-0.5">
-                      Proyek: <span className="font-bold text-[#171717]/80">{task.project?.name || 'PKM Project'}</span> · PIC: <span className="font-bold text-[#171717]/80">{task.assignee_name || 'Tim PKM'}</span>
+                    <p className="text-[10px] font-semibold text-[#171717]/60 truncate mt-0.5 flex items-center gap-1.5 flex-wrap">
+                      <span>Proyek: <strong className="text-[#171717]/80">{task.project?.name || 'PKM Project'}</strong></span>
+                      {task.milestone && (
+                        <span>· Sprint: <strong className="text-[#FF2F92]">{task.milestone.title}</strong></span>
+                      )}
+                      <span>· PIC: <strong className="text-[#171717]/80">{task.assignee?.name || task.assignee_name || 'Tim PKM'}</strong></span>
                     </p>
                   </div>
                 </div>
@@ -467,7 +512,11 @@ export default function Tasks() {
                   <select
                     required
                     value={formData.project_id}
-                    onChange={e => setFormData({ ...formData, project_id: e.target.value })}
+                    onChange={e => {
+                      const newProjId = e.target.value
+                      setFormData({ ...formData, project_id: newProjId, milestone_id: '' })
+                      loadMilestonesForProject(newProjId)
+                    }}
                     className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
                   >
                     <option value="">-- Pilih Proyek --</option>
@@ -476,6 +525,49 @@ export default function Tasks() {
                     ))}
                   </select>
                   {formErrors.project_id && <p className="text-[10px] text-[#FF2F92] font-bold mt-0.5">{formErrors.project_id[0]}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">
+                    Sprint / Milestone {loadingMilestones && <span className="text-[9px] font-normal text-[#171717]/60">(Memuat...)</span>}
+                  </label>
+                  <select
+                    value={formData.milestone_id}
+                    onChange={e => setFormData({ ...formData, milestone_id: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                  >
+                    <option value="">-- Tanpa Sprint / Backlog Umum --</option>
+                    {projectMilestones.map(ms => (
+                      <option key={ms.id} value={ms.id}>
+                        Fase {ms.phase_order}: {ms.title}
+                      </option>
+                    ))}
+                  </select>
+                  {formErrors.milestone_id && <p className="text-[10px] text-[#FF2F92] font-bold mt-0.5">{formErrors.milestone_id[0]}</p>}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">PIC / Pelaksana</label>
+                  <select
+                    value={formData.assignee_id}
+                    onChange={e => {
+                      const selId = e.target.value
+                      const selMem = teamMembers.find(m => String(m.id) === String(selId))
+                      setFormData({
+                        ...formData,
+                        assignee_id: selId,
+                        assignee_name: selMem ? selMem.name : ''
+                      })
+                    }}
+                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                  >
+                    <option value="">-- Pilih Personel PIC --</option>
+                    {teamMembers.map(m => (
+                      <option key={m.id} value={m.id}>{m.name} ({m.role})</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -494,17 +586,6 @@ export default function Tasks() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">PIC / Pelaksana</label>
-                  <input
-                    type="text"
-                    value={formData.assignee_name}
-                    onChange={e => setFormData({ ...formData, assignee_name: e.target.value })}
-                    placeholder="Nama PIC (misal: Budi Santoso)"
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
-                  />
-                </div>
-
-                <div>
                   <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Batas Waktu (Deadline)</label>
                   <input
                     type="date"
@@ -513,19 +594,19 @@ export default function Tasks() {
                     className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Status Pengerjaan</label>
-                <select
-                  value={formData.status}
-                  onChange={e => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
-                >
-                  <option value="pending">Pending (Belum Dikerjakan)</option>
-                  <option value="in_progress">In Progress (Sedang Berjalan)</option>
-                  <option value="completed">Completed (Tuntas)</option>
-                </select>
+                <div>
+                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Status Pengerjaan</label>
+                  <select
+                    value={formData.status}
+                    onChange={e => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                  >
+                    <option value="pending">Pending (Belum Dikerjakan)</option>
+                    <option value="in_progress">In Progress (Sedang Berjalan)</option>
+                    <option value="completed">Completed (Tuntas)</option>
+                  </select>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#171717]/20">
@@ -587,11 +668,58 @@ export default function Tasks() {
                   <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Proyek Terkait</label>
                   <select
                     value={formData.project_id}
-                    onChange={e => setFormData({ ...formData, project_id: e.target.value })}
+                    onChange={e => {
+                      const newProjId = e.target.value
+                      setFormData({ ...formData, project_id: newProjId, milestone_id: '' })
+                      loadMilestonesForProject(newProjId)
+                    }}
                     className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
                   >
                     {projects.map(p => (
                       <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">
+                    Sprint / Milestone {loadingMilestones && <span className="text-[9px] font-normal text-[#171717]/60">(Memuat...)</span>}
+                  </label>
+                  <select
+                    value={formData.milestone_id}
+                    onChange={e => setFormData({ ...formData, milestone_id: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                  >
+                    <option value="">-- Tanpa Sprint / Backlog Umum --</option>
+                    {projectMilestones.map(ms => (
+                      <option key={ms.id} value={ms.id}>
+                        Fase {ms.phase_order}: {ms.title}
+                      </option>
+                    ))}
+                  </select>
+                  {formErrors.milestone_id && <p className="text-[10px] text-[#FF2F92] font-bold mt-0.5">{formErrors.milestone_id[0]}</p>}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">PIC / Pelaksana</label>
+                  <select
+                    value={formData.assignee_id}
+                    onChange={e => {
+                      const selId = e.target.value
+                      const selMem = teamMembers.find(m => String(m.id) === String(selId))
+                      setFormData({
+                        ...formData,
+                        assignee_id: selId,
+                        assignee_name: selMem ? selMem.name : ''
+                      })
+                    }}
+                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                  >
+                    <option value="">-- Pilih Personel PIC --</option>
+                    {teamMembers.map(m => (
+                      <option key={m.id} value={m.id}>{m.name} ({m.role})</option>
                     ))}
                   </select>
                 </div>
@@ -612,16 +740,6 @@ export default function Tasks() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">PIC / Pelaksana</label>
-                  <input
-                    type="text"
-                    value={formData.assignee_name}
-                    onChange={e => setFormData({ ...formData, assignee_name: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
-                  />
-                </div>
-
-                <div>
                   <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Batas Waktu (Deadline)</label>
                   <input
                     type="date"
@@ -630,19 +748,19 @@ export default function Tasks() {
                     className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Status Pengerjaan</label>
-                <select
-                  value={formData.status}
-                  onChange={e => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
-                >
-                  <option value="pending">Pending (Belum Dikerjakan)</option>
-                  <option value="in_progress">In Progress (Sedang Berjalan)</option>
-                  <option value="completed">Completed (Tuntas)</option>
-                </select>
+                <div>
+                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Status Pengerjaan</label>
+                  <select
+                    value={formData.status}
+                    onChange={e => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                  >
+                    <option value="pending">Pending (Belum Dikerjakan)</option>
+                    <option value="in_progress">In Progress (Sedang Berjalan)</option>
+                    <option value="completed">Completed (Tuntas)</option>
+                  </select>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#171717]/20">

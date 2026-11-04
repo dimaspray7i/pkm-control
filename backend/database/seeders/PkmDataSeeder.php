@@ -14,7 +14,7 @@ class PkmDataSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Update/Ensure User Budi Santoso (Super Admin)
+        // 1. Update /Ensure User Budi Santoso (Super Admin)
         $admin = User::firstOrNew(['email' => 'admin@pkm.co.id']);
         $admin->name = 'Budi Santoso';
         $admin->password = Hash::make('admin123');

@@ -19,9 +19,16 @@ class MilestoneController extends Controller
     {
         $project = Project::findOrFail($projectId);
 
-        $milestones = Milestone::where('project_id', $projectId)
-            ->orderBy('phase_order', 'asc')
-            ->get();
+        $milestones = Milestone::with([
+            'tasks' => function ($q) {
+                $q->orderBy('is_completed', 'asc')
+                  ->orderByRaw("FIELD(priority, 'high', 'medium', 'low')")
+                  ->orderByRaw("deadline IS NULL, deadline ASC");
+            }
+        ])
+        ->where('project_id', $projectId)
+        ->orderBy('phase_order', 'asc')
+        ->get();
 
         if ($milestones->isEmpty()) {
             // Seed 4 standard phases based on current project progress
@@ -65,10 +72,26 @@ class MilestoneController extends Controller
                 Milestone::create(array_merge($d, ['project_id' => $projectId]));
             }
 
-            $milestones = Milestone::where('project_id', $projectId)
-                ->orderBy('phase_order', 'asc')
-                ->get();
+            $milestones = Milestone::with([
+                'tasks' => function ($q) {
+                    $q->orderBy('is_completed', 'asc')
+                      ->orderByRaw("FIELD(priority, 'high', 'medium', 'low')")
+                      ->orderByRaw("deadline IS NULL, deadline ASC");
+                }
+            ])
+            ->where('project_id', $projectId)
+            ->orderBy('phase_order', 'asc')
+            ->get();
         }
+
+        // Hitung metrik tugas per milestone
+        $milestones->each(function ($m) {
+            $total = $m->tasks->count();
+            $completed = $m->tasks->filter(fn($t) => $t->is_completed || $t->status === 'completed')->count();
+            $m->setAttribute('total_tasks', $total);
+            $m->setAttribute('completed_tasks', $completed);
+            $m->setAttribute('pending_tasks', $total - $completed);
+        });
 
         return response()->json([
             'success' => true,

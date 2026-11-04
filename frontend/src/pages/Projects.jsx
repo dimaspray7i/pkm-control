@@ -32,6 +32,7 @@ export default function Projects() {
 
   const [searchParams] = useSearchParams()
   const [projects, setProjects] = useState([])
+  const [teamMembers, setTeamMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
   const [search, setSearch]   = useState(searchParams.get('search') || '')
@@ -66,6 +67,7 @@ export default function Projects() {
     code: '',
     name: '',
     client: '',
+    pic_id: '',
     category: 'web',
     status: 'on_track',
     progress: 0,
@@ -86,8 +88,12 @@ export default function Projects() {
   const fetchProjects = async () => {
     try {
       setLoading(true)
-      const res = await api.get('/projects')
-      setProjects(res.data.projects || [])
+      const [resProjects, resTeam] = await Promise.all([
+        api.get('/projects'),
+        api.get('/team').catch(() => ({ data: { team: [] } }))
+      ])
+      setProjects(resProjects.data.projects || [])
+      setTeamMembers(resTeam.data.team || [])
       setError(null)
     } catch {
       setError('Gagal memuat data proyek dari server backend.')
@@ -106,6 +112,7 @@ export default function Projects() {
       code: proj.code || '',
       name: proj.name || '',
       client: proj.client || '',
+      pic_id: proj.pic_id ? String(proj.pic_id) : '',
       category: proj.category || 'web',
       status: proj.status || 'on_track',
       progress: proj.progress ?? 0,
@@ -132,9 +139,12 @@ export default function Projects() {
     setSubmitting(true)
 
     try {
+      const selectedPic = teamMembers.find(m => String(m.id) === String(formData.pic_id))
       const payload = {
         ...formData,
         code: formData.code.trim().toUpperCase(),
+        pic_id: formData.pic_id ? Number(formData.pic_id) : null,
+        pic_name: selectedPic ? selectedPic.name : null,
         target_progress: Number(formData.target_progress || 0),
       }
       delete payload.progress // Progres selalu dihitung otomatis oleh backend
@@ -163,9 +173,12 @@ export default function Projects() {
     setSubmitting(true)
 
     try {
+      const selectedPic = teamMembers.find(m => String(m.id) === String(formData.pic_id))
       const payload = {
         ...formData,
         code: formData.code.trim().toUpperCase(),
+        pic_id: formData.pic_id ? Number(formData.pic_id) : null,
+        pic_name: selectedPic ? selectedPic.name : null,
         target_progress: Number(formData.target_progress || 0),
       }
       delete payload.progress // Progres selalu dihitung otomatis oleh backend
@@ -375,9 +388,12 @@ export default function Projects() {
                   </div>
 
                   {/* Client info */}
-                  <div className="text-[11px] font-semibold text-[#171717]/75 mb-3">
+                  <div className="text-[11px] font-semibold text-[#171717]/75 mb-3 space-y-0.5">
                     <p className="truncate">Klien: <strong className="text-[#171717]">{proj.client}</strong></p>
-                    <p className="text-[10px] text-[#171717]/60 mt-0.5">
+                    <p className="truncate text-[10px] text-[#171717]/70">
+                      PIC: <strong className="text-[#171717]">{proj.pic_name || proj.pic?.name || 'Belum Ditugaskan'}</strong>
+                    </p>
+                    <p className="text-[10px] text-[#171717]/60">
                       Deadline: {proj.deadline ? new Date(proj.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Tidak ada target'}
                     </p>
                   </div>
@@ -504,21 +520,40 @@ export default function Projects() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
-                  Nama Klien / Instansi <span className="text-[#FF2F92]">*</span>
-                </label>
-                <input 
-                  type="text" 
-                  required 
-                  value={formData.client}
-                  onChange={(e) => setFormData({ ...formData, client: e.target.value })}
-                  placeholder="PT Mitra Prima Sejahtera" 
-                  className={`w-full pkm-input ${formErrors.client ? 'border-[#FF2F92]' : ''}`}
-                />
-                {formErrors.client && (
-                  <p className="text-[10px] font-bold text-[#FF2F92] mt-1">{formErrors.client[0]}</p>
-                )}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
+                    Nama Klien / Instansi <span className="text-[#FF2F92]">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={formData.client}
+                    onChange={(e) => setFormData({ ...formData, client: e.target.value })}
+                    placeholder="PT Mitra Prima Sejahtera" 
+                    className={`w-full pkm-input ${formErrors.client ? 'border-[#FF2F92]' : ''}`}
+                  />
+                  {formErrors.client && (
+                    <p className="text-[10px] font-bold text-[#FF2F92] mt-1">{formErrors.client[0]}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
+                    Penanggung Jawab (PIC Proyek)
+                  </label>
+                  <select
+                    value={formData.pic_id}
+                    onChange={(e) => setFormData({ ...formData, pic_id: e.target.value })}
+                    className="w-full pkm-input"
+                  >
+                    <option value="">Pilih Anggota Tim / PIC...</option>
+                    {teamMembers.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} ({m.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -676,20 +711,39 @@ export default function Projects() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
-                  Nama Klien / Instansi <span className="text-[#FF2F92]">*</span>
-                </label>
-                <input 
-                  type="text" 
-                  required 
-                  value={formData.client}
-                  onChange={(e) => setFormData({ ...formData, client: e.target.value })}
-                  className={`w-full pkm-input ${formErrors.client ? 'border-[#FF2F92]' : ''}`}
-                />
-                {formErrors.client && (
-                  <p className="text-[10px] font-bold text-[#FF2F92] mt-1">{formErrors.client[0]}</p>
-                )}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
+                    Nama Klien / Instansi <span className="text-[#FF2F92]">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={formData.client}
+                    onChange={(e) => setFormData({ ...formData, client: e.target.value })}
+                    className={`w-full pkm-input ${formErrors.client ? 'border-[#FF2F92]' : ''}`}
+                  />
+                  {formErrors.client && (
+                    <p className="text-[10px] font-bold text-[#FF2F92] mt-1">{formErrors.client[0]}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
+                    Penanggung Jawab (PIC Proyek)
+                  </label>
+                  <select
+                    value={formData.pic_id}
+                    onChange={(e) => setFormData({ ...formData, pic_id: e.target.value })}
+                    className="w-full pkm-input"
+                  >
+                    <option value="">Pilih Anggota Tim / PIC...</option>
+                    {teamMembers.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} ({m.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">

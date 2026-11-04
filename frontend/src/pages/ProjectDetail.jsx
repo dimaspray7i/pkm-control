@@ -50,6 +50,7 @@ export default function ProjectDetail() {
 
   const [project, setProject] = useState(null)
   const [activities, setActivities] = useState([])
+  const [teamMembers, setTeamMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [notFound, setNotFound] = useState(false)
@@ -60,6 +61,7 @@ export default function ProjectDetail() {
     code: '',
     name: '',
     client: '',
+    pic_id: '',
     category: 'web',
     status: 'on_track',
     progress: 0,
@@ -87,9 +89,13 @@ export default function ProjectDetail() {
       setLoading(true)
       setError(null)
       setNotFound(false)
-      const res = await api.get(`/projects/${id}`)
-      setProject(res.data.project)
-      setActivities(res.data.activities || [])
+      const [resProj, resTeam] = await Promise.all([
+        api.get(`/projects/${id}`),
+        api.get('/team').catch(() => ({ data: { team: [] } }))
+      ])
+      setProject(resProj.data.project)
+      setActivities(resProj.data.activities || [])
+      setTeamMembers(resTeam.data.team || [])
     } catch (err) {
       if (err.response?.status === 404) {
         setNotFound(true)
@@ -113,6 +119,7 @@ export default function ProjectDetail() {
       code: project.code || '',
       name: project.name || '',
       client: project.client || '',
+      pic_id: project.pic_id ? String(project.pic_id) : '',
       category: project.category || 'web',
       status: project.status || 'on_track',
       progress: project.progress ?? 0,
@@ -175,10 +182,13 @@ export default function ProjectDetail() {
     setSubmitting(true)
 
     try {
+      const selectedPic = teamMembers.find(m => String(m.id) === String(formData.pic_id))
       const payload = {
         name: formData.name.trim(),
         code: formData.code.trim().toUpperCase(),
         client: formData.client.trim(),
+        pic_id: formData.pic_id ? Number(formData.pic_id) : null,
+        pic_name: selectedPic ? selectedPic.name : null,
         category: formData.category,
         status: formData.status,
         target_progress: Number(formData.target_progress || 0),
@@ -193,6 +203,7 @@ export default function ProjectDetail() {
       setProject(prev => ({
         ...prev,
         ...res.data.project,
+        pic: res.data.project.pic || (selectedPic ? { id: selectedPic.id, name: selectedPic.name, email: selectedPic.email, role: selectedPic.role } : null),
         tasks: prev?.tasks || [],
         milestones: prev?.milestones || [],
       }))
@@ -651,6 +662,13 @@ export default function ProjectDetail() {
                 <span className="font-bold text-[#171717]">{project.client}</span>
               </div>
               <div className="flex justify-between items-center py-1 border-b border-neutral-100">
+                <span className="text-[10px] uppercase text-[#171717]/60">Penanggung Jawab (PIC)</span>
+                <span className="font-bold text-[#FF2F92] flex items-center gap-1">
+                  <User size={12} className="text-[#171717]" />
+                  <span>{project.pic_name || project.pic?.name || 'Belum Ditugaskan'}</span>
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-neutral-100">
                 <span className="text-[10px] uppercase text-[#171717]/60">Kategori Sistem</span>
                 <span className="font-bold uppercase text-[#171717] flex items-center gap-1">
                   <CategoryIcon cat={project.category} />
@@ -770,20 +788,39 @@ export default function ProjectDetail() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
-                  Nama Klien / Instansi <span className="text-[#FF2F92]">*</span>
-                </label>
-                <input 
-                  type="text" 
-                  required 
-                  value={formData.client}
-                  onChange={(e) => setFormData({ ...formData, client: e.target.value })}
-                  className={`w-full pkm-input ${formErrors.client ? 'border-[#FF2F92]' : ''}`}
-                />
-                {formErrors.client && (
-                  <p className="text-[10px] font-bold text-[#FF2F92] mt-1">{formErrors.client[0]}</p>
-                )}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
+                    Nama Klien / Instansi <span className="text-[#FF2F92]">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={formData.client}
+                    onChange={(e) => setFormData({ ...formData, client: e.target.value })}
+                    className={`w-full pkm-input ${formErrors.client ? 'border-[#FF2F92]' : ''}`}
+                  />
+                  {formErrors.client && (
+                    <p className="text-[10px] font-bold text-[#FF2F92] mt-1">{formErrors.client[0]}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
+                    Penanggung Jawab (PIC Proyek)
+                  </label>
+                  <select
+                    value={formData.pic_id}
+                    onChange={(e) => setFormData({ ...formData, pic_id: e.target.value })}
+                    className="w-full pkm-input"
+                  >
+                    <option value="">Pilih Anggota Tim / PIC...</option>
+                    {teamMembers.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} ({m.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">

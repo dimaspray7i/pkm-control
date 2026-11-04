@@ -13,6 +13,8 @@ class Project extends Model
         'code',
         'name',
         'client',
+        'pic_id',
+        'pic_name',
         'progress',
         'target_progress',
         'status',
@@ -26,11 +28,17 @@ class Project extends Model
     protected function casts(): array
     {
         return [
+            'pic_id' => 'integer',
             'progress' => 'integer',
             'target_progress' => 'integer',
             'is_active' => 'boolean',
             'deadline' => 'date:Y-m-d',
         ];
+    }
+
+    public function pic()
+    {
+        return $this->belongsTo(User::class, 'pic_id');
     }
 
     public function tasks()
