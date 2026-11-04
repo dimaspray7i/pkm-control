@@ -48,7 +48,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/tasks/{id}', [TaskController::class, 'destroy']);
     Route::post('/tasks/{id}/toggle', [TaskController::class, 'toggle']);
 
-    // Milestone / Development Tracker (CRUD synced with project progress)
+    // Milestone / Sprint Tracker (CRUD synced with project progress)
+    Route::get('/milestones', [MilestoneController::class, 'all']);
+    Route::get('/milestones/{id}', [MilestoneController::class, 'show']);
+    Route::post('/milestones', [MilestoneController::class, 'store']);
     Route::get('/projects/{projectId}/milestones', [MilestoneController::class, 'index']);
     Route::post('/projects/{projectId}/milestones', [MilestoneController::class, 'store']);
     Route::put('/milestones/{id}', [MilestoneController::class, 'update']);

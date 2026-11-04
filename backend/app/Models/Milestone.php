@@ -13,6 +13,7 @@ class Milestone extends Model
         'project_id',
         'title',
         'description',
+        'start_date',
         'phase_order',
         'progress',
         'status',
@@ -24,6 +25,7 @@ class Milestone extends Model
         return [
             'phase_order' => 'integer',
             'progress' => 'integer',
+            'start_date' => 'date:Y-m-d',
             'due_date' => 'date:Y-m-d',
         ];
     }
