@@ -8,7 +8,6 @@ export const getValidToken = () => {
 
     const trimmed = typeof token === 'string' ? token.trim() : ''
 
-    // Guard against literal string values or corrupted storage
     if (
       !trimmed ||
       trimmed === 'undefined' ||
@@ -25,9 +24,10 @@ export const getValidToken = () => {
   }
 }
 
-// API URL diatur melalui file .env atau .env.production
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
+// Otomatis memilih API berdasarkan lingkungan aplikasi
+const API_BASE_URL = import.meta.env.DEV
+  ? 'http://127.0.0.1:8000/api'
+  : '/api'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -38,7 +38,7 @@ const api = axios.create({
   timeout: 10000,
 })
 
-// Interceptor untuk menambahkan token ke setiap request
+// Menambahkan token ke setiap request
 api.interceptors.request.use((config) => {
   const token = getValidToken()
 
@@ -51,14 +51,13 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Flag pencegah redirect loop ke /login
+// Mencegah redirect loop
 let isRedirecting = false
 
-// Interceptor untuk error handling
+// Error handling
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Abaikan error pembatalan request
     if (
       axios.isCancel(error) ||
       error.name === 'CanceledError' ||
@@ -67,7 +66,6 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    // Hanya HTTP 401 eksplisit yang menghapus sesi
     if (error.response && error.response.status === 401) {
       const isAuthEndpoint =
         error.config?.url?.includes('/login') ||
