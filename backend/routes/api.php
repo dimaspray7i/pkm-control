@@ -29,10 +29,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // AI Analyst (Live LLM + Rule-Based fallback on DB context)
     Route::post('/ai/ask', [AiAnalystController::class, 'ask']);
+    Route::post('/ai/chat', [AiAnalystController::class, 'ask']);
     Route::get('/ai/context', [AiAnalystController::class, 'context']);
 
     // Reports 2.0 (Dynamic Business Intelligence)
     Route::get('/reports', [ReportController::class, 'index']);
+    Route::get('/reports/overview', [ReportController::class, 'index']);
 
     // Project Management (Full CRUD)
     Route::get('/projects', [ProjectController::class, 'index']);

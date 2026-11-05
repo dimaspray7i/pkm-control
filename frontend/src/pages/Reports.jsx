@@ -5,7 +5,8 @@ import {
   FolderKanban, CheckCircle2, AlertTriangle, Clock, FileBarChart,
   TrendingUp, Loader2, RotateCcw, Activity, Download, Printer,
   Sparkles, Filter, Calendar, Users, ShieldAlert, ArrowUpRight,
-  Search, ChevronLeft, ChevronRight, CheckSquare, BarChart2, PieChart as PieIcon
+  Search, ChevronLeft, ChevronRight, CheckSquare, BarChart2,
+  PieChart as PieIcon, Layers, Flag, UserCheck
 } from 'lucide-react'
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
@@ -22,6 +23,14 @@ const PERIOD_OPTIONS = [
   { value: 'custom', label: 'Rentang Kustom' },
 ]
 
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'Semua Status Proyek' },
+  { value: 'on_track', label: 'On Track' },
+  { value: 'at_risk', label: 'At Risk' },
+  { value: 'delayed', label: 'Delayed' },
+  { value: 'completed', label: 'Completed' },
+]
+
 export default function Reports() {
   const navigate = useNavigate()
   
@@ -30,7 +39,11 @@ export default function Reports() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [selectedProjectId, setSelectedProjectId] = useState('all')
+  const [selectedStatus, setSelectedStatus] = useState('all')
+  const [selectedPersonnelId, setSelectedPersonnelId] = useState('all')
+
   const [projectList, setProjectList] = useState([])
+  const [personnelList, setPersonnelList] = useState([])
 
   // Data States
   const [reportData, setReportData] = useState(null)
@@ -38,19 +51,26 @@ export default function Reports() {
   const [error, setError] = useState(null)
   const [exporting, setExporting] = useState(false)
 
-  // Table Search, Sort, & Pagination
+  // Table Search, Sort, & Pagination for Projects
   const [searchTable, setSearchTable] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 5
 
-  // Fetch projects list for filter dropdown
+  // Tab for Detailed Tables (Projects / Sprints)
+  const [activeTableTab, setActiveTableTab] = useState('projects')
+
+  // Fetch dropdown lists (projects and team members)
   useEffect(() => {
     api.get('/projects')
       .then(res => setProjectList(res.data.projects || []))
       .catch(() => {})
+
+    api.get('/users')
+      .then(res => setPersonnelList(res.data.users || res.data || []))
+      .catch(() => {})
   }, [])
 
-  // Fetch Report Data based on filters
+  // Fetch Report Data based on all filters
   const fetchReport = async () => {
     try {
       setLoading(true)
@@ -59,6 +79,12 @@ export default function Reports() {
       params.append('period', period)
       if (selectedProjectId && selectedProjectId !== 'all') {
         params.append('project_id', selectedProjectId)
+      }
+      if (selectedStatus && selectedStatus !== 'all') {
+        params.append('status', selectedStatus)
+      }
+      if (selectedPersonnelId && selectedPersonnelId !== 'all') {
+        params.append('personnel_id', selectedPersonnelId)
       }
       if (period === 'custom') {
         if (startDate) params.append('start_date', startDate)
@@ -77,7 +103,7 @@ export default function Reports() {
 
   useEffect(() => {
     fetchReport()
-  }, [period, selectedProjectId])
+  }, [period, selectedProjectId, selectedStatus, selectedPersonnelId])
 
   const handleApplyCustomDates = (e) => {
     e.preventDefault()
@@ -86,7 +112,7 @@ export default function Reports() {
     }
   }
 
-  // Export CSV
+  // Export CSV with full executive breakdown
   const handleExportCSV = () => {
     if (!reportData) return
     try {
@@ -95,16 +121,29 @@ export default function Reports() {
       csv += `Periode: ${reportData.period_label}\r\n`
       csv += `Tanggal Dibuat: ${reportData.generated_at}\r\n\r\n`
 
-      csv += `--- RINGKASAN KPI ---\r\n`
-      csv += `Total Proyek,Proyek Aktif,Proyek Selesai,Proyek Berisiko,Proyek Delayed,Rata-rata Progres (%),Total Tugas,Tugas Selesai,Tugas Pending,Tugas Overdue\r\n`
+      csv += `--- RINGKASAN KPI PROYEK & TUGAS ---\r\n`
+      csv += `Total Proyek,Proyek Aktif,Proyek Selesai,Proyek Berisiko,Proyek Delayed,Rata-rata Progres (%),Total Tugas,Tugas Selesai,Dalam Proses,Pending,Tugas Overdue,Tingkat Penyelesaian (%)\r\n`
       const k = reportData.kpi
-      csv += `"${k.total_projects}","${k.active_projects}","${k.completed_projects}","${k.at_risk_projects}","${k.delayed_projects}","${k.avg_progress}%","${k.total_tasks}","${k.completed_tasks}","${k.pending_tasks}","${k.overdue_tasks}"\r\n\r\n`
+      csv += `"${k.total_projects}","${k.active_projects}","${k.completed_projects}","${k.at_risk_projects}","${k.delayed_projects}","${k.avg_progress}%","${k.total_tasks}","${k.completed_tasks}","${k.in_progress_tasks || 0}","${k.pending_tasks}","${k.overdue_tasks}","${k.task_completion_rate}%"\r\n\r\n`
+
+      csv += `--- RINGKASAN SPRINT / MILESTONE ---\r\n`
+      csv += `Total Sprint,Sprint Selesai,Sprint Berjalan,Rata-rata Progres Sprint (%)\r\n`
+      csv += `"${k.total_sprints || 0}","${k.completed_sprints || 0}","${k.in_progress_sprints || 0}","${k.avg_sprint_progress || 0}%"\r\n\r\n`
 
       csv += `--- DETAIL PROYEK DALAM PERIODE ---\r\n`
-      csv += `Kode,Nama Proyek,Klien,Kategori,Status,Tingkat Risiko,Faktor Risiko,Progres (%),Target (%),Deadline,Total Tugas,Selesai,Pending,Overdue\r\n`
+      csv += `Kode,Nama Proyek,Klien,Kategori,Status,Tingkat Risiko,Faktor Risiko,Progres (%),Target (%),Deadline,PIC,Total Tugas,Selesai,Pending,Overdue\r\n`
       reportData.projects.forEach(p => {
-        csv += `"${p.code}","${p.name}","${p.client}","${p.category}","${p.status}","${p.risk_level}","${p.risk_factor || '-'}","${p.progress}","${p.target_progress}","${p.deadline || '-'}","${p.total_tasks}","${p.completed_tasks}","${p.pending_tasks}","${p.overdue_tasks}"\r\n`
+        csv += `"${p.code}","${p.name}","${p.client}","${p.category}","${p.status}","${p.risk_level}","${p.risk_factor || '-'}","${p.progress}","${p.target_progress}","${p.deadline || '-'}","${p.pic_name || '-'}","${p.total_tasks}","${p.completed_tasks}","${p.pending_tasks}","${p.overdue_tasks}"\r\n`
       })
+      csv += `\r\n`
+
+      if (reportData.sprints && reportData.sprints.length > 0) {
+        csv += `--- DETAIL SPRINT TRACKER ---\r\n`
+        csv += `ID,Judul Sprint,Proyek Induk,Kode Proyek,Status,Progres (%),Tugas Selesai,Total Tugas,Jatuh Tempo\r\n`
+        reportData.sprints.forEach(s => {
+          csv += `"${s.id}","${s.title}","${s.project_name}","${s.project_code}","${s.status}","${s.progress}%","${s.completed_tasks}","${s.total_tasks}","${s.due_date || '-'}"\r\n`
+        })
+      }
 
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
       const url = URL.createObjectURL(blob)
@@ -130,7 +169,7 @@ export default function Reports() {
   const handleExplainWithAI = () => {
     if (!reportData) return
     const k = reportData.kpi
-    const prompt = `Tolong berikan analisis eksekutif mendalam mengenai laporan periode ${reportData.period_label}. Terdapat ${k.total_projects} proyek dengan rata-rata progres ${k.avg_progress}%, ${k.at_risk_projects + k.delayed_projects} proyek bermasalah, dan ${k.overdue_tasks} tugas overdue. Apa dampak dan rekomendasi prioritas untuk dewan pimpinan?`
+    const prompt = `Tolong berikan analisis eksekutif mendalam mengenai laporan periode ${reportData.period_label}. Terdapat ${k.total_projects} proyek dengan rata-rata progres ${k.avg_progress}%, ${k.at_risk_projects + k.delayed_projects} proyek bermasalah, ${k.overdue_tasks} tugas overdue, dan ${k.total_sprints || 0} sprint dengan progres ${k.avg_sprint_progress || 0}%. Apa rekomendasi prioritas untuk pimpinan?`
     
     navigate('/ai-analyst', {
       state: {
@@ -153,6 +192,8 @@ export default function Reports() {
   })
   const totalPages = Math.ceil(filteredProjects.length / pageSize) || 1
   const paginatedProjects = filteredProjects.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+  const sprints = reportData?.sprints || []
 
   if (loading && !reportData) {
     return (
@@ -184,7 +225,6 @@ export default function Reports() {
   const insights = reportData?.insights || {}
   const trendData = reportData?.trend_data || []
   const statusDist = reportData?.status_distribution || []
-  const riskDist = reportData?.risk_distribution || []
   const workloadData = reportData?.workload_data || []
 
   return (
@@ -204,7 +244,7 @@ export default function Reports() {
             LAPORAN & ANALISIS BISNIS
           </h1>
           <p className="text-xs text-[#171717]/70 font-semibold">
-            Pusat analitik eksekutif PT Potensi Karya Mandiri berbasis data real-time database.
+            Pusat analitik eksekutif PT Potensi Karya Mandiri berbasis data real-time database MySQL.
           </p>
         </div>
 
@@ -237,30 +277,29 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Filter Controls Bar (Hidden during print) */}
-      <div className="bg-white border-2 border-[#171717] rounded-xl p-3 sm:p-4 shadow-[3px_3px_0px_#171717] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 print:hidden">
-        {/* Period Selector Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[10px] font-black uppercase text-[#171717]/60 flex items-center gap-1 mr-1">
-            <Filter size={12} /> Periode:
-          </span>
-          {PERIOD_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setPeriod(opt.value)}
-              className={`px-3 py-1.5 rounded-md text-xs font-bold transition border cursor-pointer ${
-                period === opt.value
-                  ? 'bg-[#171717] text-white border-[#171717] shadow-[2px_2px_0px_#FF2F92]'
-                  : 'bg-[#FAF7F2] text-[#171717] border-[#171717]/30 hover:bg-[#FFD83D]/30'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+      {/* Filter Controls Bar */}
+      <div className="bg-white border-2 border-[#171717] rounded-xl p-3 sm:p-4 shadow-[3px_3px_0px_#171717] space-y-3 print:hidden">
+        {/* Top: Period Selector */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] font-black uppercase text-[#171717]/60 flex items-center gap-1 mr-1">
+              <Filter size={12} /> Periode:
+            </span>
+            {PERIOD_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setPeriod(opt.value)}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition border cursor-pointer ${
+                  period === opt.value
+                    ? 'bg-[#171717] text-white border-[#171717] shadow-[2px_2px_0px_#FF2F92]'
+                    : 'bg-[#FAF7F2] text-[#171717] border-[#171717]/30 hover:bg-[#FFD83D]/30'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
 
-        {/* Project Filter Dropdown & Custom Range */}
-        <div className="flex flex-wrap items-center gap-2">
           {period === 'custom' && (
             <form onSubmit={handleApplyCustomDates} className="flex items-center gap-1.5">
               <input
@@ -284,13 +323,17 @@ export default function Reports() {
               </button>
             </form>
           )}
+        </div>
 
-          <div className="flex items-center gap-1">
-            <span className="text-[10px] font-black uppercase text-[#171717]/60 mr-1">Proyek:</span>
+        {/* Bottom: Proyek, Status, & Personel Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-[#171717]/10">
+          {/* Project Filter */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-black uppercase text-[#171717]/60 shrink-0">Proyek:</span>
             <select
               value={selectedProjectId}
               onChange={(e) => setSelectedProjectId(e.target.value)}
-              className="px-2.5 py-1.5 bg-[#FAF7F2] border border-[#171717] rounded-lg text-xs font-bold focus:outline-none"
+              className="w-full px-2.5 py-1.5 bg-[#FAF7F2] border border-[#171717] rounded-lg text-xs font-bold focus:outline-none truncate"
             >
               <option value="all">Semua Proyek Portofolio</option>
               {projectList.map(p => (
@@ -300,19 +343,55 @@ export default function Reports() {
               ))}
             </select>
           </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-black uppercase text-[#171717]/60 shrink-0">Status:</span>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="w-full px-2.5 py-1.5 bg-[#FAF7F2] border border-[#171717] rounded-lg text-xs font-bold focus:outline-none"
+            >
+              {STATUS_OPTIONS.map(s => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Personnel Filter */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-black uppercase text-[#171717]/60 shrink-0">Personel:</span>
+            <select
+              value={selectedPersonnelId}
+              onChange={(e) => setSelectedPersonnelId(e.target.value)}
+              className="w-full px-2.5 py-1.5 bg-[#FAF7F2] border border-[#171717] rounded-lg text-xs font-bold focus:outline-none truncate"
+            >
+              <option value="all">Semua Personel</option>
+              {personnelList.map(u => (
+                <option key={u.id} value={u.id}>
+                  {u.name} ({u.role})
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Active Period Banner */}
-      <div className="px-4 py-2 bg-[#FAF7F2] border border-[#171717] rounded-lg flex items-center justify-between text-xs font-bold text-[#171717]">
+      {/* Active Period & Filter Summary Banner */}
+      <div className="px-4 py-2 bg-[#FAF7F2] border border-[#171717] rounded-lg flex flex-col sm:flex-row sm:items-center justify-between text-xs font-bold text-[#171717] gap-1">
         <div className="flex items-center gap-2">
           <Calendar size={14} className="text-[#FF2F92]" />
           <span>Laporan Berjalan: <strong className="text-[#FF2F92]">{reportData?.period_label}</strong></span>
+          {(selectedStatus !== 'all' || selectedProjectId !== 'all' || selectedPersonnelId !== 'all') && (
+            <span className="ml-1 px-1.5 py-0.5 bg-[#FFD83D] border border-[#171717] rounded text-[9.5px] uppercase font-black">
+              Filter Aktif
+            </span>
+          )}
         </div>
         <span className="text-[#171717]/60">Data dihitung otomatis dari MySQL PKM</span>
       </div>
 
-      {/* KPI Cards Grid */}
+      {/* KPI Cards Grid (4 Primary Cards) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {/* Active Projects */}
         <div className="p-3.5 bg-[#FF2F92] text-white border-2 border-[#171717] rounded-xl shadow-[3px_3px_0px_#171717]">
@@ -343,6 +422,45 @@ export default function Reports() {
           <p className="font-display text-3xl leading-none mt-1 text-[#FF2F92]">{kpi.avg_progress ?? 0}%</p>
           <p className="text-[10px] font-bold text-[#EF4444] mt-1.5">
             {kpi.overdue_tasks ?? 0} tugas terlewati deadline
+          </p>
+        </div>
+      </div>
+
+      {/* Secondary KPI Row: Task & Sprint Performance */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Task Performance Overview */}
+        <div className="p-3 bg-white border border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] space-y-1">
+          <p className="text-[9px] font-black uppercase text-[#171717]/60">Penyelesaian Tugas</p>
+          <p className="font-display text-2xl text-[#10B981]">{kpi.task_completion_rate ?? 0}%</p>
+          <p className="text-[10px] font-bold text-[#171717]/70">
+            {kpi.completed_tasks ?? 0} dari {kpi.total_tasks ?? 0} tuntas
+          </p>
+        </div>
+
+        {/* Tasks in Progress & Pending */}
+        <div className="p-3 bg-white border border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] space-y-1">
+          <p className="text-[9px] font-black uppercase text-[#171717]/60">Tugas Berjalan / Pending</p>
+          <p className="font-display text-2xl text-[#171717]">{(kpi.in_progress_tasks ?? 0) + (kpi.pending_tasks ?? 0)}</p>
+          <p className="text-[10px] font-bold text-[#171717]/70">
+            {kpi.in_progress_tasks ?? 0} Dalam Proses • {kpi.pending_tasks ?? 0} Pending
+          </p>
+        </div>
+
+        {/* Sprint Performance */}
+        <div className="p-3 bg-white border border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] space-y-1">
+          <p className="text-[9px] font-black uppercase text-[#171717]/60">Sprint Tracker</p>
+          <p className="font-display text-2xl text-[#3B82F6]">{kpi.total_sprints ?? 0}</p>
+          <p className="text-[10px] font-bold text-[#171717]/70">
+            {kpi.completed_sprints ?? 0} Selesai • {kpi.in_progress_sprints ?? 0} Berjalan
+          </p>
+        </div>
+
+        {/* Active Personnel */}
+        <div className="p-3 bg-white border border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] space-y-1">
+          <p className="text-[9px] font-black uppercase text-[#171717]/60">Personel Tim Aktif</p>
+          <p className="font-display text-2xl text-[#171717]">{kpi.active_personnel_count ?? 0}</p>
+          <p className="text-[10px] font-bold text-[#171717]/70">
+            Rata-rata progres sprint {kpi.avg_sprint_progress ?? 0}%
           </p>
         </div>
       </div>
@@ -436,7 +554,6 @@ export default function Reports() {
           </div>
         </div>
 
-        {/* Limitation Note */}
         {insights.limitations && (
           <p className="text-[10.5px] text-[#171717]/60 italic">
             * {insights.limitations}
@@ -492,12 +609,12 @@ export default function Reports() {
           </div>
         </div>
 
-        {/* Status & Risk Distribution (5 cols) */}
+        {/* Status Distribution (5 cols) */}
         <div className="lg:col-span-5 bg-white border-2 border-[#171717] rounded-xl p-4 shadow-[3px_3px_0px_#171717] flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
               <div>
-                <h3 className="font-display text-sm uppercase text-[#171717]">Distribusi Status & Risiko</h3>
+                <h3 className="font-display text-sm uppercase text-[#171717]">Distribusi Status Portofolio</h3>
                 <p className="text-[10px] text-[#171717]/60 font-semibold">Komposisi kesehatan proyek dalam periode</p>
               </div>
               <PieIcon size={16} className="text-[#FF2F92]" />
@@ -546,14 +663,14 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Team Workload Bar Chart */}
+      {/* Team Workload Chart (Includes Selesai, Pending, & Overdue) */}
       {workloadData.length > 0 && (
         <div className="bg-white border-2 border-[#171717] rounded-xl p-4 shadow-[3px_3px_0px_#171717]">
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="font-display text-sm uppercase text-[#171717]">Beban Kerja Tim Berdasarkan Tugas</h3>
               <p className="text-[10px] text-[#171717]/60 font-semibold">
-                Perbandingan jumlah tugas selesai vs pending per penanggung jawab
+                Perbandingan jumlah tugas selesai, pending, dan overdue per penanggung jawab
               </p>
             </div>
             <Users size={16} className="text-[#FF2F92]" />
@@ -575,132 +692,219 @@ export default function Reports() {
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
                 <Bar dataKey="completed" name="Tugas Selesai" fill="#10B981" />
-                <Bar dataKey="pending" name="Tugas Pending" fill="#EF4444" />
+                <Bar dataKey="pending" name="Tugas Pending" fill="#F59E0B" />
+                <Bar dataKey="overdue" name="Tugas Overdue" fill="#EF4444" />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
       )}
 
-      {/* Detailed Projects Data Table */}
+      {/* Detailed Data Tables (Tabbed: Proyek vs Sprint) */}
       <div className="bg-white border-2 border-[#171717] rounded-xl p-4 shadow-[4px_4px_0px_#171717] space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h3 className="font-display text-sm uppercase text-[#171717]">Tabel Rincian Proyek Operasional</h3>
-            <p className="text-[10px] text-[#171717]/60 font-semibold">
-              Menampilkan {filteredProjects.length} data proyek dalam periode ini
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#171717]/15 pb-3">
+          {/* Tabs */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActiveTableTab('projects')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase transition border cursor-pointer ${
+                activeTableTab === 'projects'
+                  ? 'bg-[#171717] text-white border-[#171717] shadow-[2px_2px_0px_#FF2F92]'
+                  : 'bg-[#FAF7F2] text-[#171717] border-[#171717]/30 hover:bg-[#FFD83D]/30'
+              }`}
+            >
+              Rincian Proyek ({filteredProjects.length})
+            </button>
+            <button
+              onClick={() => setActiveTableTab('sprints')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase transition border cursor-pointer ${
+                activeTableTab === 'sprints'
+                  ? 'bg-[#171717] text-white border-[#171717] shadow-[2px_2px_0px_#FF2F92]'
+                  : 'bg-[#FAF7F2] text-[#171717] border-[#171717]/30 hover:bg-[#FFD83D]/30'
+              }`}
+            >
+              Kinerja Sprint ({sprints.length})
+            </button>
           </div>
 
-          <div className="relative w-full sm:w-64 print:hidden">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#171717]/50" />
-            <input
-              type="text"
-              value={searchTable}
-              onChange={(e) => {
-                setSearchTable(e.target.value)
-                setCurrentPage(1)
-              }}
-              placeholder="Cari proyek atau klien..."
-              className="w-full pl-8 pr-3 py-1.5 bg-[#FAF7F2] border border-[#171717] rounded-lg text-xs font-semibold focus:outline-none"
-            />
-          </div>
+          {activeTableTab === 'projects' && (
+            <div className="relative w-full sm:w-64 print:hidden">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#171717]/50" />
+              <input
+                type="text"
+                value={searchTable}
+                onChange={(e) => {
+                  setSearchTable(e.target.value)
+                  setCurrentPage(1)
+                }}
+                placeholder="Cari proyek atau klien..."
+                className="w-full pl-8 pr-3 py-1.5 bg-[#FAF7F2] border border-[#171717] rounded-lg text-xs font-semibold focus:outline-none"
+              />
+            </div>
+          )}
         </div>
 
-        {/* Table element */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b-2 border-[#171717] bg-[#FAF7F2] font-black uppercase text-[10px] text-[#171717]">
-                <th className="py-2.5 px-3">Kode</th>
-                <th className="py-2.5 px-3">Nama Proyek</th>
-                <th className="py-2.5 px-3">Klien</th>
-                <th className="py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3 text-center">Progres</th>
-                <th className="py-2.5 px-3">Tingkat Risiko</th>
-                <th className="py-2.5 px-3">Tugas Selesai / Total</th>
-                <th className="py-2.5 px-3">Overdue</th>
-                <th className="py-2.5 px-3">Deadline</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#171717]/15 font-medium">
-              {paginatedProjects.length > 0 ? (
-                paginatedProjects.map((p) => (
-                  <tr key={p.id} className="hover:bg-[#FAF7F2]/80 transition">
-                    <td className="py-2.5 px-3 font-bold font-mono text-[11px]">{p.code}</td>
-                    <td className="py-2.5 px-3 font-bold text-[#171717]">{p.name}</td>
-                    <td className="py-2.5 px-3 text-[#171717]/80">{p.client}</td>
-                    <td className="py-2.5 px-3">
-                      <span className={`px-2 py-0.5 rounded text-[9.5px] font-black uppercase ${
-                        p.status === 'completed'
-                          ? 'bg-[#10B981]/20 text-[#10B981]'
-                          : p.status === 'delayed'
-                            ? 'bg-[#EF4444]/20 text-[#EF4444]'
-                            : p.status === 'at_risk'
-                              ? 'bg-[#F59E0B]/20 text-[#D97706]'
-                              : 'bg-[#3B82F6]/20 text-[#2563EB]'
-                      }`}>
-                        {p.status?.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      <span className="font-bold text-[#FF2F92]">{p.progress}%</span>
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <span className={`text-[10px] font-bold uppercase ${
-                        p.risk_level === 'high' ? 'text-[#EF4444]' : p.risk_level === 'medium' ? 'text-[#F59E0B]' : 'text-[#10B981]'
-                      }`}>
-                        {p.risk_level || 'Aman'}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 font-mono">
-                      {p.completed_tasks} / {p.total_tasks}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      {p.overdue_tasks > 0 ? (
-                        <span className="text-[#EF4444] font-black">{p.overdue_tasks} overdue</span>
-                      ) : (
-                        <span className="text-[#10B981] font-bold">Nihil</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-3 text-[#171717]/70 font-mono text-[11px]">
-                      {p.deadline || '-'}
+        {/* Tab 1: Projects Table */}
+        {activeTableTab === 'projects' && (
+          <div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-[#171717] bg-[#FAF7F2] font-black uppercase text-[10px] text-[#171717]">
+                    <th className="py-2.5 px-3">Kode</th>
+                    <th className="py-2.5 px-3">Nama Proyek</th>
+                    <th className="py-2.5 px-3">Klien</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3 text-center">Progres</th>
+                    <th className="py-2.5 px-3">PIC</th>
+                    <th className="py-2.5 px-3">Tugas Selesai / Total</th>
+                    <th className="py-2.5 px-3">Overdue</th>
+                    <th className="py-2.5 px-3">Deadline</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#171717]/15 font-medium">
+                  {paginatedProjects.length > 0 ? (
+                    paginatedProjects.map((p) => (
+                      <tr key={p.id} className="hover:bg-[#FAF7F2]/80 transition">
+                        <td className="py-2.5 px-3 font-bold font-mono text-[11px]">{p.code}</td>
+                        <td className="py-2.5 px-3 font-bold text-[#171717]">{p.name}</td>
+                        <td className="py-2.5 px-3 text-[#171717]/80">{p.client}</td>
+                        <td className="py-2.5 px-3">
+                          <span className={`px-2 py-0.5 rounded text-[9.5px] font-black uppercase ${
+                            p.status === 'completed'
+                              ? 'bg-[#10B981]/20 text-[#10B981]'
+                              : p.status === 'delayed'
+                                ? 'bg-[#EF4444]/20 text-[#EF4444]'
+                                : p.status === 'at_risk'
+                                  ? 'bg-[#F59E0B]/20 text-[#D97706]'
+                                  : 'bg-[#3B82F6]/20 text-[#2563EB]'
+                          }`}>
+                            {p.status?.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          <span className="font-bold text-[#FF2F92]">{p.progress}%</span>
+                        </td>
+                        <td className="py-2.5 px-3 text-[#171717]/80 font-semibold">{p.pic_name}</td>
+                        <td className="py-2.5 px-3 font-mono">
+                          {p.completed_tasks} / {p.total_tasks}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          {p.overdue_tasks > 0 ? (
+                            <span className="text-[#EF4444] font-black">{p.overdue_tasks} overdue</span>
+                          ) : (
+                            <span className="text-[#10B981] font-bold">Nihil</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-[#171717]/70 font-mono text-[11px]">
+                          {p.deadline || '-'}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={9} className="py-6 text-center text-xs text-[#171717]/60 font-bold">
+                        Tidak ada proyek yang sesuai dengan kriteria filter.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-3 border-t border-[#171717]/15 print:hidden">
+                <span className="text-xs font-semibold text-[#171717]/70">
+                  Halaman {currentPage} dari {totalPages}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-1.5 bg-[#FAF7F2] border border-[#171717] rounded disabled:opacity-40 cursor-pointer"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-1.5 bg-[#FAF7F2] border border-[#171717] rounded disabled:opacity-40 cursor-pointer"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 2: Sprints Table */}
+        {activeTableTab === 'sprints' && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b-2 border-[#171717] bg-[#FAF7F2] font-black uppercase text-[10px] text-[#171717]">
+                  <th className="py-2.5 px-3">Judul Sprint</th>
+                  <th className="py-2.5 px-3">Proyek Induk</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3 text-center">Progres Aktual</th>
+                  <th className="py-2.5 px-3">Tugas Selesai / Total</th>
+                  <th className="py-2.5 px-3">Tanggal Mulai</th>
+                  <th className="py-2.5 px-3">Jatuh Tempo</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#171717]/15 font-medium">
+                {sprints.length > 0 ? (
+                  sprints.map((s) => (
+                    <tr key={s.id} className="hover:bg-[#FAF7F2]/80 transition">
+                      <td className="py-2.5 px-3 font-bold text-[#171717] flex items-center gap-1.5">
+                        <Flag size={13} className="text-[#FF2F92]" />
+                        <span>{s.title}</span>
+                      </td>
+                      <td className="py-2.5 px-3 text-[#171717]/80">
+                        <span className="font-bold text-[#171717]">{s.project_name}</span>
+                        <span className="text-[10px] text-[#171717]/50 ml-1">({s.project_code})</span>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className={`px-2 py-0.5 rounded text-[9.5px] font-black uppercase ${
+                          s.status === 'completed'
+                            ? 'bg-[#10B981]/20 text-[#10B981]'
+                            : s.status === 'in_progress'
+                              ? 'bg-[#3B82F6]/20 text-[#2563EB]'
+                              : 'bg-neutral-100 text-[#171717]/70'
+                        }`}>
+                          {s.status?.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-16 bg-[#FAF7F2] border border-[#171717] rounded-full h-2 overflow-hidden">
+                            <div className="bg-[#FF2F92] h-full" style={{ width: `${s.progress}%` }} />
+                          </div>
+                          <span className="font-bold text-[#FF2F92]">{s.progress}%</span>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 font-mono">
+                        {s.completed_tasks} / {s.total_tasks} tugas
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-[#171717]/70">
+                        {s.start_date || '-'}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-[#171717]/70">
+                        {s.due_date || '-'}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="py-6 text-center text-xs text-[#171717]/60 font-bold">
+                      Tidak ada sprint yang terhubung dengan filter saat ini.
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={9} className="py-6 text-center text-xs text-[#171717]/60 font-bold">
-                    Tidak ada proyek yang sesuai dengan kriteria filter.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-3 border-t border-[#171717]/15 print:hidden">
-            <span className="text-xs font-semibold text-[#171717]/70">
-              Halaman {currentPage} dari {totalPages}
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="p-1.5 bg-[#FAF7F2] border border-[#171717] rounded disabled:opacity-40 cursor-pointer"
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="p-1.5 bg-[#FAF7F2] border border-[#171717] rounded disabled:opacity-40 cursor-pointer"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
+                )}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

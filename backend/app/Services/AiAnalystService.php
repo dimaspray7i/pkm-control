@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Milestone;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
@@ -16,29 +17,29 @@ class AiAnalystService
      */
     public function ask(string $prompt, ?string $category = 'general', array $history = [], ?string $pageContext = null, ?User $user = null): array
     {
-        $prompt = trim($prompt);
-        $userRole = $user ? $user->role : 'admin';
+        $prompt = substr(trim($prompt), 0, 1000);
+        $userRole = $user ? $user->role : 'member';
 
-        // 1. Check for external LLM configuration (Gemini / OpenAI)
-        $apiKey = env('GEMINI_API_KEY') ?: env('AI_API_KEY') ?: env('OPENAI_API_KEY');
-        $provider = env('AI_PROVIDER', 'gemini');
+        // 1. Check for external LLM configuration (Google Gemini Free Tier)
+        $apiKey = env('GEMINI_API_KEY') ?: env('AI_API_KEY');
 
         // 2. Perform Natural Language Understanding (NLU) & Entity Extraction
         $analysis = $this->analyzeIntentAndEntities($prompt, $history, $pageContext);
 
-        // 3. If external LLM is configured, feed targeted context into LLM
+        // 3. If Google Gemini API is configured, feed targeted context into Gemini LLM
         if ($apiKey) {
             try {
-                if ($provider === 'openai' || env('OPENAI_API_KEY')) {
-                    return $this->callOpenAI($apiKey, $prompt, $analysis, $history, $pageContext, $userRole);
-                } else {
-                    return $this->callGemini($apiKey, $prompt, $analysis, $history, $pageContext, $userRole);
-                }
-            } catch (\Exception $e) {
-                Log::error('AI LLM Provider Error: ' . $e->getMessage());
-                // Fallback to internal NLU & DB synthesis engine
+                return $this->callGemini($apiKey, $prompt, $analysis, $history, $pageContext, $userRole);
+            } catch (\Illuminate\Http\Client\ConnectionException $e) {
+                Log::error('Gemini API Connection Timeout/Error: ' . $e->getMessage());
                 $fallbackResult = $this->synthesizeResponse($analysis, $userRole);
-                $fallbackResult['note'] = 'Layanan LLM eksternal tidak merespons (' . $e->getMessage() . '). Jawaban diproses menggunakan Natural Language Engine PKM lokal berbasis database real-time.';
+                $fallbackResult['note'] = 'Koneksi ke Gemini AI gagal (timeout/network error). Jawaban dialihkan ke Rule-Based Engine PKM berbasis data real-time.';
+                return $fallbackResult;
+            } catch (\Exception $e) {
+                Log::error('Gemini API Error: ' . $e->getMessage());
+                // Graceful fallback to internal NLU & DB synthesis engine without fatal error
+                $fallbackResult = $this->synthesizeResponse($analysis, $userRole);
+                $fallbackResult['note'] = 'Layanan Gemini AI sedang mengalami kendala. Jawaban dialihkan secara otomatis ke Rule-Based Engine PKM berbasis data real-time.';
                 return $fallbackResult;
             }
         }
@@ -72,6 +73,12 @@ class AiAnalystService
 
         $users = User::where('is_active', true)->get();
 
+        $milestones = Milestone::with(['project', 'tasks'])->get();
+        $totalMilestones = $milestones->count();
+        $completedMilestones = $milestones->where('status', 'completed')->count();
+        $inProgressMilestones = $milestones->where('status', 'in_progress')->count();
+        $avgMilestoneProgress = $totalMilestones > 0 ? (int) round($milestones->avg('progress')) : 0;
+
         $workload = [];
         foreach ($tasks as $t) {
             $name = trim($t->assignee_name) ?: 'Belum Ditugaskan';
@@ -103,6 +110,19 @@ class AiAnalystService
             'team_count' => $users->count(),
             'team_workload' => $workload,
             'completion_rate' => $totalTasks > 0 ? round(($completedTasks / $totalTasks) * 100, 1) : 0,
+            'total_sprints' => $totalMilestones,
+            'completed_sprints' => $completedMilestones,
+            'in_progress_sprints' => $inProgressMilestones,
+            'avg_sprint_progress' => $avgMilestoneProgress,
+            'at_risk_list' => $atRiskProjects->values()->all(),
+            'delayed_list' => $delayedProjects->values()->all(),
+            'sprints_list' => $milestones->take(6)->map(fn($m) => [
+                'id' => $m->id,
+                'title' => $m->title,
+                'project' => $m->project ? $m->project->name : 'Umum',
+                'status' => $m->status,
+                'progress' => (int) $m->progress,
+            ])->all(),
         ];
     }
 
@@ -193,6 +213,10 @@ class AiAnalystService
         // Performance Comparison
         elseif (preg_match('/\b(bandingkan|perbandingan|bulan.*ini.*dengan.*bulan.*lalu|antar.*periode)\b/i', $norm)) {
             $intent = 'data_comparison';
+        }
+        // Sprint / Milestone Performance
+        elseif (preg_match('/\b(sprint|milestone|fase.*pengembangan|tahapan.*proyek|progres.*sprint|target.*sprint|kinerja.*sprint)\b/i', $norm)) {
+            $intent = 'sprint_performance';
         }
         // General Management Consultation (Productivity / Methodology)
         elseif (preg_match('/\b(cara.*meningkatkan.*produktivitas|strategi.*manajemen|bagaimana.*meningkatkan|tips.*manajemen)\b/i', $norm)) {
@@ -392,12 +416,17 @@ class AiAnalystService
             return $this->handleDataComparison($userRole);
         }
 
-        // SCENARIO 9: GENERAL CONSULTATION (Productivity / Management advice)
+        // SCENARIO 9: SPRINT & MILESTONE PERFORMANCE
+        if ($intent === 'sprint_performance') {
+            return $this->handleSprintPerformance($userRole);
+        }
+
+        // SCENARIO 10: GENERAL CONSULTATION (Productivity / Management advice)
         if ($intent === 'general_consultation') {
             return $this->handleGeneralConsultation($analysis['prompt'], $userRole);
         }
 
-        // SCENARIO 10: GENERAL INQUIRY / CONVERSATIONAL FALLBACK
+        // SCENARIO 11: GENERAL INQUIRY / CONVERSATIONAL FALLBACK
         return $this->handleGeneralInquiry($analysis['prompt'], $userRole);
     }
 
@@ -861,6 +890,65 @@ class AiAnalystService
     }
 
     /**
+     * Handler: Sprint & Milestone Performance Analysis.
+     */
+    protected function handleSprintPerformance(string $userRole): array
+    {
+        $milestones = Milestone::with(['project', 'tasks'])->get();
+        $totalSprints = $milestones->count();
+        $completedSprints = $milestones->where('status', 'completed')->count();
+        $inProgressSprints = $milestones->where('status', 'in_progress')->count();
+        $pendingSprints = $milestones->whereIn('status', ['pending', 'planned'])->count();
+        $avgProgress = $totalSprints > 0 ? (int) round($milestones->avg('progress')) : 0;
+
+        $summary = "Sprint Tracker mencatat {$totalSprints} sprint operasional dengan rata-rata progres {$avgProgress}% ({$completedSprints} tuntas, {$inProgressSprints} aktif berjalan).";
+
+        $reply = "### Analisis Kinerja Sprint & Milestone PKM\n\n";
+        $reply .= "**Ringkasan Sprint Portofolio:**\n";
+        $reply .= "- Total Sprint: **{$totalSprints} sprint**\n";
+        $reply .= "- Sprint Selesai (100%): **{$completedSprints} sprint**\n";
+        $reply .= "- Sprint Sedang Berjalan: **{$inProgressSprints} sprint**\n";
+        $reply .= "- Sprint Menunggu Dimulai: **{$pendingSprints} sprint**\n";
+        $reply .= "- Rata-rata Progres Sprint: **{$avgProgress}%**\n\n";
+
+        if ($totalSprints > 0) {
+            $reply .= "**Daftar Sprint yang Sedang Berjalan / Aktif:**\n\n";
+            $reply .= "| Judul Sprint | Proyek Induk | Status | Progres | Tugas Selesai / Total | Target Selesai |\n";
+            $reply .= "| :--- | :--- | :--- | :--- | :--- | :--- |\n";
+            foreach ($milestones->take(8) as $m) {
+                $pName = $m->project ? $m->project->name : 'Umum';
+                $tCount = $m->tasks ? $m->tasks->count() : 0;
+                $cCount = $m->tasks ? $m->tasks->where('is_completed', true)->count() : 0;
+                $dueStr = $m->due_date ? Carbon::parse($m->due_date)->format('d M Y') : '-';
+                $reply .= "| **{$m->title}** | {$pName} | " . strtoupper($m->status) . " | **{$m->progress}%** | {$cCount} / {$tCount} | {$dueStr} |\n";
+            }
+            $reply .= "\n";
+        }
+
+        $reply .= "**Rekomendasi Tindakan untuk Sprint:**\n";
+        $reply .= "1. Tuntaskan checklist tugas pada sprint berstatus **IN PROGRESS** sebelum membuka fase sprint berikutnya.\n";
+        $reply .= "2. Pastikan progres milestone tersinkronisasi otomatis dengan checklist tugas di lapangan.\n";
+        $reply .= "3. Evaluasi sprint yang memiliki deviasi jadwal terhadap target penyelesaian proyek klien.";
+
+        return [
+            'success' => true,
+            'type' => 'sprint_performance',
+            'summary' => $summary,
+            'findings' => [
+                "Total Sprint: {$totalSprints} ({$completedSprints} selesai, {$inProgressSprints} berjalan).",
+                "Rata-rata progres sprint portofolio: {$avgProgress}%."
+            ],
+            'recommendations' => [
+                "Fokus pada penuntasan sprint in_progress.",
+                "Review tanggal target due date sprint."
+            ],
+            'reply' => $reply,
+            'mode' => 'Rule-Based Engine (Database Real-Time Context)',
+            'timestamp' => Carbon::now()->format('H:i, d M Y'),
+        ];
+    }
+
+    /**
      * Handler: General Consultation (Management / Productivity Advice).
      */
     protected function handleGeneralConsultation(string $prompt, string $userRole): array
@@ -927,20 +1015,27 @@ class AiAnalystService
     }
 
     /**
-     * Gemini integration adapter.
+     * Gemini integration adapter (Google Gemini API - Free Tier).
      */
     protected function callGemini(string $apiKey, string $prompt, array $analysis, array $history, ?string $pageContext, string $userRole): array
     {
         $context = $this->getSystemContext();
-        $model = env('AI_MODEL', 'gemini-1.5-flash');
+        $model = env('AI_MODEL', 'gemini-3.8-flash');
 
         $systemPrompt = $this->buildLlmSystemPrompt($analysis, $context, $userRole);
+
+        $sanitizedHistory = [];
+        foreach (array_slice($history, -4) as $h) {
+            if (!empty($h['user'])) $sanitizedHistory[] = 'User: ' . substr(trim((string)$h['user']), 0, 300);
+            if (!empty($h['reply'])) $sanitizedHistory[] = 'AI: ' . substr(trim((string)$h['reply']), 0, 300);
+        }
+        $historyText = !empty($sanitizedHistory) ? implode("\n", $sanitizedHistory) : 'Tidak ada riwayat.';
 
         $contents = [
             [
                 'role' => 'user',
                 'parts' => [
-                    ['text' => "{$systemPrompt}\n\nRiwayat Percakapan: " . json_encode($history, JSON_UNESCAPED_UNICODE) . "\n\nPertanyaan Pengguna: {$prompt}"]
+                    ['text' => "{$systemPrompt}\n\nRiwayat Percakapan Terakhir:\n{$historyText}\n\nPertanyaan Pengguna: {$prompt}"]
                 ]
             ]
         ];
@@ -948,7 +1043,6 @@ class AiAnalystService
         $response = Http::timeout(25)->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}", [
             'contents' => $contents,
             'generationConfig' => [
-                'temperature' => 0.3,
                 'maxOutputTokens' => 2000,
             ]
         ]);
@@ -961,7 +1055,7 @@ class AiAnalystService
                 'success' => true,
                 'type' => $analysis['intent'],
                 'reply' => $reply,
-                'summary' => 'Analisis komprehensif berhasil disusun oleh Gemini AI.',
+                'summary' => 'Analisis komprehensif berhasil disusun oleh Google Gemini AI.',
                 'findings' => [],
                 'recommendations' => [],
                 'mode' => 'External LLM (' . $model . ')',

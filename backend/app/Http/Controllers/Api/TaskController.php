@@ -75,9 +75,14 @@ class TaskController extends Controller
         }
 
         // Sorting: belum selesai terlebih dahulu, prioritas high -> medium -> low, deadline terdekat
+        $driver = \Illuminate\Support\Facades\DB::connection()->getDriverName();
+        $priorityOrder = $driver === 'mysql'
+            ? "FIELD(priority, 'high', 'medium', 'low')"
+            : "CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END";
+
         $tasks = $query->orderBy('is_completed', 'asc')
-                       ->orderByRaw("FIELD(priority, 'high', 'medium', 'low')")
-                       ->orderByRaw("deadline IS NULL, deadline ASC")
+                       ->orderByRaw($priorityOrder)
+                       ->orderByRaw("CASE WHEN deadline IS NULL THEN 1 ELSE 0 END, deadline ASC")
                        ->orderBy('created_at', 'desc')
                        ->get();
 

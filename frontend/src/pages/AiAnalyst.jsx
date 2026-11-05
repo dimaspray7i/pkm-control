@@ -13,11 +13,11 @@ import MarkdownRenderer from '../components/ui/MarkdownRenderer'
 
 const QUICK_PROMPTS = [
   'Coba cek proyek yang lagi bermasalah.',
+  'Bagaimana progres sprint dan milestone saat ini?',
   'Apa yang harus dikerjakan tim hari ini?',
   'Siapa anggota tim yang punya beban kerja paling banyak?',
   'Menurut kamu kondisi bisnis kita sekarang gimana?',
   'Ada tugas yang sudah telat?',
-  'Buatkan ringkasan untuk pimpinan.',
 ]
 
 export default function AIAnalyst() {
@@ -480,6 +480,13 @@ export default function AIAnalyst() {
                     <p className="text-[9px] font-black uppercase text-[#171717]/60">Penyelesaian</p>
                     <p className="font-display text-xl text-[#171717] mt-0.5">{contextData.completion_rate}%</p>
                   </div>
+                </div>
+
+                <div className="p-2 bg-[#FAF7F2] border border-[#171717] rounded-lg flex items-center justify-between text-xs font-bold">
+                  <span className="text-[#171717]/70">Sprint Berjalan</span>
+                  <span className="font-display text-sm text-[#3B82F6]">
+                    {contextData.in_progress_sprints ?? 0} dari {contextData.total_sprints ?? 0} Sprint
+                  </span>
                 </div>
 
                 <div className="p-2.5 bg-[#FF2F92]/10 border border-[#171717] rounded-lg space-y-1">
