@@ -26,14 +26,16 @@ class UserController extends Controller
         }
 
         if ($request->has('is_active') && $request->is_active !== 'all') {
-            $query->where(
-                'is_active',
-                filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)
-            );
+            $val = $request->is_active;
+            if ($val === 'active' || $val === '1' || $val === 'true' || $val === true) {
+                $query->where('is_active', true);
+            } elseif ($val === 'inactive' || $val === '0' || $val === 'false' || $val === false) {
+                $query->where('is_active', false);
+            }
         }
 
         if ($request->filled('search')) {
-            $search = $request->search;
+            $search = trim($request->search);
 
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -42,7 +44,7 @@ class UserController extends Controller
             });
         }
 
-        $users = $query->orderBy('name', 'asc')->get();
+        $users = $query->withCount(['projects', 'tasks'])->orderBy('name', 'asc')->get();
 
         return response()->json([
             'users' => $users,
@@ -57,7 +59,7 @@ class UserController extends Controller
     {
         $currentUser = $request->user();
 
-        if ($currentUser && $currentUser->role !== 'admin') {
+        if (!$currentUser || $currentUser->role !== 'admin') {
             return response()->json([
                 'success' => false,
                 'message' => 'Hanya Super Admin yang dapat menambahkan pengguna.',
@@ -73,12 +75,14 @@ class UserController extends Controller
             ],
             'phone' => 'nullable|string|max:30',
             'password' => 'required|string|min:6',
-            'is_active' => 'boolean',
+            'is_active' => 'nullable|boolean',
         ], [
             'name.required' => 'Nama pengguna wajib diisi.',
             'email.required' => 'Email wajib diisi.',
-            'email.unique' => 'Email ini sudah terdaftar.',
+            'email.email' => 'Format email tidak valid.',
+            'email.unique' => 'Email ini sudah terdaftar di sistem.',
             'role.required' => 'Peran pengguna wajib dipilih.',
+            'role.in' => 'Peran pengguna yang dipilih tidak valid.',
             'password.required' => 'Password wajib diisi.',
             'password.min' => 'Password minimal 6 karakter.',
         ]);
@@ -94,7 +98,7 @@ class UserController extends Controller
             ]);
 
             Activity::create([
-                'user_name' => $currentUser ? $currentUser->name : 'System',
+                'user_name' => $currentUser ? $currentUser->name : 'Sistem PKM',
                 'action' => 'menambahkan user baru: ' . $created->name,
                 'target_name' => $created->name,
                 'project_name' => 'User Management',
@@ -116,7 +120,7 @@ class UserController extends Controller
      */
     public function show($id)
     {
-        $user = User::findOrFail($id);
+        $user = User::withCount(['projects', 'tasks'])->findOrFail($id);
 
         return response()->json([
             'user' => $user,
@@ -124,13 +128,13 @@ class UserController extends Controller
     }
 
     /**
-     * Update user (admin only).
+     * Update user (admin only, prevent self-role alteration and self-deactivation).
      */
     public function update(Request $request, $id)
     {
         $currentUser = $request->user();
 
-        if ($currentUser && $currentUser->role !== 'admin') {
+        if (!$currentUser || $currentUser->role !== 'admin') {
             return response()->json([
                 'success' => false,
                 'message' => 'Hanya Super Admin yang dapat memperbarui data pengguna.',
@@ -138,6 +142,31 @@ class UserController extends Controller
         }
 
         $user = User::findOrFail($id);
+
+        // Aturan Keamanan 1: Pengguna tidak boleh mengubah atau menaikkan role akunnya sendiri
+        if ((int) $currentUser->id === (int) $id && $request->has('role') && $request->role !== $user->role) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak dapat mengubah atau menaikkan role akun Anda sendiri.',
+                'errors' => [
+                    'role' => ['Anda tidak dapat mengubah atau menaikkan role akun Anda sendiri.'],
+                ],
+            ], 422);
+        }
+
+        // Aturan Keamanan 2: Pengguna tidak boleh menonaktifkan akunnya sendiri saat sedang masuk
+        if ((int) $currentUser->id === (int) $id && $request->has('is_active')) {
+            $isActiveInput = filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN);
+            if (!$isActiveInput) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda tidak dapat menonaktifkan akun Anda sendiri saat sedang masuk.',
+                    'errors' => [
+                        'is_active' => ['Anda tidak dapat menonaktifkan akun Anda sendiri saat sedang masuk.'],
+                    ],
+                ], 422);
+            }
+        }
 
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
@@ -157,7 +186,12 @@ class UserController extends Controller
             'password' => 'nullable|string|min:6',
             'is_active' => 'sometimes|boolean',
         ], [
+            'name.required' => 'Nama pengguna wajib diisi.',
+            'email.required' => 'Email wajib diisi.',
+            'email.email' => 'Format email tidak valid.',
             'email.unique' => 'Email ini sudah digunakan oleh akun lain.',
+            'role.required' => 'Peran pengguna wajib dipilih.',
+            'role.in' => 'Peran pengguna tidak valid.',
             'password.min' => 'Password minimal 6 karakter jika ingin diubah.',
         ]);
 
@@ -180,8 +214,13 @@ class UserController extends Controller
 
             $user->update($dataToUpdate);
 
+            // Jika akun dinonaktifkan, cabut seluruh token login aktif pengguna tersebut
+            if (array_key_exists('is_active', $validated) && !$validated['is_active']) {
+                $user->tokens()->delete();
+            }
+
             Activity::create([
-                'user_name' => $currentUser ? $currentUser->name : 'System',
+                'user_name' => $currentUser ? $currentUser->name : 'Sistem PKM',
                 'action' => 'memperbarui data akun ' . $user->name,
                 'target_name' => $user->name,
                 'project_name' => 'User Management',
@@ -203,17 +242,20 @@ class UserController extends Controller
     {
         $currentUser = $request->user();
 
-        if ($currentUser && $currentUser->role !== 'admin') {
+        if (!$currentUser || $currentUser->role !== 'admin') {
             return response()->json([
                 'success' => false,
                 'message' => 'Hanya Super Admin yang dapat menghapus pengguna.',
             ], 403);
         }
 
-        if ($currentUser && (int) $currentUser->id === (int) $id) {
+        if ((int) $currentUser->id === (int) $id) {
             return response()->json([
                 'success' => false,
                 'message' => 'Anda tidak dapat menghapus akun Anda sendiri saat sedang masuk.',
+                'errors' => [
+                    'user' => ['Anda tidak dapat menghapus akun Anda sendiri saat sedang masuk.'],
+                ],
             ], 422);
         }
 
@@ -221,11 +263,15 @@ class UserController extends Controller
         $name = $user->name;
 
         DB::transaction(function () use ($user, $name, $currentUser) {
+            // Defensif: pastikan referensi PIC dan Assignee dilepas ke NULL (tanpa menghapus proyek/tugas)
+            Project::where('pic_id', $user->id)->update(['pic_id' => null]);
+            Task::where('assignee_id', $user->id)->update(['assignee_id' => null]);
+
             $user->tokens()->delete();
             $user->delete();
 
             Activity::create([
-                'user_name' => $currentUser ? $currentUser->name : 'System',
+                'user_name' => $currentUser ? $currentUser->name : 'Sistem PKM',
                 'action' => 'menghapus pengguna ' . $name,
                 'target_name' => $name,
                 'project_name' => 'User Management',
@@ -235,7 +281,57 @@ class UserController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Pengguna berhasil dihapus.',
+            'message' => 'Pengguna berhasil dihapus. Data proyek dan tugas tetap tersimpan dengan aman.',
+        ]);
+    }
+
+    /**
+     * Toggle active/inactive status (admin only, prevent self-deactivation).
+     */
+    public function toggleStatus(Request $request, $id)
+    {
+        $currentUser = $request->user();
+
+        if (!$currentUser || $currentUser->role !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya Super Admin yang dapat mengubah status akun pengguna.',
+            ], 403);
+        }
+
+        $user = User::findOrFail($id);
+
+        // Jika mencoba menonaktifkan akun sendiri
+        if ((int) $currentUser->id === (int) $id && $user->is_active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak dapat menonaktifkan akun Anda sendiri saat sedang masuk.',
+                'errors' => [
+                    'is_active' => ['Anda tidak dapat menonaktifkan akun Anda sendiri saat sedang masuk.'],
+                ],
+            ], 422);
+        }
+
+        DB::transaction(function () use ($user, $currentUser) {
+            $user->is_active = !$user->is_active;
+            if (!$user->is_active) {
+                $user->tokens()->delete();
+            }
+            $user->save();
+
+            Activity::create([
+                'user_name' => $currentUser ? $currentUser->name : 'Sistem PKM',
+                'action' => ($user->is_active ? 'mengaktifkan' : 'menonaktifkan') . ' akun ' . $user->name,
+                'target_name' => $user->name,
+                'project_name' => 'User Management',
+                'avatar_color' => $user->is_active ? '#10B981' : '#FF2F92',
+            ]);
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Status akun ' . $user->name . ' berhasil diubah menjadi ' . ($user->is_active ? 'Aktif' : 'Nonaktif') . '.',
+            'user' => $user->fresh(),
         ]);
     }
 

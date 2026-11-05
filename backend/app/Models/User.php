@@ -40,6 +40,11 @@ class User extends Authenticatable
         return $this->hasMany(Project::class, 'pic_id');
     }
 
+    public function preferences()
+    {
+        return $this->hasOne(UserPreference::class);
+    }
+
     public function tasks()
     {
         return $this->hasMany(Task::class, 'assignee_id');

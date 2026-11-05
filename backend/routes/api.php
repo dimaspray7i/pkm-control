@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\MilestoneController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
 use App\Models\Activity;
@@ -63,8 +64,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/{id}', [UserController::class, 'show']);
     Route::put('/users/{id}', [UserController::class, 'update']);
     Route::delete('/users/{id}', [UserController::class, 'destroy']);
+    Route::post('/users/{id}/toggle-status', [UserController::class, 'toggleStatus']);
     Route::get('/team', [UserController::class, 'team']);
     Route::get('/team/{id}', [UserController::class, 'teamMember']);
+
+    // Settings & Notification Preferences
+    Route::get('/settings/preferences', [SettingsController::class, 'getPreferences']);
+    Route::put('/settings/preferences', [SettingsController::class, 'updatePreferences']);
 
     // Activities Log
     Route::get('/activities', function () {

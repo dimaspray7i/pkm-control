@@ -82,8 +82,16 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
+        $user = $request->user();
+        if ($user && !$user->is_active) {
+            $user->tokens()->delete();
+            return response()->json([
+                'message' => 'Akun Anda telah dinonaktifkan.',
+            ], 403);
+        }
+
         return response()->json([
-            'user' => $request->user(),
+            'user' => $user,
         ]);
     }
 }

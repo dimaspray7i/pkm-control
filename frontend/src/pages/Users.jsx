@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react'
 import api from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
-import { ShieldCheck, Mail, Phone, UserCheck, Shield, Users as UsersIcon, Key, AlertCircle, Plus, Edit3, Trash2, X, Check, Loader2, RotateCcw, Search } from 'lucide-react'
+import {
+  ShieldCheck, Mail, Phone, UserCheck, Shield, Users as UsersIcon,
+  Key, AlertCircle, Plus, Edit3, Trash2, X, Check, Loader2,
+  RotateCcw, Search, Power
+} from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
 
 const ROLE_LABELS = {
@@ -27,6 +31,7 @@ export default function Users() {
   const [error, setError]         = useState(null)
   const [search, setSearch]       = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all') // 'all', 'active', 'inactive'
 
   // Modals state
   const [isAddOpen, setIsAddOpen]       = useState(false)
@@ -34,6 +39,7 @@ export default function Users() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState(null)
   const [submitting, setSubmitting]     = useState(false)
+  const [togglingId, setTogglingId]     = useState(null)
   const [formErrors, setFormErrors]     = useState({})
   const [feedback, setFeedback]         = useState(null)
 
@@ -126,6 +132,12 @@ export default function Users() {
       const payload = { ...formData }
       if (!payload.password) delete payload.password
 
+      // Proteksi sisi klien: jika mengedit akun sendiri, pertahankan role dan status aktif
+      if (selectedUser.id === currentUser?.id) {
+        payload.role = currentUser.role
+        payload.is_active = true
+      }
+
       const res = await api.put(`/users/${selectedUser.id}`, payload)
       setUsers(prev => prev.map(u => u.id === selectedUser.id ? res.data.user : u))
       setIsEditOpen(false)
@@ -159,13 +171,47 @@ export default function Users() {
     }
   }
 
+  // Quick toggle active / inactive status
+  const handleToggleStatus = async (user) => {
+    if (!isAdmin) return
+
+    if (user.id === currentUser?.id) {
+      setFeedback({ type: 'error', message: 'Anda tidak dapat menonaktifkan akun Anda sendiri saat sedang masuk.' })
+      setTimeout(() => setFeedback(null), 4000)
+      return
+    }
+
+    setTogglingId(user.id)
+    try {
+      const res = await api.post(`/users/${user.id}/toggle-status`)
+      const updatedUser = res.data.user
+      setUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u))
+      setFeedback({
+        type: 'success',
+        message: `Status ${updatedUser.name} diubah menjadi ${updatedUser.is_active ? 'Aktif' : 'Nonaktif'}.`
+      })
+      setTimeout(() => setFeedback(null), 4000)
+    } catch (err) {
+      setFeedback({ type: 'error', message: err.response?.data?.message || 'Gagal mengubah status akun.' })
+      setTimeout(() => setFeedback(null), 4000)
+    } finally {
+      setTogglingId(null)
+    }
+  }
+
   const filteredUsers = users.filter(u => {
     const matchSearch =
       u.name.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase()) ||
       (u.phone || '').toLowerCase().includes(search.toLowerCase())
+
     const matchRole = roleFilter === 'all' || u.role === roleFilter
-    return matchSearch && matchRole
+
+    const matchStatus = statusFilter === 'all'
+      || (statusFilter === 'active' && u.is_active)
+      || (statusFilter === 'inactive' && !u.is_active)
+
+    return matchSearch && matchRole && matchStatus
   })
 
   if (loading) return (
@@ -189,9 +235,11 @@ export default function Users() {
     <div className="space-y-4 pb-6">
       {/* Feedback Banner */}
       {feedback && (
-        <div className="p-3 bg-[#10B981]/20 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center justify-between">
-          <p className="text-xs font-black text-[#171717]">{feedback.message}</p>
-          <button onClick={() => setFeedback(null)} className="text-[#171717] font-bold text-xs">✕</button>
+        <div className={`p-3 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center justify-between ${
+          feedback.type === 'error' ? 'bg-[#FF2F92]/20 text-[#FF2F92]' : 'bg-[#10B981]/20 text-[#171717]'
+        }`}>
+          <p className="text-xs font-black">{feedback.message}</p>
+          <button onClick={() => setFeedback(null)} className="text-[#171717] font-bold text-xs cursor-pointer">✕</button>
         </div>
       )}
 
@@ -209,7 +257,7 @@ export default function Users() {
             {isAdmin && (
               <button
                 onClick={openAddModal}
-                className="pkm-btn-pink flex items-center gap-1.5 text-xs font-black uppercase"
+                className="pkm-btn-pink flex items-center gap-1.5 text-xs font-black uppercase cursor-pointer"
               >
                 <Plus size={14} /> Tambah Pengguna
               </button>
@@ -224,10 +272,10 @@ export default function Users() {
           { label: 'Total Pengguna', value: users.length, bg: 'bg-white', icon: <UsersIcon size={16} /> },
           { label: 'Super Admin', value: users.filter(u => u.role === 'admin').length, bg: 'bg-[#FF2F92] text-white', icon: <ShieldCheck size={16} /> },
           { label: 'Project Manager', value: users.filter(u => u.role === 'project_manager').length, bg: 'bg-[#B8A0F0] text-[#171717]', icon: <UserCheck size={16} /> },
-          { label: 'Anggota / Member', value: users.filter(u => u.role === 'member').length, bg: 'bg-[#FFD83D] text-[#171717]', icon: <Key size={16} /> },
+          { label: 'Akun Aktif', value: `${users.filter(u => u.is_active).length} / ${users.length}`, bg: 'bg-[#10B981] text-white', icon: <Key size={16} /> },
         ].map((c, i) => (
           <div key={i} className={`p-3.5 border border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] ${c.bg}`}>
-            <div className="flex items-center justify-between mb-1.5 opacity-70">
+            <div className="flex items-center justify-between mb-1.5 opacity-80">
               {c.icon}
               <span className="text-[9px] font-black uppercase tracking-wider">{c.label}</span>
             </div>
@@ -238,6 +286,7 @@ export default function Users() {
 
       {/* Filter Toolbar */}
       <div className="bg-white p-3 border border-[#171717] rounded-lg shadow-[3px_3px_0px_#171717] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        {/* Search */}
         <div className="relative flex-1 max-w-md">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#171717]/50" />
           <input
@@ -249,26 +298,41 @@ export default function Users() {
           />
         </div>
 
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {[
-            { id: 'all', label: 'Semua' },
-            { id: 'admin', label: 'Admin' },
-            { id: 'project_manager', label: 'PM' },
-            { id: 'pimpinan', label: 'Pimpinan' },
-            { id: 'member', label: 'Member' },
-          ].map(r => (
-            <button
-              key={r.id}
-              onClick={() => setRoleFilter(r.id)}
-              className={`px-2.5 py-1 text-[10.5px] font-black uppercase rounded border transition-all cursor-pointer ${
-                roleFilter === r.id
-                  ? 'bg-[#171717] text-white border-[#171717]'
-                  : 'bg-white text-[#171717] border-[#171717]/30 hover:border-[#171717]'
-              }`}
-            >
-              {r.label}
-            </button>
-          ))}
+        {/* Role & Status Filter Pills */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Role Pills */}
+          <div className="flex items-center gap-1 flex-wrap">
+            {[
+              { id: 'all', label: 'Semua Role' },
+              { id: 'admin', label: 'Admin' },
+              { id: 'project_manager', label: 'PM' },
+              { id: 'pimpinan', label: 'Pimpinan' },
+              { id: 'member', label: 'Member' },
+            ].map(r => (
+              <button
+                key={r.id}
+                onClick={() => setRoleFilter(r.id)}
+                className={`px-2 py-1 text-[10px] font-black uppercase rounded border transition-all cursor-pointer ${
+                  roleFilter === r.id
+                    ? 'bg-[#171717] text-white border-[#171717]'
+                    : 'bg-white text-[#171717] border-[#171717]/30 hover:border-[#171717]'
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Status Dropdown */}
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="px-2.5 py-1 bg-[#FAF7F2] border border-[#171717] rounded text-[11px] font-bold focus:outline-none focus:border-[#FF2F92] cursor-pointer"
+          >
+            <option value="all">Semua Status</option>
+            <option value="active">Hanya Aktif</option>
+            <option value="inactive">Hanya Nonaktif</option>
+          </select>
         </div>
       </div>
 
@@ -288,7 +352,7 @@ export default function Users() {
                   <th className="py-2.5 px-4">Nama & Email</th>
                   <th className="py-2.5 px-4">Peran (Role)</th>
                   <th className="py-2.5 px-4 hidden sm:table-cell">Nomor HP</th>
-                  <th className="py-2.5 px-4">Status</th>
+                  <th className="py-2.5 px-4">Status Akun</th>
                   {isAdmin && <th className="py-2.5 px-4 text-right">Aksi</th>}
                 </tr>
               </thead>
@@ -303,6 +367,8 @@ export default function Users() {
                   filteredUsers.map((u) => {
                     const roleConfig = ROLE_LABELS[u.role] || ROLE_LABELS.member
                     const isSelf = u.id === currentUser?.id
+                    const isToggling = togglingId === u.id
+
                     return (
                       <tr key={u.id} className={`hover:bg-[#FAF7F2] transition-colors ${isSelf ? 'bg-[#FFF0F8]' : ''}`}>
                         <td className="py-3 px-4">
@@ -328,14 +394,34 @@ export default function Users() {
                           {u.phone || '—'}
                         </td>
                         <td className="py-3 px-4">
-                          <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase px-2 py-0.5 rounded-sm border ${
-                            u.is_active
-                              ? 'bg-[#10B981]/20 text-[#10B981] border-[#10B981]/40'
-                              : 'bg-neutral-200 text-neutral-600 border-neutral-300'
-                          }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-[#10B981]' : 'bg-neutral-400'}`}></span>
-                            {u.is_active ? 'Aktif' : 'Nonaktif'}
-                          </span>
+                          {isAdmin && !isSelf ? (
+                            <button
+                              onClick={() => handleToggleStatus(u)}
+                              disabled={isToggling}
+                              title={`Klik untuk ubah status menjadi ${u.is_active ? 'Nonaktif' : 'Aktif'}`}
+                              className={`inline-flex items-center gap-1 text-[9px] font-black uppercase px-2 py-0.5 rounded-sm border transition-all cursor-pointer hover:opacity-80 ${
+                                u.is_active
+                                  ? 'bg-[#10B981]/20 text-[#10B981] border-[#10B981]/40'
+                                  : 'bg-neutral-200 text-neutral-600 border-neutral-300'
+                              }`}
+                            >
+                              {isToggling ? (
+                                <Loader2 size={10} className="animate-spin" />
+                              ) : (
+                                <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-[#10B981]' : 'bg-neutral-400'}`}></span>
+                              )}
+                              <span>{u.is_active ? 'Aktif' : 'Nonaktif'}</span>
+                            </button>
+                          ) : (
+                            <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase px-2 py-0.5 rounded-sm border ${
+                              u.is_active
+                                ? 'bg-[#10B981]/20 text-[#10B981] border-[#10B981]/40'
+                                : 'bg-neutral-200 text-neutral-600 border-neutral-300'
+                            }`} title={isSelf ? 'Akun Anda yang sedang aktif' : undefined}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-[#10B981]' : 'bg-neutral-400'}`}></span>
+                              {u.is_active ? 'Aktif' : 'Nonaktif'}
+                            </span>
+                          )}
                         </td>
                         {isAdmin && (
                           <td className="py-3 px-4 text-right">
@@ -347,7 +433,7 @@ export default function Users() {
                               >
                                 <Edit3 size={13} />
                               </button>
-                              {!isSelf && (
+                              {!isSelf ? (
                                 <button
                                   onClick={() => openDeleteModal(u)}
                                   className="p-1 hover:bg-[#FF2F92] hover:text-white border border-transparent hover:border-[#171717] rounded text-[#171717] transition-all cursor-pointer"
@@ -355,6 +441,10 @@ export default function Users() {
                                 >
                                   <Trash2 size={13} />
                                 </button>
+                              ) : (
+                                <span className="p-1 text-[#171717]/30 cursor-not-allowed" title="Akun Anda yang sedang login tidak dapat dihapus">
+                                  <Trash2 size={13} />
+                                </span>
                               )}
                             </div>
                           </td>
@@ -406,7 +496,7 @@ export default function Users() {
                 <h3 className="font-display text-xl uppercase tracking-wider text-[#171717]">Tambah Pengguna Baru</h3>
                 <p className="text-[11px] font-semibold text-[#171717]/60">Daftarkan akun tim baru ke sistem PKM</p>
               </div>
-              <button onClick={() => setIsAddOpen(false)} className="text-[#171717] hover:text-[#FF2F92]">
+              <button onClick={() => setIsAddOpen(false)} className="text-[#171717] hover:text-[#FF2F92] cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -489,14 +579,14 @@ export default function Users() {
                 <button
                   type="button"
                   onClick={() => setIsAddOpen(false)}
-                  className="px-3 py-1.5 bg-white border border-[#171717] rounded text-xs font-black uppercase text-[#171717] hover:bg-neutral-100"
+                  className="px-3 py-1.5 bg-white border border-[#171717] rounded text-xs font-black uppercase text-[#171717] hover:bg-neutral-100 cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="pkm-btn-pink flex items-center gap-1.5 text-xs font-black uppercase disabled:opacity-50"
+                  className="pkm-btn-pink flex items-center gap-1.5 text-xs font-black uppercase disabled:opacity-50 cursor-pointer"
                 >
                   {submitting ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
                   Simpan Pengguna
@@ -516,7 +606,7 @@ export default function Users() {
                 <h3 className="font-display text-xl uppercase tracking-wider text-[#171717]">Edit Pengguna</h3>
                 <p className="text-[11px] font-semibold text-[#171717]/60">Perbarui profil akun {selectedUser.name}</p>
               </div>
-              <button onClick={() => setIsEditOpen(false)} className="text-[#171717] hover:text-[#FF2F92]">
+              <button onClick={() => setIsEditOpen(false)} className="text-[#171717] hover:text-[#FF2F92] cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -556,14 +646,20 @@ export default function Users() {
                   <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Peran (Role) *</label>
                   <select
                     value={formData.role}
+                    disabled={selectedUser.id === currentUser?.id}
                     onChange={e => setFormData({ ...formData, role: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className={`w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92] ${
+                      selectedUser.id === currentUser?.id ? 'opacity-60 cursor-not-allowed bg-neutral-100' : ''
+                    }`}
                   >
                     <option value="member">Member</option>
                     <option value="project_manager">Project Manager</option>
                     <option value="pimpinan">Pimpinan</option>
                     <option value="admin">Super Admin</option>
                   </select>
+                  {selectedUser.id === currentUser?.id && (
+                    <p className="text-[9px] text-[#171717]/60 mt-0.5 font-bold">Role akun sendiri tidak dapat diubah</p>
+                  )}
                 </div>
 
                 <div>
@@ -583,7 +679,7 @@ export default function Users() {
                   type="password"
                   value={formData.password}
                   onChange={e => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="Isi hanya jika ingin ganti password"
+                  placeholder="Minimal 6 karakter"
                   className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
                 />
               </div>
@@ -593,11 +689,20 @@ export default function Users() {
                   type="checkbox"
                   id="user_active"
                   checked={formData.is_active}
+                  disabled={selectedUser.id === currentUser?.id}
                   onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="accent-[#FF2F92] w-4 h-4 cursor-pointer"
+                  className={`accent-[#FF2F92] w-4 h-4 ${
+                    selectedUser.id === currentUser?.id ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                  }`}
                 />
-                <label htmlFor="user_active" className="text-xs font-black text-[#171717] cursor-pointer">
+                <label
+                  htmlFor="user_active"
+                  className={`text-xs font-black text-[#171717] ${
+                    selectedUser.id === currentUser?.id ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'
+                  }`}
+                >
                   Akun Aktif (Dapat Login ke Sistem)
+                  {selectedUser.id === currentUser?.id && ' — Akun aktif sendiri tidak dapat dinonaktifkan'}
                 </label>
               </div>
 
@@ -605,14 +710,14 @@ export default function Users() {
                 <button
                   type="button"
                   onClick={() => setIsEditOpen(false)}
-                  className="px-3 py-1.5 bg-white border border-[#171717] rounded text-xs font-black uppercase text-[#171717] hover:bg-neutral-100"
+                  className="px-3 py-1.5 bg-white border border-[#171717] rounded text-xs font-black uppercase text-[#171717] hover:bg-neutral-100 cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="pkm-btn-pink flex items-center gap-1.5 text-xs font-black uppercase disabled:opacity-50"
+                  className="pkm-btn-pink flex items-center gap-1.5 text-xs font-black uppercase disabled:opacity-50 cursor-pointer"
                 >
                   {submitting ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
                   Simpan Perubahan
@@ -637,23 +742,26 @@ export default function Users() {
               </div>
             </div>
 
-            <div className="p-3 bg-white border border-[#171717] rounded text-xs">
+            <div className="p-3 bg-white border border-[#171717] rounded text-xs space-y-1">
               <p className="font-black text-[#171717]">{selectedUser.name}</p>
-              <p className="text-[10px] text-[#171717]/60 mt-0.5">{selectedUser.email} · Role: {selectedUser.role}</p>
+              <p className="text-[10px] text-[#171717]/60">{selectedUser.email} · Role: {selectedUser.role}</p>
+              <p className="text-[10px] text-[#171717]/80 pt-1 border-t border-[#171717]/10">
+                Data proyek dan riwayat tugas yang pernah ditangani pengguna ini tetap tersimpan aman di database.
+              </p>
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#171717]/20">
               <button
                 type="button"
                 onClick={() => setIsDeleteOpen(false)}
-                className="px-3 py-1.5 bg-white border border-[#171717] rounded text-xs font-black uppercase text-[#171717] hover:bg-neutral-100"
+                className="px-3 py-1.5 bg-white border border-[#171717] rounded text-xs font-black uppercase text-[#171717] hover:bg-neutral-100 cursor-pointer"
               >
                 Batal
               </button>
               <button
                 onClick={handleDeleteSubmit}
                 disabled={submitting}
-                className="px-4 py-1.5 bg-[#FF2F92] text-white border border-[#171717] rounded shadow-[2px_2px_0px_#171717] text-xs font-black uppercase flex items-center gap-1.5 disabled:opacity-50"
+                className="px-4 py-1.5 bg-[#FF2F92] text-white border border-[#171717] rounded shadow-[2px_2px_0px_#171717] text-xs font-black uppercase flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 {submitting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                 Ya, Hapus
