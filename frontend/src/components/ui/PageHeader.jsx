@@ -1,16 +1,16 @@
 import React from 'react'
 
-export default function PageHeader({ 
-  title, 
-  subtitle, 
-  tag = "PKM CONTROL", 
+export default function PageHeader({
+  title,
+  subtitle,
+  tag = "PKM CONTROL",
   actions = null,
-  badge = null 
+  badge = null
 }) {
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-      <div>
-        <div className="flex items-center gap-2 mb-1">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 sm:gap-4 mb-4 sm:mb-6">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
           {tag && (
             <span className="px-2 py-0.5 bg-[#FFD83D] border border-[#171717] rounded text-[9px] font-black uppercase tracking-wider text-[#171717] shadow-[1px_1px_0px_#171717]">
               {tag}
@@ -22,9 +22,9 @@ export default function PageHeader({
             </span>
           )}
         </div>
-        <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl leading-tight text-[#171717] uppercase tracking-tight flex items-baseline gap-1.5">
+        <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl leading-tight text-[#171717] uppercase tracking-tight flex items-baseline gap-1.5 break-words">
           <span>{title}</span>
-          <span className="w-2.5 h-2.5 bg-[#FF2F92] border border-[#171717] inline-block mb-0.5"></span>
+          <span className="w-2.5 h-2.5 bg-[#FF2F92] border border-[#171717] inline-block mb-0.5 shrink-0"></span>
         </h1>
         {subtitle && (
           <p className="mt-1 text-xs sm:text-sm font-semibold text-[#171717]/70 leading-relaxed max-w-2xl">
@@ -34,7 +34,7 @@ export default function PageHeader({
       </div>
 
       {actions && (
-        <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0 flex-wrap">
+        <div className="w-full sm:w-auto flex items-center gap-2 sm:gap-2.5 self-stretch sm:self-auto shrink-0 flex-wrap">
           {actions}
         </div>
       )}

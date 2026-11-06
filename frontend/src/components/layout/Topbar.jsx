@@ -1,17 +1,17 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { 
-  Bell, 
-  Search, 
-  ChevronDown, 
-  LogOut, 
-  User, 
-  Menu, 
-  X, 
-  FolderKanban, 
-  CheckSquare, 
-  Users, 
-  Loader2, 
-  Check, 
+import {
+  Bell,
+  Search,
+  ChevronDown,
+  LogOut,
+  User,
+  Menu,
+  X,
+  FolderKanban,
+  CheckSquare,
+  Users,
+  Loader2,
+  Check,
   ArrowRight,
   Sparkles,
   ExternalLink
@@ -282,7 +282,7 @@ export default function Topbar({ onToggleMobile }) {
   }
   const displayName = user?.name || 'Budi Santoso'
   const displayRole = ROLE_LABELS[user?.role] || user?.role || 'Team Member'
-  
+
   const initials = displayName
     .split(' ')
     .filter(Boolean)
@@ -293,29 +293,31 @@ export default function Topbar({ onToggleMobile }) {
 
   return (
     <>
-      <header 
-        className="px-4 sm:px-6 py-3 flex items-center justify-between bg-[#F5F1E9] relative z-30 select-none shrink-0"
+      <header
+        className="px-3.5 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between bg-[#F5F1E9] relative z-30 select-none shrink-0"
         style={{ borderBottom: '1.5px solid #171717' }}
       >
         {/* Left: Mobile Drawer Trigger + Search Bar */}
-        <div className="flex items-center gap-3 flex-1 max-w-xl">
-          {/* Hamburger Toggle (Mobile / Tablet only) */}
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-1 max-w-xl min-w-0">
+          {/* Hamburger Toggle (Mobile / Tablet only) with Comfortable Touch Target */}
           <button
             onClick={onToggleMobile}
-            className="p-2 bg-white border-1.5 border-[#171717] rounded-lg hover:bg-[#FFD83D] shadow-[2px_2px_0px_#171717] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none lg:hidden cursor-pointer"
-            title="Buka Menu"
+            className="p-2 sm:p-2.5 min-w-[40px] min-h-[40px] flex items-center justify-center bg-white border-1.5 border-[#171717] rounded-lg hover:bg-[#FFD83D] active:bg-[#FF2F92] active:text-white shadow-[2px_2px_0px_#171717] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none lg:hidden cursor-pointer shrink-0 transition-colors"
+            title="Buka Menu Navigasi"
+            aria-label="Buka Menu Navigasi"
           >
             <Menu size={18} strokeWidth={2.4} className="text-[#171717]" />
           </button>
 
           {/* Interactive Search Bar Trigger */}
-          <div 
+          <div
             onClick={() => setIsSearchOpen(true)}
-            className="flex-1 flex items-center gap-2.5 bg-white px-3.5 py-2 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] hover:border-[#FF2F92] transition-all cursor-pointer"
+            className="flex-1 min-w-0 flex items-center gap-2 sm:gap-2.5 bg-white px-3 sm:px-3.5 py-2 min-h-[40px] border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] hover:border-[#FF2F92] transition-all cursor-pointer"
           >
             <Search size={15} strokeWidth={2.4} className="text-[#171717]/60 shrink-0" />
             <span className="w-full text-xs font-semibold text-[#171717]/50 select-none truncate">
-              Cari proyek, tugas, atau anggota tim...
+              <span className="hidden sm:inline">Cari proyek, tugas, atau anggota tim...</span>
+              <span className="sm:hidden">Cari proyek, tugas, tim...</span>
             </span>
             <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[9px] font-black text-[#171717]/70 bg-[#F5F1E9] border border-[#171717] rounded shadow-[1px_1px_0px_#171717] whitespace-nowrap shrink-0">
               Ctrl + K
@@ -324,7 +326,7 @@ export default function Topbar({ onToggleMobile }) {
         </div>
 
         {/* Right Controls: Notifications, Status Badge, User Pill */}
-        <div className="flex items-center gap-2 sm:gap-3 ml-3">
+        <div className="flex items-center gap-2 sm:gap-3 ml-2.5 sm:ml-3 shrink-0">
           {/* System Active Badge */}
           <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-white border border-[#171717] rounded-md shadow-[1px_1px_0px_#171717]">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -333,13 +335,14 @@ export default function Topbar({ onToggleMobile }) {
 
           {/* Bell Notification Dropdown */}
           <div className="relative" ref={notifRef}>
-            <button 
+            <button
               onClick={() => {
                 setShowNotif(!showNotif)
                 if (!showNotif && unreadCount > 0) markAllAsRead()
               }}
-              className="relative p-2 bg-white border-1.5 border-[#171717] rounded-lg hover:bg-[#FFD83D] shadow-[2px_2px_0px_#171717] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer"
+              className="relative p-2 sm:p-2.5 min-w-[40px] min-h-[40px] flex items-center justify-center bg-white border-1.5 border-[#171717] rounded-lg hover:bg-[#FFD83D] shadow-[2px_2px_0px_#171717] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer shrink-0"
               title="Pusat Notifikasi"
+              aria-label="Pusat Notifikasi"
             >
               <Bell size={16} strokeWidth={2.4} className="text-[#171717]" />
               {unreadCount > 0 && (
@@ -350,8 +353,8 @@ export default function Topbar({ onToggleMobile }) {
             </button>
 
             {showNotif && (
-              <div className="absolute right-0 mt-2 w-80 bg-white border-2 border-[#171717] rounded-lg shadow-[4px_4px_0px_#171717] p-3.5 z-50">
-                <div className="flex items-center justify-between border-b border-[#171717]/15 pb-2 mb-2.5">
+              <div className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 top-14 sm:top-auto sm:mt-2 w-auto sm:w-85 max-w-[calc(100vw-24px)] max-h-[calc(100vh-80px)] overflow-hidden bg-white border-2 border-[#171717] rounded-lg shadow-[4px_4px_0px_#171717] p-3 sm:p-3.5 z-50 flex flex-col">
+                <div className="flex items-center justify-between border-b border-[#171717]/15 pb-2 mb-2.5 shrink-0">
                   <span className="text-xs font-black uppercase tracking-wider text-[#171717]">Notifikasi Aktivitas</span>
                   {unreadCount > 0 ? (
                     <button
@@ -367,7 +370,7 @@ export default function Topbar({ onToggleMobile }) {
                   )}
                 </div>
 
-                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                <div className="space-y-2 flex-1 overflow-y-auto pr-1 min-h-0">
                   {loadingNotifs ? (
                     <div className="py-6 flex flex-col items-center justify-center gap-1.5 text-xs text-[#171717]/60 font-bold">
                       <Loader2 size={16} className="animate-spin text-[#FF2F92]" />
@@ -379,8 +382,8 @@ export default function Topbar({ onToggleMobile }) {
                     </p>
                   ) : (
                     activities.map((act) => (
-                      <div 
-                        key={act.id} 
+                      <div
+                        key={act.id}
                         className="p-2 bg-[#FAF7F2] border border-[#171717]/30 rounded hover:bg-[#FFF0F8] transition-colors"
                       >
                         <p className="font-bold text-xs text-[#171717] leading-tight">
@@ -395,7 +398,7 @@ export default function Topbar({ onToggleMobile }) {
                   )}
                 </div>
 
-                <div className="mt-2.5 pt-2 border-t border-[#171717]/10 flex items-center justify-between text-[10px]">
+                <div className="mt-2.5 pt-2 border-t border-[#171717]/10 flex items-center justify-between text-[10px] shrink-0">
                   <button
                     onClick={() => { setShowNotif(false); navigate('/reports') }}
                     className="text-[#FF2F92] font-black hover:underline flex items-center gap-1 cursor-pointer"
@@ -418,7 +421,8 @@ export default function Topbar({ onToggleMobile }) {
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setShowMenu(!showMenu)}
-              className="flex items-center gap-2.5 pl-1.5 pr-2.5 py-1 bg-white border-1.5 border-[#171717] rounded-lg hover:bg-[#FFD83D]/40 shadow-[2px_2px_0px_#171717] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer"
+              className="flex items-center gap-2 sm:gap-2.5 pl-1.5 pr-2 sm:pr-2.5 py-1 min-h-[40px] bg-white border-1.5 border-[#171717] rounded-lg hover:bg-[#FFD83D]/40 shadow-[2px_2px_0px_#171717] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer shrink-0"
+              aria-label="Menu Pengguna"
             >
               <div className="w-7 h-7 rounded-md bg-[#171717] flex items-center justify-center text-white font-black text-[11px] shrink-0 border border-[#171717]">
                 {initials}
@@ -434,7 +438,7 @@ export default function Topbar({ onToggleMobile }) {
 
             {/* Profile Dropdown Popover */}
             {showMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white border-2 border-[#171717] rounded-lg shadow-[4px_4px_0px_#171717] p-2 z-50">
+              <div className="absolute right-0 mt-2 w-56 sm:w-60 max-w-[calc(100vw-24px)] max-h-[calc(100vh-80px)] overflow-y-auto bg-white border-2 border-[#171717] rounded-lg shadow-[4px_4px_0px_#171717] p-2 z-50">
                 <div className="px-3 py-2 border-b border-[#171717]/15 mb-1.5 bg-[#F5F1E9] rounded-md">
                   <p className="text-xs font-black text-[#171717] truncate">{displayName}</p>
                   <p className="text-[10px] text-[#171717]/60 truncate font-semibold">{user?.email || 'admin@pkm.co.id'}</p>
@@ -466,15 +470,15 @@ export default function Topbar({ onToggleMobile }) {
 
       {/* GLOBAL SEARCH MODAL / COMMAND PALETTE (CTRL + K) */}
       {isSearchOpen && (
-        <div 
-          className="fixed inset-0 z-50 bg-[#171717]/65 backdrop-blur-[2px] flex items-start justify-center pt-16 sm:pt-24 p-4"
+        <div
+          className="fixed inset-0 z-50 bg-[#171717]/65 backdrop-blur-[2px] flex items-start justify-center pt-8 sm:pt-20 p-3 sm:p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) setIsSearchOpen(false)
           }}
         >
-          <div className="bg-[#FAF7F2] border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-[#FAF7F2] border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] w-full max-w-2xl max-h-[calc(100vh-80px)] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* Search Input Bar */}
-            <div className="p-3.5 bg-white border-b-2 border-[#171717] flex items-center gap-3">
+            <div className="p-3.5 bg-white border-b-2 border-[#171717] flex items-center gap-3 shrink-0">
               <Search size={18} className="text-[#FF2F92] shrink-0" strokeWidth={2.5} />
               <input
                 ref={searchInputRef}
@@ -488,7 +492,7 @@ export default function Topbar({ onToggleMobile }) {
               {isSearching ? (
                 <Loader2 size={16} className="animate-spin text-[#FF2F92] shrink-0" />
               ) : searchQuery ? (
-                <button 
+                <button
                   onClick={() => setSearchQuery('')}
                   className="p-1 text-[#171717]/50 hover:text-[#171717] cursor-pointer"
                 >
@@ -501,25 +505,25 @@ export default function Topbar({ onToggleMobile }) {
             </div>
 
             {/* Results Body */}
-            <div className="max-h-96 overflow-y-auto p-3 space-y-3">
+            <div className="max-h-[60vh] sm:max-h-96 flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
               {!searchQuery.trim() ? (
                 <div className="py-8 text-center text-xs font-semibold text-[#171717]/60 space-y-2">
                   <p className="font-display text-sm uppercase text-[#171717]">Pencarian Global PKM Control Center</p>
                   <p>Ketik kata kunci untuk mencari data proyek, tugas operasional, atau personil tim.</p>
                   <div className="flex justify-center gap-2 pt-2">
-                    <button 
+                    <button
                       onClick={() => setSearchQuery('website')}
                       className="px-2 py-1 bg-white border border-[#171717] rounded text-[10px] font-black uppercase hover:bg-[#FFD83D]"
                     >
                       Website
                     </button>
-                    <button 
+                    <button
                       onClick={() => setSearchQuery('aplikasi')}
                       className="px-2 py-1 bg-white border border-[#171717] rounded text-[10px] font-black uppercase hover:bg-[#FFD83D]"
                     >
                       Aplikasi
                     </button>
-                    <button 
+                    <button
                       onClick={() => setSearchQuery('PKM')}
                       className="px-2 py-1 bg-white border border-[#171717] rounded text-[10px] font-black uppercase hover:bg-[#FFD83D]"
                     >
