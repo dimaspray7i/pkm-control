@@ -22,7 +22,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::put('/me', [UserController::class, 'updateProfile']);
-    
+
     // Dashboard & Business Analytics
     Route::get('/dashboard', [DashboardController::class, 'index']);
     Route::get('/search', [DashboardController::class, 'search']);
@@ -32,9 +32,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/ai/chat', [AiAnalystController::class, 'ask']);
     Route::get('/ai/context', [AiAnalystController::class, 'context']);
 
-    // Reports 2.0 (Dynamic Business Intelligence)
-    Route::get('/reports', [ReportController::class, 'index']);
-    Route::get('/reports/overview', [ReportController::class, 'index']);
+    // Reports 2.0 (Dynamic Business Intelligence) - Restricted to admin, pimpinan, project_manager
+    Route::middleware('role:admin,pimpinan,project_manager')->group(function () {
+        Route::get('/reports', [ReportController::class, 'index']);
+        Route::get('/reports/overview', [ReportController::class, 'index']);
+    });
 
     // Project Management (Full CRUD)
     Route::get('/projects', [ProjectController::class, 'index']);

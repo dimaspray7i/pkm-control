@@ -17,6 +17,13 @@ class ReportController extends Controller
      */
     public function index(Request $request)
     {
+        $user = $request->user();
+        if (!$user || !in_array($user->role, ['admin', 'pimpinan', 'project_manager'], true)) {
+            return response()->json([
+                'message' => 'Akses ditolak. Peran Anda tidak memiliki izin untuk mengakses data laporan.',
+            ], 403);
+        }
+
         $period = $request->query('period', 'this_month');
         $projectId = $request->query('project_id');
         $statusFilter = $request->query('status');

@@ -18,6 +18,8 @@ class ReportAndAiAnalystTest extends TestCase
     use RefreshDatabase;
 
     protected User $adminUser;
+    protected User $pimpinanUser;
+    protected User $pmUser;
     protected User $memberUser;
     protected Project $projectOnTrack;
     protected Project $projectAtRisk;
@@ -52,6 +54,22 @@ class ReportAndAiAnalystTest extends TestCase
             'email' => 'admin.test@pkm.co.id',
             'password' => Hash::make('password123'),
             'role' => 'admin',
+            'is_active' => true,
+        ]);
+
+        $this->pimpinanUser = User::create([
+            'name' => 'Pimpinan PKM',
+            'email' => 'pimpinan.test@pkm.co.id',
+            'password' => Hash::make('password123'),
+            'role' => 'pimpinan',
+            'is_active' => true,
+        ]);
+
+        $this->pmUser = User::create([
+            'name' => 'Project Manager PKM',
+            'email' => 'pm.test@pkm.co.id',
+            'password' => Hash::make('password123'),
+            'role' => 'project_manager',
             'is_active' => true,
         ]);
 
@@ -382,6 +400,9 @@ class ReportAndAiAnalystTest extends TestCase
         $responseReport = $this->getJson('/api/reports');
         $responseReport->assertStatus(401);
 
+        $responseReportOverview = $this->getJson('/api/reports/overview');
+        $responseReportOverview->assertStatus(401);
+
         $responseAiAsk = $this->postJson('/api/ai/ask', ['prompt' => 'Analisis proyek']);
         $responseAiAsk->assertStatus(401);
 
@@ -390,14 +411,66 @@ class ReportAndAiAnalystTest extends TestCase
     }
 
     /**
-     * Test 10: Hak akses role berjalan sesuai kebijakan (admin vs member).
+     * Test 10a: Otorisasi role Reports - Admin, Pimpinan, dan Project Manager diizinkan (200).
      */
-    public function test_authenticated_user_can_access_reports_and_ai(): void
+    public function test_reports_role_authorization_admin_pimpinan_pm_allowed(): void
+    {
+        // 1. Admin diizinkan (200)
+        Sanctum::actingAs($this->adminUser);
+        $resAdmin = $this->getJson('/api/reports');
+        $resAdmin->assertStatus(200)
+            ->assertJsonStructure(['kpi', 'projects', 'status_distribution']);
+
+        $resAdminOverview = $this->getJson('/api/reports/overview');
+        $resAdminOverview->assertStatus(200);
+
+        // 2. Pimpinan diizinkan (200)
+        Sanctum::actingAs($this->pimpinanUser);
+        $resPimpinan = $this->getJson('/api/reports');
+        $resPimpinan->assertStatus(200)
+            ->assertJsonStructure(['kpi', 'projects', 'status_distribution']);
+
+        $resPimpinanOverview = $this->getJson('/api/reports/overview');
+        $resPimpinanOverview->assertStatus(200);
+
+        // 3. Project Manager diizinkan (200)
+        Sanctum::actingAs($this->pmUser);
+        $resPm = $this->getJson('/api/reports');
+        $resPm->assertStatus(200)
+            ->assertJsonStructure(['kpi', 'projects', 'status_distribution']);
+
+        $resPmOverview = $this->getJson('/api/reports/overview');
+        $resPmOverview->assertStatus(200);
+    }
+
+    /**
+     * Test 10b: Otorisasi role Reports - Member ditolak dengan HTTP 403.
+     */
+    public function test_reports_role_authorization_member_rejected_with_403(): void
     {
         Sanctum::actingAs($this->memberUser);
 
+        // Member ditolak pada /api/reports dengan HTTP 403 Forbidden
         $resReport = $this->getJson('/api/reports');
-        $resReport->assertStatus(200);
+        $resReport->assertStatus(403)
+            ->assertJsonFragment([
+                'message' => 'Akses ditolak. Peran Anda tidak memiliki izin untuk mengakses data laporan.',
+            ]);
+
+        // Member ditolak pada /api/reports/overview dengan HTTP 403 Forbidden
+        $resOverview = $this->getJson('/api/reports/overview');
+        $resOverview->assertStatus(403)
+            ->assertJsonFragment([
+                'message' => 'Akses ditolak. Peran Anda tidak memiliki izin untuk mengakses data laporan.',
+            ]);
+    }
+
+    /**
+     * Test 10c: AI Analyst context tetap dapat diakses oleh user terautentikasi.
+     */
+    public function test_ai_context_accessible_by_authenticated_user(): void
+    {
+        Sanctum::actingAs($this->memberUser);
 
         $resContext = $this->getJson('/api/ai/context');
         $resContext->assertStatus(200);
