@@ -265,7 +265,7 @@ export default function Topbar({ onToggleMobile }) {
     } else if (item.type === 'task') {
       navigate(`/tasks?search=${encodeURIComponent(item.data.title)}`)
     } else if (item.type === 'team') {
-      navigate(`/team`)
+      navigate(`/team?member_id=${item.data.id}`)
     }
   }
 
@@ -280,7 +280,7 @@ export default function Topbar({ onToggleMobile }) {
     project_manager: 'Project Manager',
     member:          'Team Member',
   }
-  const displayName = user?.name || 'Budi Santoso'
+  const displayName = user?.name || 'Pengguna'
   const displayRole = ROLE_LABELS[user?.role] || user?.role || 'Team Member'
 
   const initials = displayName

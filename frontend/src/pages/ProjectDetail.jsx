@@ -153,7 +153,7 @@ export default function ProjectDetail() {
 
       setProject(prev => {
         if (!prev) return prev
-        const updatedTasks = (prev.tasks || []).map(t => 
+        const updatedTasks = (prev.tasks || []).map(t =>
           t.id === taskId ? { ...t, is_completed: updatedTask.is_completed } : t
         )
         const completedCount = updatedTasks.filter(t => t.is_completed).length
@@ -314,6 +314,16 @@ export default function ProjectDetail() {
               <span>Daftar Proyek</span>
             </Link>
 
+            <Link
+              to={`/tasks?project_id=${project.id}`}
+              className="px-3 py-1.5 bg-[#FFD83D] hover:bg-[#ffe26e] text-[#171717] border-1.5 border-[#171717] rounded-lg text-xs font-black uppercase flex items-center gap-1.5 shadow-[2px_2px_0px_#171717] active:translate-x-0.5 active:translate-y-0.5"
+              title="Lihat Tasks Proyek Ini"
+            >
+              <ClipboardList size={14} />
+              <span className="hidden sm:inline">Lihat Tasks Proyek Ini</span>
+              <span className="sm:hidden">Tasks</span>
+            </Link>
+
             {canManage && (
               <>
                 <button
@@ -340,7 +350,7 @@ export default function ProjectDetail() {
 
       {/* Feedback Banner */}
       {feedback && (
-        <div 
+        <div
           className={`p-3.5 border border-[#171717] rounded-lg shadow-[3px_3px_0px_#171717] flex items-center justify-between text-xs font-bold transition-all ${
             feedback.type === 'success' ? 'bg-[#ECFDF5] text-[#065F46]' : 'bg-[#FFD83D] text-[#171717]'
           }`}
@@ -353,7 +363,7 @@ export default function ProjectDetail() {
             )}
             <span>{feedback.message}</span>
           </div>
-          <button 
+          <button
             onClick={() => setFeedback(null)}
             className="p-1 hover:bg-[#171717]/10 rounded cursor-pointer"
           >
@@ -389,7 +399,7 @@ export default function ProjectDetail() {
             <span className="text-[10px] font-bold text-[#171717]/60">Target: {project.target_progress ?? project.progress ?? 0}%</span>
           </div>
           <div className="w-full bg-neutral-200 h-2 rounded-full overflow-hidden border border-[#171717]/30 mt-2">
-            <div 
+            <div
               className={`h-full ${status.bar} transition-all duration-300`}
               style={{ width: `${project.progress ?? 0}%` }}
             ></div>
@@ -446,7 +456,7 @@ export default function ProjectDetail() {
                   Tugas Terkait ({completedTasksCount}/{tasks.length} Selesai)
                 </h3>
               </div>
-              <Link 
+              <Link
                 to={`/tasks?project_id=${project.id}`}
                 className="text-[10px] font-black text-[#FF2F92] hover:underline"
               >
@@ -475,7 +485,7 @@ export default function ProjectDetail() {
             ) : (
               <div className="space-y-2">
                 {tasks.slice(0, 5).map((task) => {
-                  const priorityBadge = 
+                  const priorityBadge =
                     task.priority === 'high' ? 'bg-[#FF2F92] text-white' :
                     task.priority === 'medium' ? 'bg-[#FFD83D] text-[#171717]' :
                     'bg-[#B8A0F0] text-[#171717]'
@@ -484,7 +494,7 @@ export default function ProjectDetail() {
                   const isCurrentToggling = togglingTaskId === task.id
 
                   return (
-                    <div 
+                    <div
                       key={task.id}
                       className={`p-2.5 border border-neutral-200 rounded-md flex items-center justify-between gap-3 transition-all ${
                         task.is_completed ? 'bg-neutral-100 opacity-65' : 'bg-[#FAF7F2] hover:bg-white'
@@ -496,8 +506,8 @@ export default function ProjectDetail() {
                           onClick={() => allowedToToggle && handleToggleTask(task.id)}
                           disabled={!allowedToToggle || isCurrentToggling}
                           title={
-                            allowedToToggle 
-                              ? (task.is_completed ? 'Tandai belum selesai' : 'Tandai selesai') 
+                            allowedToToggle
+                              ? (task.is_completed ? 'Tandai belum selesai' : 'Tandai selesai')
                               : 'Hanya PIC tugas atau Admin/PM yang dapat mengubah status'
                           }
                           className={`w-5 h-5 border border-[#171717] rounded flex items-center justify-center shrink-0 transition-transform ${
@@ -535,7 +545,7 @@ export default function ProjectDetail() {
                     <span className="text-[#171717]/65 font-bold">
                       Menampilkan 5 dari {tasks.length} tugas
                     </span>
-                    <Link 
+                    <Link
                       to={`/tasks?project_id=${project.id}`}
                       className="font-black text-[#FF2F92] hover:underline flex items-center gap-1 text-[10.5px]"
                     >
@@ -585,7 +595,7 @@ export default function ProjectDetail() {
                 {milestones.slice(0, 5).map((ms) => {
                   const isDone = ms.status === 'completed' || ms.progress === 100
                   return (
-                    <div 
+                    <div
                       key={ms.id}
                       className="p-3 border border-neutral-200 rounded-md bg-[#FAF7F2] space-y-1.5"
                     >
@@ -613,7 +623,7 @@ export default function ProjectDetail() {
 
                       <div className="pl-7 flex items-center gap-3">
                         <div className="flex-1 bg-neutral-200 h-1.5 rounded-full overflow-hidden border border-[#171717]/20">
-                          <div 
+                          <div
                             className={`h-full ${isDone ? 'bg-[#10B981]' : 'bg-[#FFD83D]'}`}
                             style={{ width: `${ms.progress}%` }}
                           ></div>
@@ -631,7 +641,7 @@ export default function ProjectDetail() {
                     <span className="text-[#171717]/65 font-bold">
                       Menampilkan 5 dari {milestones.length} tahapan milestone
                     </span>
-                    <Link 
+                    <Link
                       to="/development"
                       className="font-black text-[#FF2F92] hover:underline flex items-center gap-1 text-[10.5px]"
                     >
@@ -651,7 +661,7 @@ export default function ProjectDetail() {
             <h3 className="font-display text-xs uppercase tracking-wider text-[#171717] border-b border-[#171717]/15 pb-2">
               Informasi Spesifikasi
             </h3>
-            
+
             <div className="space-y-2 text-xs font-semibold text-[#171717]/80">
               <div className="flex justify-between items-center py-1 border-b border-neutral-100">
                 <span className="text-[10px] uppercase text-[#171717]/60">Kode Referensi</span>
@@ -732,7 +742,7 @@ export default function ProjectDetail() {
                   EDIT PROYEK — {project.code}
                 </h3>
               </div>
-              <button 
+              <button
                 onClick={() => setShowEditModal(false)}
                 className="p-1 hover:bg-[#FFD83D] border border-[#171717] rounded cursor-pointer"
               >
@@ -745,9 +755,9 @@ export default function ProjectDetail() {
                 <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
                   Nama Proyek <span className="text-[#FF2F92]">*</span>
                 </label>
-                <input 
-                  type="text" 
-                  required 
+                <input
+                  type="text"
+                  required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className={`w-full pkm-input ${formErrors.name ? 'border-[#FF2F92]' : ''}`}
@@ -762,9 +772,9 @@ export default function ProjectDetail() {
                   <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
                     Kode Proyek <span className="text-[#FF2F92]">*</span>
                   </label>
-                  <input 
-                    type="text" 
-                    required 
+                  <input
+                    type="text"
+                    required
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                     className={`w-full pkm-input uppercase ${formErrors.code ? 'border-[#FF2F92]' : ''}`}
@@ -775,7 +785,7 @@ export default function ProjectDetail() {
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Kategori</label>
-                  <select 
+                  <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="w-full pkm-input"
@@ -793,9 +803,9 @@ export default function ProjectDetail() {
                   <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
                     Nama Klien / Instansi <span className="text-[#FF2F92]">*</span>
                   </label>
-                  <input 
-                    type="text" 
-                    required 
+                  <input
+                    type="text"
+                    required
                     value={formData.client}
                     onChange={(e) => setFormData({ ...formData, client: e.target.value })}
                     className={`w-full pkm-input ${formErrors.client ? 'border-[#FF2F92]' : ''}`}
@@ -826,7 +836,7 @@ export default function ProjectDetail() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Status Proyek</label>
-                  <select 
+                  <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                     className="w-full pkm-input"
@@ -839,7 +849,7 @@ export default function ProjectDetail() {
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Tingkat Risiko</label>
-                  <select 
+                  <select
                     value={formData.risk_level}
                     onChange={(e) => setFormData({ ...formData, risk_level: e.target.value })}
                     className="w-full pkm-input"
@@ -865,8 +875,8 @@ export default function ProjectDetail() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Target Progres (%)</label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     min="0"
                     max="100"
                     value={formData.target_progress}
@@ -877,8 +887,8 @@ export default function ProjectDetail() {
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Target Deadline</label>
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     value={formData.deadline}
                     onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
                     className="w-full pkm-input"
@@ -888,26 +898,26 @@ export default function ProjectDetail() {
 
               <div>
                 <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Catatan Risiko / Kendala</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={formData.risk_factor}
                   onChange={(e) => setFormData({ ...formData, risk_factor: e.target.value })}
-                  placeholder="Contoh: Menunggu review dari klien" 
+                  placeholder="Contoh: Menunggu review dari klien"
                   className="w-full pkm-input"
                 />
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t border-[#171717]/15">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setShowEditModal(false)}
                   className="pkm-btn-outline"
                   disabled={submitting}
                 >
                   Batal
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="pkm-btn-pink flex items-center gap-1.5"
                   disabled={submitting}
                 >

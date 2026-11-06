@@ -59,6 +59,22 @@ export default function GlobalAiAssistant() {
       .catch(() => {})
   }, [])
 
+  // Adjust position when viewport resizes or orientation changes
+  useEffect(() => {
+    const handleViewportResize = () => {
+      setPosition(prev => ({
+        x: Math.min(Math.max(16, prev.x), window.innerWidth - 70),
+        y: Math.min(Math.max(16, prev.y), window.innerHeight - 70),
+      }))
+    }
+    window.addEventListener('resize', handleViewportResize)
+    window.addEventListener('orientationchange', handleViewportResize)
+    return () => {
+      window.removeEventListener('resize', handleViewportResize)
+      window.removeEventListener('orientationchange', handleViewportResize)
+    }
+  }, [])
+
   // Auto-scroll chat to bottom
   useEffect(() => {
     if (isOpen) {

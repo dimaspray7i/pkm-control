@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import api from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import {
@@ -31,6 +31,7 @@ const formatDate = (dateStr) => {
 export default function Team() {
   const { user: currentUser } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const isAdmin = currentUser?.role === 'admin'
 
   const [team, setTeam]           = useState([])
@@ -69,6 +70,14 @@ export default function Team() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedMemberId])
+
+  // Open detail if requested by URL query param (e.g. from Global Search)
+  useEffect(() => {
+    const memberId = searchParams.get('member_id')
+    if (memberId) {
+      handleOpenDetail(Number(memberId))
+    }
+  }, [searchParams])
 
   const fetchTeam = async () => {
     try {
@@ -694,7 +703,14 @@ export default function Team() {
                                   {proj.code} · Klien: {proj.client}
                                 </span>
                                 <h4 className="font-bold text-xs text-[#171717] leading-tight">
-                                  {proj.name}
+                                  <Link
+                                    to={`/projects/${proj.id}`}
+                                    className="hover:text-[#FF2F92] hover:underline inline-flex items-center gap-1 group"
+                                    title="Buka Detail Proyek"
+                                  >
+                                    <span>{proj.name}</span>
+                                    <ExternalLink size={10} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#FF2F92]" />
+                                  </Link>
                                 </h4>
                               </div>
                               <span className="px-2 py-0.5 bg-[#FFD83D] border border-[#171717] rounded text-[9px] font-black uppercase">

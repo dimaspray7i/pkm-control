@@ -19,10 +19,10 @@ function AppRoutes() {
     <Routes>
       {/* Public route */}
       <Route path="/login" element={<Login />} />
-      
+
       {/* Protected routes */}
-      <Route 
-        path="/" 
+      <Route
+        path="/"
         element={
           <ProtectedRoute>
             <MainLayout />
@@ -34,24 +34,31 @@ function AppRoutes() {
         <Route path="projects/:id" element={<ProjectDetail />} />
         <Route path="tasks" element={<Tasks />} />
         <Route path="development" element={<Development />} />
-        <Route 
-          path="ai-analyst" 
+        <Route
+          path="ai-analyst"
           element={
             <ProtectedRoute allowedRoles={['admin', 'pimpinan', 'project_manager']}>
               <AIAnalyst />
             </ProtectedRoute>
-          } 
+          }
         />
-        <Route 
-          path="users" 
+        <Route
+          path="users"
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <Users />
             </ProtectedRoute>
-          } 
+          }
         />
         <Route path="team" element={<Team />} />
-        <Route path="reports" element={<Reports />} />
+        <Route
+          path="reports"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'pimpinan', 'project_manager']}>
+              <Reports />
+            </ProtectedRoute>
+          }
+        />
         <Route path="settings" element={<Settings />} />
       </Route>
 

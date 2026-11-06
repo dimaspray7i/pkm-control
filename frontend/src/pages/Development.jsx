@@ -502,7 +502,7 @@ export default function Development() {
                               </div>
                             </div>
 
-                            <p className="font-bold text-xs text-[#171717] leading-tight">{ms.title}</p>
+                            <p className="font-bold text-xs text-[#171717] leading-tight break-words line-clamp-2" title={ms.title}>{ms.title}</p>
                             <p className="text-[10px] text-[#171717]/60 mt-1 leading-snug line-clamp-2">
                               {ms.description || 'Tidak ada deskripsi lingkup pekerjaan.'}
                             </p>
@@ -1070,7 +1070,7 @@ export default function Development() {
                           <Circle size={16} className="text-[#171717]/40 shrink-0" />
                         )}
                         <div className="min-w-0 flex-1">
-                          <p className={`font-bold text-xs text-[#171717] truncate ${isDone ? 'line-through text-[#171717]/60' : ''}`}>
+                          <p className={`font-bold text-xs text-[#171717] truncate break-words ${isDone ? 'line-through text-[#171717]/60' : ''}`} title={task.title}>
                             {task.title}
                           </p>
                           <div className="flex items-center gap-2 mt-0.5 text-[10px] text-[#171717]/60 flex-wrap">

@@ -231,7 +231,7 @@ export default function Dashboard() {
   const recentActivities = data?.recent_activities || []
   const riskProjects = data?.risk_projects || []
 
-  const displayName = user?.name || 'Budi Santoso'
+  const displayName = user?.name || 'Pengguna'
   const currentDate = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   const currentTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
 
@@ -715,14 +715,16 @@ export default function Dashboard() {
                 </h3>
               </div>
               <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => navigate('/ai-analyst')}
-                  className="text-[10px] font-black text-[#FF2F92] hover:underline flex items-center gap-1 cursor-pointer mr-1"
-                  title="Buka halaman penuh AI Analyst"
-                >
-                  <span>Penuh</span>
-                  <ExternalLink size={11} />
-                </button>
+                {['admin', 'pimpinan', 'project_manager'].includes(user?.role) && (
+                  <button
+                    onClick={() => navigate('/ai-analyst')}
+                    className="text-[10px] font-black text-[#FF2F92] hover:underline flex items-center gap-1 cursor-pointer mr-1"
+                    title="Buka halaman penuh AI Analyst"
+                  >
+                    <span>Penuh</span>
+                    <ExternalLink size={11} />
+                  </button>
+                )}
                 <button
                   onClick={() => setAiCollapsed(!aiCollapsed)}
                   className="p-1 text-[#171717]/60 hover:text-[#171717] hover:bg-[#F5F1E9] rounded cursor-pointer"

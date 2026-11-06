@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import {
   Sparkles, Send, Loader2, TrendingUp, AlertTriangle, CheckCircle2,
   RotateCcw, Folder, ClipboardList, Clock, Brain, Cpu, MessageSquarePlus,
   Trash2, StopCircle, RefreshCw, AlertCircle, ArrowUpRight, ShieldAlert,
-  Users, BarChart3, ChevronRight, CheckSquare, X
+  Users, BarChart3, ChevronRight, CheckSquare, X, ArrowLeft
 } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
 import MarkdownRenderer from '../components/ui/MarkdownRenderer'
@@ -23,6 +23,7 @@ const QUICK_PROMPTS = [
 export default function AIAnalyst() {
   const { user } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [engineInfo, setEngineInfo] = useState({ mode: 'Memeriksa Engine...', is_llm_active: false })
@@ -229,6 +230,16 @@ export default function AIAnalyst() {
         badge="AI POWERED"
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            {location.state?.fromReports && (
+              <button
+                onClick={() => navigate('/reports')}
+                className="px-3 py-1.5 bg-[#FFD83D] hover:bg-[#ffe26e] border border-[#171717] rounded-lg text-xs font-black uppercase text-[#171717] flex items-center gap-1.5 shadow-[2px_2px_0px_#171717] transition cursor-pointer"
+                title="Kembali ke Halaman Laporan"
+              >
+                <ArrowLeft size={14} />
+                <span>Kembali ke Laporan</span>
+              </button>
+            )}
             <button
               onClick={() => setConfirmNewChat(true)}
               className="px-3 py-1.5 bg-white hover:bg-[#FAF7F2] border border-[#171717] rounded-lg text-xs font-black uppercase text-[#171717] flex items-center gap-1.5 shadow-[2px_2px_0px_#171717] transition cursor-pointer"

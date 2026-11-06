@@ -57,9 +57,14 @@ export default function MarkdownRenderer({ content, className = '' }) {
           td: ({ node, ...props }) => (
             <td className="py-1.5 px-2.5 border-t border-[#171717]/20 border-r border-[#171717]/20 last:border-r-0 font-medium" {...props} />
           ),
-          code: ({ node, inline, ...props }) => (
-            <code className="px-1.5 py-0.5 bg-white border border-[#171717]/30 rounded text-[11px] font-mono text-[#FF2F92]" {...props} />
-          ),
+          code: ({ node, className: codeClass, ...props }) => {
+            const isBlock = Boolean(codeClass && codeClass.includes('language-'))
+            return isBlock ? (
+              <code className={`block p-2 bg-white border border-[#171717]/30 rounded text-[11px] font-mono text-[#171717] overflow-x-auto my-1.5 ${codeClass || ''}`} {...props} />
+            ) : (
+              <code className="px-1.5 py-0.5 bg-white border border-[#171717]/30 rounded text-[11px] font-mono text-[#FF2F92]" {...props} />
+            )
+          },
           hr: ({ node, ...props }) => (
             <hr className="my-3 border-[#171717]/20" {...props} />
           ),
