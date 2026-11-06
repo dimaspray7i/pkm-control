@@ -78,6 +78,19 @@ export default function Projects() {
   }
   const [formData, setFormData] = useState(initialForm)
 
+  // Handle Escape key to close modals
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (showAddModal) setShowAddModal(false)
+        if (editProject) setEditProject(null)
+        if (deleteProject) setDeleteProject(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showAddModal, editProject, deleteProject])
+
   const showNotification = (type, message) => {
     setFeedback({ type, message })
     setTimeout(() => {
@@ -249,71 +262,81 @@ export default function Projects() {
   )
 
   return (
-    <div className="space-y-4 pb-4">
+    <div className="space-y-4 pb-6">
       {/* Header */}
       <PageHeader
         title="MANAJEMEN PROYEK"
         subtitle={`Total ${projects.length} proyek aktif dan terdaftar di sistem PKM Business Control Center.`}
         tag="PROYEK BISNIS"
         actions={
-          <>
-            <div className="bg-white px-3 py-1.5 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center gap-2">
-              <FolderKanban size={15} className="text-[#FF2F92]" />
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+            <div className="bg-white px-3 py-1.5 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center gap-2 min-h-[36px]">
+              <FolderKanban size={15} className="text-[#FF2F92] shrink-0" />
               <span className="font-black text-xs uppercase">{counts.on_track} On Track</span>
             </div>
             {canManage && (
               <button
                 onClick={handleOpenAdd}
-                className="pkm-btn-pink"
+                className="pkm-btn-pink min-h-[36px] flex items-center gap-1.5 cursor-pointer shadow-[2px_2px_0px_#171717]"
               >
-                <Plus size={14} strokeWidth={3} />
+                <Plus size={15} strokeWidth={3} />
                 <span>Tambah Proyek</span>
               </button>
             )}
-          </>
+          </div>
         }
       />
 
       {/* Feedback Banner */}
       {feedback && (
-        <div 
-          className={`p-3.5 border border-[#171717] rounded-lg shadow-[3px_3px_0px_#171717] flex items-center justify-between text-xs font-bold transition-all ${
+        <div
+          className={`p-3.5 border-1.5 border-[#171717] rounded-lg shadow-[3px_3px_0px_#171717] flex items-center justify-between text-xs font-bold transition-all ${
             feedback.type === 'success' ? 'bg-[#ECFDF5] text-[#065F46]' : 'bg-[#FFD83D] text-[#171717]'
           }`}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0 pr-2">
             {feedback.type === 'success' ? (
-              <Check size={16} strokeWidth={3} className="text-[#10B981]" />
+              <Check size={16} strokeWidth={3} className="text-[#10B981] shrink-0" />
             ) : (
-              <AlertCircle size={16} strokeWidth={3} className="text-[#FF2F92]" />
+              <AlertCircle size={16} strokeWidth={3} className="text-[#FF2F92] shrink-0" />
             )}
-            <span>{feedback.message}</span>
+            <span className="break-words">{feedback.message}</span>
           </div>
-          <button 
+          <button
             onClick={() => setFeedback(null)}
-            className="p-1 hover:bg-[#171717]/10 rounded cursor-pointer"
+            className="p-1 hover:bg-[#171717]/10 rounded cursor-pointer shrink-0"
+            title="Tutup Pesan"
           >
-            <X size={14} />
+            <X size={15} />
           </button>
         </div>
       )}
 
       {/* Filter and Search Toolbar */}
-      <div className="bg-white p-3 border border-[#171717] rounded-lg shadow-[3px_3px_0px_#171717] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        {/* Search */}
+      <div className="bg-white p-3 sm:p-3.5 border-1.5 border-[#171717] rounded-lg shadow-[3px_3px_0px_#171717] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        {/* Search Input with Clear Button */}
         <div className="relative flex-1 max-w-md">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#171717]/50" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari berdasarkan nama proyek, kode, atau klien..."
-            className="w-full pl-9 pr-3 py-1.5 bg-[#FAF7F2] border border-[#171717]/40 rounded text-xs font-semibold text-[#171717] placeholder:text-[#171717]/40 focus:outline-none focus:border-[#FF2F92]"
+            placeholder="Cari nama proyek, kode, atau klien..."
+            className="w-full pl-9 pr-8 py-2 bg-[#FAF7F2] border border-[#171717]/40 rounded-lg text-xs font-semibold text-[#171717] placeholder:text-[#171717]/40 focus:outline-none focus:border-[#FF2F92] min-h-[38px]"
           />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#171717]/40 hover:text-[#171717] p-1 cursor-pointer"
+              title="Hapus pencarian"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
 
-        {/* Filter Badges */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        {/* Filter Badges & Quick Reset */}
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {[
             { id: 'all',       label: 'Semua',     count: counts.all },
             { id: 'on_track',  label: 'On Track',  count: counts.on_track },
@@ -324,104 +347,123 @@ export default function Projects() {
             <button
               key={item.id}
               onClick={() => setFilter(item.id)}
-              className={`px-2.5 py-1 text-[10.5px] font-black uppercase rounded border transition-all cursor-pointer ${
+              className={`px-3 py-1.5 text-[11px] font-black uppercase rounded-md border transition-all cursor-pointer min-h-[34px] ${
                 filter === item.id
-                  ? 'bg-[#171717] text-white border-[#171717] shadow-[1px_1px_0px_#171717]'
-                  : 'bg-white text-[#171717] border-[#171717]/30 hover:border-[#171717]'
+                  ? 'bg-[#171717] text-white border-[#171717] shadow-[2px_2px_0px_#171717]'
+                  : 'bg-[#FAF7F2] text-[#171717] border-[#171717]/30 hover:border-[#171717] hover:bg-white'
               }`}
             >
-              {item.label} ({item.count})
+              {item.label} <span className="opacity-75">({item.count})</span>
             </button>
           ))}
+
+          {(search !== '' || filter !== 'all') && (
+            <button
+              onClick={() => { setSearch(''); setFilter('all') }}
+              className="px-2.5 py-1.5 text-[10.5px] font-bold text-[#FF2F92] hover:bg-pink-50 border border-[#FF2F92]/40 rounded-md transition-colors cursor-pointer min-h-[34px] flex items-center gap-1 ml-auto sm:ml-0"
+              title="Reset seluruh filter pencarian"
+            >
+              <RotateCcw size={12} />
+              <span>Reset</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* Project Cards Grid */}
       {filtered.length === 0 ? (
-        <div className="p-8 bg-white border border-[#171717] rounded-lg text-center space-y-2">
-          <FolderKanban size={32} className="mx-auto text-[#171717]/40" />
-          <h3 className="font-display text-lg uppercase text-[#171717]">Tidak Ada Proyek</h3>
-          <p className="text-xs text-[#171717]/60 max-w-sm mx-auto">
+        <div className="p-8 sm:p-12 bg-white border-1.5 border-[#171717] rounded-lg shadow-[3px_3px_0px_#171717] text-center space-y-3">
+          <FolderKanban size={36} className="mx-auto text-[#171717]/40" />
+          <h3 className="font-display text-xl uppercase text-[#171717]">Tidak Ada Proyek</h3>
+          <p className="text-xs font-semibold text-[#171717]/65 max-w-sm mx-auto leading-relaxed">
             Tidak ditemukan proyek yang cocok dengan kata kunci &quot;{search}&quot; atau filter yang dipilih.
           </p>
           <button
             onClick={() => { setSearch(''); setFilter('all') }}
-            className="pkm-btn-outline mt-2"
+            className="pkm-btn-outline inline-flex items-center gap-1.5 cursor-pointer mt-1"
           >
-            Reset Filter
+            <RotateCcw size={13} />
+            <span>Reset Pencarian & Filter</span>
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((proj) => {
             const status = STATUS_CONFIG[proj.status] || STATUS_CONFIG.on_track
 
             return (
-              <div 
+              <div
                 key={proj.id}
-                className="bg-white p-4 border border-[#171717] rounded-lg shadow-[3px_3px_0px_#171717] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_#171717] transition-all flex flex-col justify-between"
+                className="bg-white p-4 sm:p-4.5 border-1.5 border-[#171717] rounded-lg shadow-[3px_3px_0px_#171717] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_#171717] transition-all flex flex-col justify-between"
               >
                 <div>
                   {/* Card Top Row - Clickable to Detail */}
-                  <div 
+                  <div
                     onClick={() => navigate(`/projects/${proj.id}`)}
-                    className="flex items-start justify-between gap-2 mb-2.5 cursor-pointer group"
-                    title="Klik untuk membuka detail proyek"
+                    className="flex items-start justify-between gap-2.5 mb-3 cursor-pointer group"
+                    title="Buka detail proyek"
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-8 h-8 rounded-md bg-[#FAF7F2] border border-[#171717] flex items-center justify-center text-[#171717] shrink-0 group-hover:bg-[#FFD83D] transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="w-8.5 h-8.5 rounded-lg bg-[#FAF7F2] border border-[#171717] flex items-center justify-center text-[#171717] shrink-0 group-hover:bg-[#FFD83D] transition-colors shadow-[1px_1px_0px_#171717]">
                         <CategoryIcon cat={proj.category} />
                       </div>
-                      <div className="min-w-0">
-                        <span className="text-[9px] font-black tracking-wider uppercase text-[#171717]/60">
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[9.5px] font-black tracking-wider uppercase text-[#171717]/60 block leading-tight">
                           {proj.code}
                         </span>
-                        <h3 className="font-display text-base leading-tight uppercase text-[#171717] truncate max-w-[190px] group-hover:text-[#FF2F92] transition-colors" title={proj.name}>
+                        <h3 className="font-display text-base sm:text-lg leading-tight uppercase text-[#171717] truncate group-hover:text-[#FF2F92] transition-colors" title={proj.name}>
                           {proj.name}
                         </h3>
                       </div>
                     </div>
 
-                    <span className={`text-[8px] font-black uppercase px-2 py-0.5 border border-[#171717] rounded-sm shrink-0 ${status.bg}`}>
+                    <span className={`text-[8.5px] font-black uppercase px-2 py-0.5 border border-[#171717] rounded shadow-[1px_1px_0px_#171717] shrink-0 ${status.bg}`}>
                       {status.label}
                     </span>
                   </div>
 
-                  {/* Client info */}
-                  <div className="text-[11px] font-semibold text-[#171717]/75 mb-3 space-y-0.5">
-                    <p className="truncate">Klien: <strong className="text-[#171717]">{proj.client}</strong></p>
-                    <p className="truncate text-[10px] text-[#171717]/70">
-                      PIC: <strong className="text-[#171717]">{proj.pic_name || proj.pic?.name || 'Belum Ditugaskan'}</strong>
+                  {/* Client & Metadata Info */}
+                  <div className="text-xs font-semibold text-[#171717]/80 mb-3 space-y-1 bg-[#FAF7F2] p-2.5 rounded-md border border-[#171717]/15">
+                    <p className="truncate flex items-center justify-between gap-2">
+                      <span className="text-[10px] uppercase font-bold text-[#171717]/60">Klien:</span>
+                      <strong className="text-[#171717] truncate max-w-[190px]">{proj.client}</strong>
                     </p>
-                    <p className="text-[10px] text-[#171717]/60">
-                      Deadline: {proj.deadline ? new Date(proj.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Tidak ada target'}
+                    <p className="truncate flex items-center justify-between gap-2">
+                      <span className="text-[10px] uppercase font-bold text-[#171717]/60">PIC:</span>
+                      <strong className="text-[#171717] truncate max-w-[190px]">{proj.pic_name || proj.pic?.name || 'Belum Ditugaskan'}</strong>
+                    </p>
+                    <p className="flex items-center justify-between gap-2 text-[10.5px]">
+                      <span className="text-[10px] uppercase font-bold text-[#171717]/60">Deadline:</span>
+                      <span className="text-[#171717] font-bold">
+                        {proj.deadline ? new Date(proj.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Tidak ada target'}
+                      </span>
                     </p>
                   </div>
                 </div>
 
                 {/* Progress Bar & Footer with Actions */}
-                <div className="border-t border-[#171717]/10 pt-2.5 mt-1 space-y-2.5">
+                <div className="border-t border-[#171717]/15 pt-3 mt-1 space-y-3">
                   <div>
                     <div className="flex items-center justify-between text-xs font-black mb-1">
-                      <span className="text-[9.5px] uppercase text-[#171717]/60">Progres Kerja</span>
-                      <span className="text-xs font-display">{proj.progress}%</span>
+                      <span className="text-[10px] uppercase tracking-wide text-[#171717]/60">Progres Kerja</span>
+                      <span className="text-xs font-display text-[#171717]">{proj.progress}%</span>
                     </div>
-                    <div className="w-full bg-neutral-200 h-2 rounded-full overflow-hidden border border-[#171717]/30">
-                      <div 
+                    <div className="w-full bg-[#EAE4D8] h-2.5 rounded-full overflow-hidden border border-[#171717]/30">
+                      <div
                         className={`h-full ${status.bar} transition-all duration-300`}
                         style={{ width: `${proj.progress}%` }}
                       ></div>
                     </div>
                   </div>
 
-                  {/* Action buttons (Detail for everyone, Edit & Delete for Admin/PM) */}
-                  <div className="flex items-center justify-between gap-1.5 pt-1">
+                  {/* Action Buttons with Comfortable Touch Targets */}
+                  <div className="flex items-center justify-between gap-2 pt-0.5">
                     <button
                       onClick={() => navigate(`/projects/${proj.id}`)}
-                      className="px-2.5 py-1 bg-white hover:bg-[#FFD83D] text-[#171717] border border-[#171717] rounded text-[10px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer shadow-[1px_1px_0px_#171717]"
+                      className="px-3 py-1.5 bg-white hover:bg-[#FFD83D] active:bg-[#FF2F92] active:text-white text-[#171717] border border-[#171717] rounded-md text-[11px] font-black uppercase flex items-center gap-1.5 transition-all cursor-pointer shadow-[1px_1px_0px_#171717] min-h-[32px]"
                       title="Lihat Detail Proyek"
                     >
-                      <Eye size={11} />
+                      <Eye size={13} />
                       <span>Detail</span>
                     </button>
 
@@ -429,18 +471,18 @@ export default function Projects() {
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => handleOpenEdit(proj)}
-                          className="px-2 py-1 bg-[#FAF7F2] hover:bg-[#FFD83D] text-[#171717] border border-[#171717] rounded text-[10px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer"
+                          className="px-2.5 py-1.5 bg-[#FAF7F2] hover:bg-[#FFD83D] text-[#171717] border border-[#171717] rounded-md text-[11px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer min-h-[32px]"
                           title="Edit Proyek"
                         >
-                          <Pencil size={11} />
+                          <Pencil size={12} />
                           <span>Edit</span>
                         </button>
                         <button
                           onClick={() => setDeleteProject(proj)}
-                          className="px-2 py-1 bg-[#FAF7F2] hover:bg-[#FF2F92] hover:text-white text-[#171717] border border-[#171717] rounded text-[10px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer"
+                          className="px-2.5 py-1.5 bg-[#FAF7F2] hover:bg-[#FF2F92] hover:text-white text-[#171717] border border-[#171717] rounded-md text-[11px] font-black uppercase flex items-center gap-1 transition-all cursor-pointer min-h-[32px]"
                           title="Hapus Proyek"
                         >
-                          <Trash2 size={11} />
+                          <Trash2 size={12} />
                           <span>Hapus</span>
                         </button>
                       </div>
@@ -453,34 +495,45 @@ export default function Projects() {
         </div>
       )}
 
-      {/* Add Project Modal */}
+      {/* Add Project Modal with Fixed Header/Footer and Scrollable Body */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-[#171717]/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-[#171717] rounded-lg shadow-[6px_6px_0px_#171717] w-full max-w-lg p-5 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-[#171717]/15 pb-2">
-              <div className="flex items-center gap-1.5">
+        <div
+          className="fixed inset-0 bg-[#171717]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !submitting) setShowAddModal(false)
+          }}
+        >
+          <div className="bg-white border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="px-4 sm:px-5 py-3.5 border-b-1.5 border-[#171717] bg-[#FAF7F2] shrink-0 flex items-center justify-between">
+              <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 bg-[#FF2F92] border border-[#171717]"></span>
-                <h3 className="font-display text-lg uppercase tracking-tight text-[#171717]">TAMBAH PROYEK BARU</h3>
+                <h3 className="font-display text-lg uppercase tracking-tight text-[#171717]">
+                  TAMBAH PROYEK BARU
+                </h3>
               </div>
-              <button 
+              <button
                 onClick={() => setShowAddModal(false)}
-                className="p-1 hover:bg-[#FFD83D] border border-[#171717] rounded cursor-pointer"
+                className="p-1.5 hover:bg-[#FFD83D] border border-[#171717] rounded-md cursor-pointer transition-colors"
+                title="Tutup Modal"
+                disabled={submitting}
               >
                 <X size={15} />
               </button>
             </div>
 
-            <form onSubmit={handleAddSubmit} className="space-y-3">
+            {/* Scrollable Form Body */}
+            <form id="add-project-form" onSubmit={handleAddSubmit} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 min-h-0">
               <div>
-                <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
+                <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">
                   Nama Proyek <span className="text-[#FF2F92]">*</span>
                 </label>
-                <input 
-                  type="text" 
-                  required 
+                <input
+                  type="text"
+                  required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Contoh: Portal Layanan Terpadu" 
+                  placeholder="Contoh: Portal Layanan Terpadu"
                   className={`w-full pkm-input ${formErrors.name ? 'border-[#FF2F92]' : ''}`}
                 />
                 {formErrors.name && (
@@ -488,17 +541,17 @@ export default function Projects() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">
                     Kode Proyek <span className="text-[#FF2F92]">*</span>
                   </label>
-                  <input 
-                    type="text" 
-                    required 
+                  <input
+                    type="text"
+                    required
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    placeholder="PKM-021" 
+                    placeholder="PKM-021"
                     className={`w-full pkm-input uppercase ${formErrors.code ? 'border-[#FF2F92]' : ''}`}
                   />
                   {formErrors.code && (
@@ -506,8 +559,8 @@ export default function Projects() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Kategori</label>
-                  <select 
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Kategori</label>
+                  <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="w-full pkm-input"
@@ -520,17 +573,17 @@ export default function Projects() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">
                     Nama Klien / Instansi <span className="text-[#FF2F92]">*</span>
                   </label>
-                  <input 
-                    type="text" 
-                    required 
+                  <input
+                    type="text"
+                    required
                     value={formData.client}
                     onChange={(e) => setFormData({ ...formData, client: e.target.value })}
-                    placeholder="PT Mitra Prima Sejahtera" 
+                    placeholder="PT Mitra Prima Sejahtera"
                     className={`w-full pkm-input ${formErrors.client ? 'border-[#FF2F92]' : ''}`}
                   />
                   {formErrors.client && (
@@ -538,7 +591,7 @@ export default function Projects() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">
                     Penanggung Jawab (PIC Proyek)
                   </label>
                   <select
@@ -556,10 +609,10 @@ export default function Projects() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Status Proyek</label>
-                  <select 
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Status Proyek</label>
+                  <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                     className="w-full pkm-input"
@@ -571,8 +624,8 @@ export default function Projects() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Tingkat Risiko</label>
-                  <select 
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Tingkat Risiko</label>
+                  <select
                     value={formData.risk_level}
                     onChange={(e) => setFormData({ ...formData, risk_level: e.target.value })}
                     className="w-full pkm-input"
@@ -585,11 +638,11 @@ export default function Projects() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Target Progres (%)</label>
-                  <input 
-                    type="number" 
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Target Progres (%)</label>
+                  <input
+                    type="number"
                     min="0"
                     max="100"
                     value={formData.target_progress}
@@ -597,12 +650,12 @@ export default function Projects() {
                     className="w-full pkm-input"
                     placeholder="Contoh: 80"
                   />
-                  <p className="text-[8.5px] text-[#171717]/60 mt-1 font-semibold">Progres awal otomatis 0%.</p>
+                  <p className="text-[9px] text-[#171717]/60 mt-1 font-semibold">Progres awal otomatis 0%.</p>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Target Deadline</label>
-                  <input 
-                    type="date" 
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Target Deadline</label>
+                  <input
+                    type="date"
                     value={formData.deadline}
                     onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
                     className="w-full pkm-input"
@@ -611,66 +664,77 @@ export default function Projects() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Catatan Risiko / Faktor Kendala</label>
-                <input 
-                  type="text" 
+                <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Catatan Risiko / Faktor Kendala</label>
+                <input
+                  type="text"
                   value={formData.risk_factor}
                   onChange={(e) => setFormData({ ...formData, risk_factor: e.target.value })}
-                  placeholder="Contoh: Menunggu integrasi payment gateway pihak ketiga" 
+                  placeholder="Contoh: Menunggu integrasi payment gateway pihak ketiga"
                   className="w-full pkm-input"
                 />
               </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-[#171717]/15">
-                <button 
-                  type="button" 
-                  onClick={() => setShowAddModal(false)}
-                  className="pkm-btn-outline"
-                  disabled={submitting}
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="pkm-btn-pink flex items-center gap-1.5"
-                  disabled={submitting}
-                >
-                  {submitting && <Loader2 size={13} className="animate-spin" />}
-                  <span>{submitting ? 'Menyimpan...' : 'Simpan Proyek'}</span>
-                </button>
-              </div>
             </form>
+
+            {/* Modal Footer */}
+            <div className="px-4 sm:px-5 py-3 border-t-1.5 border-[#171717] bg-[#FAF7F2] shrink-0 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="pkm-btn-outline min-h-[38px] px-4 cursor-pointer"
+                disabled={submitting}
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                form="add-project-form"
+                className="pkm-btn-pink min-h-[38px] px-4 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                disabled={submitting}
+              >
+                {submitting && <Loader2 size={13} className="animate-spin" />}
+                <span>{submitting ? 'Menyimpan...' : 'Simpan Proyek'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Edit Project Modal */}
+      {/* Edit Project Modal with Fixed Header/Footer and Scrollable Body */}
       {editProject && (
-        <div className="fixed inset-0 bg-[#171717]/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-[#171717] rounded-lg shadow-[6px_6px_0px_#171717] w-full max-w-lg p-5 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-[#171717]/15 pb-2">
-              <div className="flex items-center gap-1.5">
+        <div
+          className="fixed inset-0 bg-[#171717]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !submitting) setEditProject(null)
+          }}
+        >
+          <div className="bg-white border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="px-4 sm:px-5 py-3.5 border-b-1.5 border-[#171717] bg-[#FAF7F2] shrink-0 flex items-center justify-between">
+              <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 bg-[#FFD83D] border border-[#171717]"></span>
                 <h3 className="font-display text-lg uppercase tracking-tight text-[#171717]">
                   EDIT PROYEK — {editProject.code}
                 </h3>
               </div>
-              <button 
+              <button
                 onClick={() => setEditProject(null)}
-                className="p-1 hover:bg-[#FFD83D] border border-[#171717] rounded cursor-pointer"
+                className="p-1.5 hover:bg-[#FFD83D] border border-[#171717] rounded-md cursor-pointer transition-colors"
+                title="Tutup Modal"
+                disabled={submitting}
               >
                 <X size={15} />
               </button>
             </div>
 
-            <form onSubmit={handleEditSubmit} className="space-y-3">
+            {/* Scrollable Form Body */}
+            <form id="edit-project-form" onSubmit={handleEditSubmit} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 min-h-0">
               <div>
-                <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
+                <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">
                   Nama Proyek <span className="text-[#FF2F92]">*</span>
                 </label>
-                <input 
-                  type="text" 
-                  required 
+                <input
+                  type="text"
+                  required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className={`w-full pkm-input ${formErrors.name ? 'border-[#FF2F92]' : ''}`}
@@ -680,14 +744,14 @@ export default function Projects() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">
                     Kode Proyek <span className="text-[#FF2F92]">*</span>
                   </label>
-                  <input 
-                    type="text" 
-                    required 
+                  <input
+                    type="text"
+                    required
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                     className={`w-full pkm-input uppercase ${formErrors.code ? 'border-[#FF2F92]' : ''}`}
@@ -697,8 +761,8 @@ export default function Projects() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Kategori</label>
-                  <select 
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Kategori</label>
+                  <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="w-full pkm-input"
@@ -711,14 +775,14 @@ export default function Projects() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">
                     Nama Klien / Instansi <span className="text-[#FF2F92]">*</span>
                   </label>
-                  <input 
-                    type="text" 
-                    required 
+                  <input
+                    type="text"
+                    required
                     value={formData.client}
                     onChange={(e) => setFormData({ ...formData, client: e.target.value })}
                     className={`w-full pkm-input ${formErrors.client ? 'border-[#FF2F92]' : ''}`}
@@ -728,7 +792,7 @@ export default function Projects() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">
                     Penanggung Jawab (PIC Proyek)
                   </label>
                   <select
@@ -746,10 +810,10 @@ export default function Projects() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Status Proyek</label>
-                  <select 
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Status Proyek</label>
+                  <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                     className="w-full pkm-input"
@@ -761,8 +825,8 @@ export default function Projects() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Tingkat Risiko</label>
-                  <select 
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Tingkat Risiko</label>
+                  <select
                     value={formData.risk_level}
                     onChange={(e) => setFormData({ ...formData, risk_level: e.target.value })}
                     className="w-full pkm-input"
@@ -775,21 +839,22 @@ export default function Projects() {
                 </div>
               </div>
 
-              <div className="p-2.5 bg-[#F5F1E9] border border-[#171717] rounded text-xs space-y-1">
+              {/* Progress Info Box */}
+              <div className="p-3 bg-[#FAF7F2] border border-[#171717]/25 rounded-lg text-xs space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase text-[#171717]">Progres Aktual (Auto)</span>
+                  <span className="text-[10.5px] font-black uppercase text-[#171717]">Progres Aktual (Auto)</span>
                   <span className="font-mono font-black text-sm text-[#FF2F92]">{editProject.progress ?? 0}%</span>
                 </div>
-                <p className="text-[10px] text-[#171717]/70">
+                <p className="text-[10px] text-[#171717]/70 leading-normal">
                   Dihitung otomatis dari tugas yang selesai ({editProject.completed_tasks_count ?? 0} dari {editProject.total_tasks_count ?? 0} tugas).
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Target Progres (%)</label>
-                  <input 
-                    type="number" 
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Target Progres (%)</label>
+                  <input
+                    type="number"
                     min="0"
                     max="100"
                     value={formData.target_progress}
@@ -799,9 +864,9 @@ export default function Projects() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Target Deadline</label>
-                  <input 
-                    type="date" 
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Target Deadline</label>
+                  <input
+                    type="date"
                     value={formData.deadline}
                     onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
                     className="w-full pkm-input"
@@ -810,56 +875,63 @@ export default function Projects() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase text-[#171717] mb-1">Catatan Risiko / Faktor Kendala</label>
-                <input 
-                  type="text" 
+                <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Catatan Risiko / Faktor Kendala</label>
+                <input
+                  type="text"
                   value={formData.risk_factor}
                   onChange={(e) => setFormData({ ...formData, risk_factor: e.target.value })}
-                  placeholder="Contoh: Menunggu feedback revisi dari tim klien" 
+                  placeholder="Contoh: Menunggu feedback revisi dari tim klien"
                   className="w-full pkm-input"
                 />
               </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-[#171717]/15">
-                <button 
-                  type="button" 
-                  onClick={() => setEditProject(null)}
-                  className="pkm-btn-outline"
-                  disabled={submitting}
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit" 
-                  className="pkm-btn-pink flex items-center gap-1.5"
-                  disabled={submitting}
-                >
-                  {submitting && <Loader2 size={13} className="animate-spin" />}
-                  <span>{submitting ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
-                </button>
-              </div>
             </form>
+
+            {/* Modal Footer */}
+            <div className="px-4 sm:px-5 py-3 border-t-1.5 border-[#171717] bg-[#FAF7F2] shrink-0 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setEditProject(null)}
+                className="pkm-btn-outline min-h-[38px] px-4 cursor-pointer"
+                disabled={submitting}
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                form="edit-project-form"
+                className="pkm-btn-pink min-h-[38px] px-4 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                disabled={submitting}
+              >
+                {submitting && <Loader2 size={13} className="animate-spin" />}
+                <span>{submitting ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* Delete Confirmation Modal */}
       {deleteProject && (
-        <div className="fixed inset-0 bg-[#171717]/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-[#171717] rounded-lg shadow-[6px_6px_0px_#171717] w-full max-w-md p-5 space-y-4">
-            <div className="flex items-center gap-2 text-[#FF2F92] border-b border-[#171717]/15 pb-2">
+        <div
+          className="fixed inset-0 bg-[#171717]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !submitting) setDeleteProject(null)
+          }}
+        >
+          <div className="bg-white border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-4 sm:px-5 py-3.5 border-b-1.5 border-[#171717] bg-[#FAF7F2] flex items-center gap-2 text-[#FF2F92]">
               <AlertTriangle size={20} strokeWidth={2.5} />
               <h3 className="font-display text-lg uppercase tracking-tight text-[#171717]">
                 KONFIRMASI HAPUS PROYEK
               </h3>
             </div>
 
-            <div className="space-y-2 text-xs font-semibold text-[#171717]/85">
+            <div className="p-4 sm:p-5 space-y-3 text-xs font-semibold text-[#171717]/85">
               <p>
                 Apakah Anda yakin ingin menghapus proyek <strong className="text-[#171717]">{deleteProject.name}</strong> ({deleteProject.code})?
               </p>
-              <div className="p-3 bg-[#FFD83D]/40 border border-[#171717]/25 rounded text-[11px] text-[#171717] space-y-1">
-                <p className="font-black">⚠️ Peringatan Relasi Database:</p>
+              <div className="p-3 bg-[#FFD83D]/40 border border-[#171717]/25 rounded-md text-[11px] text-[#171717] space-y-1">
+                <p className="font-black text-[#171717]">⚠️ Peringatan Relasi Database:</p>
                 <p>
                   Seluruh data tugas (tasks) dan tahapan milestone yang terhubung ke proyek ini akan ikut terhapus secara permanen dari basis data.
                 </p>
@@ -869,11 +941,11 @@ export default function Projects() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-[#171717]/15">
+            <div className="px-4 sm:px-5 py-3 border-t-1.5 border-[#171717] bg-[#FAF7F2] flex items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setDeleteProject(null)}
-                className="pkm-btn-outline"
+                className="pkm-btn-outline min-h-[38px] px-4 cursor-pointer"
                 disabled={submitting}
               >
                 Batal
@@ -882,7 +954,7 @@ export default function Projects() {
                 type="button"
                 onClick={handleDeleteSubmit}
                 disabled={submitting}
-                className="px-4 py-2 bg-[#FF2F92] hover:bg-[#e0267d] text-white font-black text-xs uppercase rounded border border-[#171717] shadow-[2px_2px_0px_#171717] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 min-h-[38px] bg-[#FF2F92] hover:bg-[#e0267d] text-white font-black text-xs uppercase rounded-md border border-[#171717] shadow-[2px_2px_0px_#171717] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 {submitting && <Loader2 size={13} className="animate-spin" />}
                 <span>{submitting ? 'Menghapus...' : 'Ya, Hapus Proyek'}</span>

@@ -46,6 +46,19 @@ export default function Tasks() {
   const [formErrors, setFormErrors]     = useState({})
   const [feedback, setFeedback]         = useState(null)
 
+  // Handle Escape key to close modals
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isAddOpen) setIsAddOpen(false)
+        if (isEditOpen) setIsEditOpen(false)
+        if (isDeleteOpen) setIsDeleteOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isAddOpen, isEditOpen, isDeleteOpen])
+
   // Form fields
   const [formData, setFormData] = useState({
     title: '',
@@ -251,7 +264,7 @@ export default function Tasks() {
       t.title.toLowerCase().includes(search.toLowerCase()) ||
       (t.assignee_name || '').toLowerCase().includes(search.toLowerCase()) ||
       (t.project?.name || '').toLowerCase().includes(search.toLowerCase())
-    
+
     const matchProject = projectFilter === 'all' || String(t.project_id) === String(projectFilter)
 
     const matchFilter =
@@ -290,12 +303,21 @@ export default function Tasks() {
   )
 
   return (
-    <div className="space-y-4 pb-4">
+    <div className="space-y-4 pb-6">
       {/* Feedback Banner */}
       {feedback && (
-        <div className="p-3 bg-[#10B981]/20 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center justify-between">
-          <p className="text-xs font-black text-[#171717]">{feedback.message}</p>
-          <button onClick={() => setFeedback(null)} className="text-[#171717] font-bold text-xs">✕</button>
+        <div className="p-3.5 bg-[#ECFDF5] border-1.5 border-[#171717] rounded-lg shadow-[3px_3px_0px_#171717] flex items-center justify-between transition-all">
+          <div className="flex items-center gap-2 min-w-0 pr-2">
+            <Check size={16} strokeWidth={3} className="text-[#10B981] shrink-0" />
+            <p className="text-xs font-bold text-[#065F46] break-words">{feedback.message}</p>
+          </div>
+          <button
+            onClick={() => setFeedback(null)}
+            className="p-1 text-[#171717]/60 hover:text-[#171717] rounded cursor-pointer shrink-0"
+            title="Tutup Pesan"
+          >
+            <X size={15} />
+          </button>
         </div>
       )}
 
@@ -305,17 +327,18 @@ export default function Tasks() {
         subtitle="Daftar tugas operasional, target penyelesaian, dan delegasi tim PKM."
         tag="TUGAS TIM"
         actions={
-          <div className="flex items-center gap-2">
-            <div className="bg-white px-3 py-1.5 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center gap-2">
-              <CheckSquare size={15} className="text-[#FF2F92]" />
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+            <div className="bg-white px-3 py-1.5 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center gap-2 min-h-[36px]">
+              <CheckSquare size={15} className="text-[#FF2F92] shrink-0" />
               <span className="font-black text-xs uppercase">{counts.completed} / {counts.all} Selesai</span>
             </div>
             {canManage && (
               <button
                 onClick={openAddModal}
-                className="pkm-btn-pink flex items-center gap-1.5 text-xs font-black uppercase"
+                className="pkm-btn-pink min-h-[36px] flex items-center gap-1.5 text-xs font-black uppercase cursor-pointer shadow-[2px_2px_0px_#171717]"
               >
-                <Plus size={15} /> Tambah Tugas
+                <Plus size={15} strokeWidth={3} />
+                <span>Tambah Tugas</span>
               </button>
             )}
           </div>
@@ -323,7 +346,7 @@ export default function Tasks() {
       />
 
       {/* Filter and Search Toolbar */}
-      <div className="bg-white p-3 border border-[#171717] rounded-lg shadow-[3px_3px_0px_#171717] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="bg-white p-3 sm:p-3.5 border-1.5 border-[#171717] rounded-lg shadow-[3px_3px_0px_#171717] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         {/* Search & Project Dropdown */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 max-w-xl">
           <div className="relative flex-1">
@@ -333,14 +356,23 @@ export default function Tasks() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari tugas, PIC, atau nama proyek..."
-              className="w-full pl-9 pr-3 py-1.5 bg-[#FAF7F2] border border-[#171717]/40 rounded text-xs font-semibold text-[#171717] placeholder:text-[#171717]/40 focus:outline-none focus:border-[#FF2F92]"
+              className="w-full pl-9 pr-8 py-2 bg-[#FAF7F2] border border-[#171717]/40 rounded-lg text-xs font-semibold text-[#171717] placeholder:text-[#171717]/40 focus:outline-none focus:border-[#FF2F92] min-h-[38px]"
             />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#171717]/40 hover:text-[#171717] p-1 cursor-pointer"
+                title="Hapus pencarian"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
 
           <select
             value={projectFilter}
             onChange={(e) => setProjectFilter(e.target.value)}
-            className="px-2.5 py-1.5 bg-[#FAF7F2] border border-[#171717]/40 rounded text-xs font-semibold text-[#171717] focus:outline-none focus:border-[#FF2F92]"
+            className="px-3 py-2 bg-[#FAF7F2] border border-[#171717]/40 rounded-lg text-xs font-semibold text-[#171717] focus:outline-none focus:border-[#FF2F92] min-h-[38px] cursor-pointer"
           >
             <option value="all">Semua Proyek ({projects.length})</option>
             {projects.map(p => (
@@ -349,8 +381,8 @@ export default function Tasks() {
           </select>
         </div>
 
-        {/* Priority Filter Badges */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        {/* Priority Filter Badges & Quick Reset */}
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {[
             { id: 'all',       label: 'Semua',     count: counts.all },
             { id: 'high',      label: 'High',      count: counts.high },
@@ -362,35 +394,47 @@ export default function Tasks() {
             <button
               key={item.id}
               onClick={() => setFilter(item.id)}
-              className={`px-2.5 py-1 text-[10.5px] font-black uppercase rounded border transition-all cursor-pointer ${
+              className={`px-3 py-1.5 text-[11px] font-black uppercase rounded-md border transition-all cursor-pointer min-h-[34px] ${
                 filter === item.id
-                  ? 'bg-[#171717] text-white border-[#171717] shadow-[1px_1px_0px_#171717]'
-                  : 'bg-white text-[#171717] border-[#171717]/30 hover:border-[#171717]'
+                  ? 'bg-[#171717] text-white border-[#171717] shadow-[2px_2px_0px_#171717]'
+                  : 'bg-[#FAF7F2] text-[#171717] border-[#171717]/30 hover:border-[#171717] hover:bg-white'
               }`}
             >
-              {item.label} ({item.count})
+              {item.label} <span className="opacity-75">({item.count})</span>
             </button>
           ))}
+
+          {(search !== '' || filter !== 'all' || projectFilter !== 'all') && (
+            <button
+              onClick={() => { setSearch(''); setFilter('all'); setProjectFilter('all') }}
+              className="px-2.5 py-1.5 text-[10.5px] font-bold text-[#FF2F92] hover:bg-pink-50 border border-[#FF2F92]/40 rounded-md transition-colors cursor-pointer min-h-[34px] flex items-center gap-1 ml-auto sm:ml-0"
+              title="Reset seluruh filter pencarian"
+            >
+              <RotateCcw size={12} />
+              <span>Reset</span>
+            </button>
+          )}
         </div>
       </div>
 
       {/* Task List */}
       {filtered.length === 0 ? (
-        <div className="p-8 bg-white border border-[#171717] rounded-lg text-center space-y-2">
-          <CheckSquare size={32} className="mx-auto text-[#171717]/40" />
-          <h3 className="font-display text-lg uppercase text-[#171717]">Tidak Ada Tugas</h3>
-          <p className="text-xs text-[#171717]/60 max-w-sm mx-auto">
+        <div className="p-8 sm:p-12 bg-white border-1.5 border-[#171717] rounded-lg shadow-[3px_3px_0px_#171717] text-center space-y-3">
+          <CheckSquare size={36} className="mx-auto text-[#171717]/40" />
+          <h3 className="font-display text-xl uppercase text-[#171717]">Tidak Ada Tugas</h3>
+          <p className="text-xs font-semibold text-[#171717]/65 max-w-sm mx-auto leading-relaxed">
             Tidak ditemukan tugas dengan filter atau kata kunci yang dipilih.
           </p>
           <button
             onClick={() => { setSearch(''); setFilter('all'); setProjectFilter('all') }}
-            className="pkm-btn-outline mt-2"
+            className="pkm-btn-outline inline-flex items-center gap-1.5 cursor-pointer mt-1"
           >
-            Reset Filter
+            <RotateCcw size={13} />
+            <span>Reset Pencarian & Filter</span>
           </button>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {filtered.map((task) => {
             const isOverdue = !task.is_completed && task.deadline && task.deadline < today
             const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium
@@ -398,67 +442,81 @@ export default function Tasks() {
             return (
               <div
                 key={task.id}
-                className={`p-3.5 bg-white border border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center justify-between gap-3 transition-all ${
-                  task.is_completed ? 'opacity-65 bg-[#FAF7F2]' : 'hover:-translate-x-0.5 hover:shadow-[3px_3px_0px_#171717]'
+                className={`p-3.5 sm:p-4 bg-white border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                  task.is_completed ? 'opacity-70 bg-[#FAF7F2]' : 'hover:-translate-x-0.5 hover:shadow-[4px_4px_0px_#171717]'
                 }`}
               >
-                {/* Left: Checkbox + Title + Project */}
-                <div className="flex items-center gap-3 min-w-0 flex-1">
+                {/* Left: Checkbox + Title + Meta */}
+                <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                  {/* Task Toggle Button with Generous Touch Target */}
                   <button
                     onClick={() => handleToggle(task.id)}
                     disabled={toggling === task.id}
-                    className={`w-5 h-5 rounded border border-[#171717] flex items-center justify-center shrink-0 cursor-pointer transition-colors ${
+                    className={`w-6 h-6 min-w-[24px] rounded border-1.5 border-[#171717] flex items-center justify-center shrink-0 cursor-pointer transition-colors shadow-[1px_1px_0px_#171717] mt-0.5 sm:mt-0 ${
                       task.is_completed ? 'bg-[#10B981] text-white' : 'bg-white hover:bg-[#FFD83D]'
                     }`}
                     title={task.is_completed ? "Tandai belum selesai" : "Tandai selesai"}
                   >
-                    {task.is_completed && <Check size={13} strokeWidth={3} />}
+                    {toggling === task.id ? (
+                      <Loader2 size={13} className="animate-spin text-[#171717]" />
+                    ) : task.is_completed ? (
+                      <Check size={14} strokeWidth={3} />
+                    ) : null}
                   </button>
 
+                  {/* Title & Metadata */}
                   <div className="min-w-0 flex-1">
-                    <p className={`text-xs font-black text-[#171717] truncate leading-tight ${
+                    <p className={`text-xs sm:text-sm font-black text-[#171717] leading-tight break-words ${
                       task.is_completed ? 'line-through text-[#171717]/50' : ''
                     }`}>
                       {task.title}
                     </p>
-                    <p className="text-[10px] font-semibold text-[#171717]/60 truncate mt-0.5 flex items-center gap-1.5 flex-wrap">
-                      <span>Proyek: <strong className="text-[#171717]/80">{task.project?.name || 'PKM Project'}</strong></span>
+                    <div className="text-[10px] sm:text-[10.5px] font-semibold text-[#171717]/70 mt-1 flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                      <span className="px-1.5 py-0.5 bg-[#FAF7F2] border border-[#171717]/20 rounded text-[#171717] font-bold">
+                        {task.project?.name || 'PKM Project'}
+                      </span>
                       {task.milestone && (
-                        <span>· Sprint: <strong className="text-[#FF2F92]">{task.milestone.title}</strong></span>
+                        <span className="px-1.5 py-0.5 bg-pink-50 border border-[#FF2F92]/30 rounded text-[#FF2F92] font-black">
+                          {task.milestone.title}
+                        </span>
                       )}
-                      <span>· PIC: <strong className="text-[#171717]/80">{task.assignee?.name || task.assignee_name || 'Tim PKM'}</strong></span>
-                    </p>
+                      <span className="text-[#171717]/60">
+                        PIC: <strong className="text-[#171717]">{task.assignee?.name || task.assignee_name || 'Tim PKM'}</strong>
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Right: Deadline + Priority Badge + Action Buttons */}
-                <div className="flex items-center gap-2 shrink-0">
-                  {task.deadline && (
-                    <div className={`flex items-center gap-1 text-[10px] font-bold ${
-                      isOverdue ? 'text-[#FF2F92]' : 'text-[#171717]/65'
-                    }`}>
-                      <Calendar size={12} />
-                      <span>{new Date(task.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>
-                      {isOverdue && <span className="text-[8px] font-black uppercase text-[#FF2F92]">(Lewat)</span>}
-                    </div>
-                  )}
+                {/* Right: Badges & Actions */}
+                <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#171717]/10 w-full sm:w-auto">
+                  <div className="flex items-center gap-2">
+                    {task.deadline && (
+                      <div className={`flex items-center gap-1 text-[10.5px] font-bold ${
+                        isOverdue ? 'text-[#FF2F92] font-black' : 'text-[#171717]/70'
+                      }`}>
+                        <Calendar size={13} />
+                        <span>{new Date(task.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>
+                        {isOverdue && <span className="text-[8.5px] font-black uppercase px-1 py-0.2 bg-[#FF2F92] text-white rounded">Lewat</span>}
+                      </div>
+                    )}
 
-                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-sm border ${priority.bg}`}>
-                    {priority.label}
-                  </span>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border shadow-[1px_1px_0px_#171717] ${priority.bg}`}>
+                      {priority.label}
+                    </span>
+                  </div>
 
                   {canManage && (
-                    <div className="flex items-center gap-1 ml-1 border-l border-[#171717]/20 pl-2">
+                    <div className="flex items-center gap-1 border-l border-[#171717]/20 pl-2">
                       <button
                         onClick={() => openEditModal(task)}
-                        className="p-1 hover:bg-[#FFD83D] border border-transparent hover:border-[#171717] rounded text-[#171717] transition-all cursor-pointer"
+                        className="p-1.5 sm:p-2 min-h-[32px] min-w-[32px] flex items-center justify-center bg-white hover:bg-[#FFD83D] border border-[#171717] rounded text-[#171717] transition-all cursor-pointer shadow-[1px_1px_0px_#171717]"
                         title="Edit Tugas"
                       >
                         <Edit3 size={13} />
                       </button>
                       <button
                         onClick={() => openDeleteModal(task)}
-                        className="p-1 hover:bg-[#FF2F92] hover:text-white border border-transparent hover:border-[#171717] rounded text-[#171717] transition-all cursor-pointer"
+                        className="p-1.5 sm:p-2 min-h-[32px] min-w-[32px] flex items-center justify-center bg-white hover:bg-[#FF2F92] hover:text-white border border-[#171717] rounded text-[#171717] transition-all cursor-pointer shadow-[1px_1px_0px_#171717]"
                         title="Hapus Tugas"
                       >
                         <Trash2 size={13} />
@@ -474,41 +532,56 @@ export default function Tasks() {
 
       {/* MODAL: Tambah Tugas */}
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 bg-[#171717]/60 backdrop-blur-[1px] flex items-center justify-center p-4">
-          <div className="bg-[#FAF7F2] border-2 border-[#171717] rounded-lg shadow-[6px_6px_0px_#171717] w-full max-w-lg p-5 space-y-4">
-            <div className="flex items-center justify-between border-b-1.5 border-[#171717] pb-3">
-              <div>
-                <h3 className="font-display text-xl uppercase tracking-wider text-[#171717]">Tambah Tugas Baru</h3>
-                <p className="text-[11px] font-semibold text-[#171717]/60">Tambahkan pekerjaan operasional ke dalam database proyek</p>
+        <div
+          className="fixed inset-0 z-50 bg-[#171717]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !submitting) setIsAddOpen(false)
+          }}
+        >
+          <div className="bg-white border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="px-4 sm:px-5 py-3.5 border-b-1.5 border-[#171717] bg-[#FAF7F2] shrink-0 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 bg-[#FF2F92] border border-[#171717]"></span>
+                <div>
+                  <h3 className="font-display text-lg uppercase tracking-tight text-[#171717]">Tambah Tugas Baru</h3>
+                  <p className="text-[10.5px] font-semibold text-[#171717]/60">Tambahkan pekerjaan operasional ke dalam database proyek</p>
+                </div>
               </div>
-              <button onClick={() => setIsAddOpen(false)} className="text-[#171717] hover:text-[#FF2F92]">
-                <X size={20} />
+              <button
+                onClick={() => setIsAddOpen(false)}
+                className="p-1.5 hover:bg-[#FFD83D] border border-[#171717] rounded-md cursor-pointer transition-colors"
+                title="Tutup Modal"
+                disabled={submitting}
+              >
+                <X size={15} />
               </button>
             </div>
 
-            {formErrors.general && (
-              <div className="p-2.5 bg-[#FF2F92]/20 border border-[#FF2F92] rounded text-xs font-bold text-[#FF2F92]">
-                {formErrors.general[0]}
-              </div>
-            )}
+            {/* Scrollable Form Body */}
+            <form id="create-task-form" onSubmit={handleCreateSubmit} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 min-h-0">
+              {formErrors.general && (
+                <div className="p-2.5 bg-[#FF2F92]/20 border border-[#FF2F92] rounded text-xs font-bold text-[#FF2F92]">
+                  {formErrors.general[0]}
+                </div>
+              )}
 
-            <form onSubmit={handleCreateSubmit} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Judul Tugas *</label>
+                <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Judul Tugas <span className="text-[#FF2F92]">*</span></label>
                 <input
                   type="text"
                   required
                   value={formData.title}
                   onChange={e => setFormData({ ...formData, title: e.target.value })}
                   placeholder="Misal: Implementasi OAuth Google Login"
-                  className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                  className="w-full pkm-input"
                 />
-                {formErrors.title && <p className="text-[10px] text-[#FF2F92] font-bold mt-0.5">{formErrors.title[0]}</p>}
+                {formErrors.title && <p className="text-[10px] text-[#FF2F92] font-bold mt-1">{formErrors.title[0]}</p>}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Proyek Terkait *</label>
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Proyek Terkait <span className="text-[#FF2F92]">*</span></label>
                   <select
                     required
                     value={formData.project_id}
@@ -517,24 +590,24 @@ export default function Tasks() {
                       setFormData({ ...formData, project_id: newProjId, milestone_id: '' })
                       loadMilestonesForProject(newProjId)
                     }}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className="w-full pkm-input"
                   >
                     <option value="">-- Pilih Proyek --</option>
                     {projects.map(p => (
                       <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
                     ))}
                   </select>
-                  {formErrors.project_id && <p className="text-[10px] text-[#FF2F92] font-bold mt-0.5">{formErrors.project_id[0]}</p>}
+                  {formErrors.project_id && <p className="text-[10px] text-[#FF2F92] font-bold mt-1">{formErrors.project_id[0]}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">
                     Sprint / Milestone {loadingMilestones && <span className="text-[9px] font-normal text-[#171717]/60">(Memuat...)</span>}
                   </label>
                   <select
                     value={formData.milestone_id}
                     onChange={e => setFormData({ ...formData, milestone_id: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className="w-full pkm-input"
                   >
                     <option value="">-- Tanpa Sprint / Backlog Umum --</option>
                     {projectMilestones.map(ms => (
@@ -543,13 +616,13 @@ export default function Tasks() {
                       </option>
                     ))}
                   </select>
-                  {formErrors.milestone_id && <p className="text-[10px] text-[#FF2F92] font-bold mt-0.5">{formErrors.milestone_id[0]}</p>}
+                  {formErrors.milestone_id && <p className="text-[10px] text-[#FF2F92] font-bold mt-1">{formErrors.milestone_id[0]}</p>}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">PIC / Pelaksana</label>
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">PIC / Pelaksana</label>
                   <select
                     value={formData.assignee_id}
                     onChange={e => {
@@ -561,7 +634,7 @@ export default function Tasks() {
                         assignee_name: selMem ? selMem.name : ''
                       })
                     }}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className="w-full pkm-input"
                   >
                     <option value="">-- Pilih Personel PIC --</option>
                     {teamMembers.map(m => (
@@ -571,11 +644,11 @@ export default function Tasks() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Prioritas</label>
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Prioritas</label>
                   <select
                     value={formData.priority}
                     onChange={e => setFormData({ ...formData, priority: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className="w-full pkm-input"
                   >
                     <option value="high">High (Mendesak)</option>
                     <option value="medium">Medium (Standar)</option>
@@ -586,21 +659,21 @@ export default function Tasks() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Batas Waktu (Deadline)</label>
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Batas Waktu (Deadline)</label>
                   <input
                     type="date"
                     value={formData.deadline}
                     onChange={e => setFormData({ ...formData, deadline: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className="w-full pkm-input"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Status Pengerjaan</label>
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Status Pengerjaan</label>
                   <select
                     value={formData.status}
                     onChange={e => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className="w-full pkm-input"
                   >
                     <option value="pending">Pending (Belum Dikerjakan)</option>
                     <option value="in_progress">In Progress (Sedang Berjalan)</option>
@@ -608,64 +681,82 @@ export default function Tasks() {
                   </select>
                 </div>
               </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#171717]/20">
-                <button
-                  type="button"
-                  onClick={() => setIsAddOpen(false)}
-                  className="px-3 py-1.5 bg-white border border-[#171717] rounded text-xs font-black uppercase text-[#171717] hover:bg-neutral-100"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="pkm-btn-pink flex items-center gap-1.5 text-xs font-black uppercase disabled:opacity-50"
-                >
-                  {submitting ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
-                  Simpan Tugas
-                </button>
-              </div>
             </form>
+
+            {/* Modal Footer */}
+            <div className="px-4 sm:px-5 py-3 border-t-1.5 border-[#171717] bg-[#FAF7F2] shrink-0 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsAddOpen(false)}
+                className="pkm-btn-outline min-h-[38px] px-4 cursor-pointer"
+                disabled={submitting}
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                form="create-task-form"
+                disabled={submitting}
+                className="pkm-btn-pink min-h-[38px] px-4 flex items-center gap-1.5 text-xs font-black uppercase disabled:opacity-50 cursor-pointer"
+              >
+                {submitting ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} strokeWidth={3} />}
+                <span>Simpan Tugas</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* MODAL: Edit Tugas */}
       {isEditOpen && selectedTask && (
-        <div className="fixed inset-0 z-50 bg-[#171717]/60 backdrop-blur-[1px] flex items-center justify-center p-4">
-          <div className="bg-[#FAF7F2] border-2 border-[#171717] rounded-lg shadow-[6px_6px_0px_#171717] w-full max-w-lg p-5 space-y-4">
-            <div className="flex items-center justify-between border-b-1.5 border-[#171717] pb-3">
-              <div>
-                <h3 className="font-display text-xl uppercase tracking-wider text-[#171717]">Edit Data Tugas</h3>
-                <p className="text-[11px] font-semibold text-[#171717]/60">Perbarui rincian tugas ID #{selectedTask.id}</p>
+        <div
+          className="fixed inset-0 z-50 bg-[#171717]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !submitting) setIsEditOpen(false)
+          }}
+        >
+          <div className="bg-white border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="px-4 sm:px-5 py-3.5 border-b-1.5 border-[#171717] bg-[#FAF7F2] shrink-0 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 bg-[#FFD83D] border border-[#171717]"></span>
+                <div>
+                  <h3 className="font-display text-lg uppercase tracking-tight text-[#171717]">Edit Data Tugas</h3>
+                  <p className="text-[10.5px] font-semibold text-[#171717]/60">Perbarui rincian tugas ID #{selectedTask.id}</p>
+                </div>
               </div>
-              <button onClick={() => setIsEditOpen(false)} className="text-[#171717] hover:text-[#FF2F92]">
-                <X size={20} />
+              <button
+                onClick={() => setIsEditOpen(false)}
+                className="p-1.5 hover:bg-[#FFD83D] border border-[#171717] rounded-md cursor-pointer transition-colors"
+                title="Tutup Modal"
+                disabled={submitting}
+              >
+                <X size={15} />
               </button>
             </div>
 
-            {formErrors.general && (
-              <div className="p-2.5 bg-[#FF2F92]/20 border border-[#FF2F92] rounded text-xs font-bold text-[#FF2F92]">
-                {formErrors.general[0]}
-              </div>
-            )}
+            {/* Scrollable Form Body */}
+            <form id="edit-task-form" onSubmit={handleUpdateSubmit} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 min-h-0">
+              {formErrors.general && (
+                <div className="p-2.5 bg-[#FF2F92]/20 border border-[#FF2F92] rounded text-xs font-bold text-[#FF2F92]">
+                  {formErrors.general[0]}
+                </div>
+              )}
 
-            <form onSubmit={handleUpdateSubmit} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Judul Tugas *</label>
+                <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Judul Tugas <span className="text-[#FF2F92]">*</span></label>
                 <input
                   type="text"
                   required
                   value={formData.title}
                   onChange={e => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                  className="w-full pkm-input"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Proyek Terkait</label>
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Proyek Terkait</label>
                   <select
                     value={formData.project_id}
                     onChange={e => {
@@ -673,7 +764,7 @@ export default function Tasks() {
                       setFormData({ ...formData, project_id: newProjId, milestone_id: '' })
                       loadMilestonesForProject(newProjId)
                     }}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className="w-full pkm-input"
                   >
                     {projects.map(p => (
                       <option key={p.id} value={p.id}>{p.code} - {p.name}</option>
@@ -682,13 +773,13 @@ export default function Tasks() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">
                     Sprint / Milestone {loadingMilestones && <span className="text-[9px] font-normal text-[#171717]/60">(Memuat...)</span>}
                   </label>
                   <select
                     value={formData.milestone_id}
                     onChange={e => setFormData({ ...formData, milestone_id: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className="w-full pkm-input"
                   >
                     <option value="">-- Tanpa Sprint / Backlog Umum --</option>
                     {projectMilestones.map(ms => (
@@ -697,13 +788,13 @@ export default function Tasks() {
                       </option>
                     ))}
                   </select>
-                  {formErrors.milestone_id && <p className="text-[10px] text-[#FF2F92] font-bold mt-0.5">{formErrors.milestone_id[0]}</p>}
+                  {formErrors.milestone_id && <p className="text-[10px] text-[#FF2F92] font-bold mt-1">{formErrors.milestone_id[0]}</p>}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">PIC / Pelaksana</label>
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">PIC / Pelaksana</label>
                   <select
                     value={formData.assignee_id}
                     onChange={e => {
@@ -715,7 +806,7 @@ export default function Tasks() {
                         assignee_name: selMem ? selMem.name : ''
                       })
                     }}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className="w-full pkm-input"
                   >
                     <option value="">-- Pilih Personel PIC --</option>
                     {teamMembers.map(m => (
@@ -725,11 +816,11 @@ export default function Tasks() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Prioritas</label>
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Prioritas</label>
                   <select
                     value={formData.priority}
                     onChange={e => setFormData({ ...formData, priority: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className="w-full pkm-input"
                   >
                     <option value="high">High (Mendesak)</option>
                     <option value="medium">Medium (Standar)</option>
@@ -740,21 +831,21 @@ export default function Tasks() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Batas Waktu (Deadline)</label>
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Batas Waktu (Deadline)</label>
                   <input
                     type="date"
                     value={formData.deadline}
                     onChange={e => setFormData({ ...formData, deadline: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className="w-full pkm-input"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Status Pengerjaan</label>
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Status Pengerjaan</label>
                   <select
                     value={formData.status}
                     onChange={e => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className="w-full pkm-input"
                   >
                     <option value="pending">Pending (Belum Dikerjakan)</option>
                     <option value="in_progress">In Progress (Sedang Berjalan)</option>
@@ -762,65 +853,72 @@ export default function Tasks() {
                   </select>
                 </div>
               </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#171717]/20">
-                <button
-                  type="button"
-                  onClick={() => setIsEditOpen(false)}
-                  className="px-3 py-1.5 bg-white border border-[#171717] rounded text-xs font-black uppercase text-[#171717] hover:bg-neutral-100"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="pkm-btn-pink flex items-center gap-1.5 text-xs font-black uppercase disabled:opacity-50"
-                >
-                  {submitting ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-                  Simpan Perubahan
-                </button>
-              </div>
             </form>
+
+            {/* Modal Footer */}
+            <div className="px-4 sm:px-5 py-3 border-t-1.5 border-[#171717] bg-[#FAF7F2] shrink-0 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsEditOpen(false)}
+                className="pkm-btn-outline min-h-[38px] px-4 cursor-pointer"
+                disabled={submitting}
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                form="edit-task-form"
+                disabled={submitting}
+                className="pkm-btn-pink min-h-[38px] px-4 flex items-center gap-1.5 text-xs font-black uppercase disabled:opacity-50 cursor-pointer"
+              >
+                {submitting ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} strokeWidth={3} />}
+                <span>Simpan Perubahan</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* MODAL: Hapus Tugas */}
       {isDeleteOpen && selectedTask && (
-        <div className="fixed inset-0 z-50 bg-[#171717]/60 backdrop-blur-[1px] flex items-center justify-center p-4">
-          <div className="bg-[#FAF7F2] border-2 border-[#171717] rounded-lg shadow-[6px_6px_0px_#171717] w-full max-w-md p-5 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#FF2F92]/20 border border-[#FF2F92] flex items-center justify-center shrink-0">
-                <AlertTriangle size={20} className="text-[#FF2F92]" />
-              </div>
-              <div>
-                <h3 className="font-display text-xl uppercase tracking-wider text-[#171717]">Hapus Tugas?</h3>
-                <p className="text-[11px] font-semibold text-[#171717]/60">Tindakan ini permanen dan menghapus catatan tugas.</p>
+        <div
+          className="fixed inset-0 z-50 bg-[#171717]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !submitting) setIsDeleteOpen(false)
+          }}
+        >
+          <div className="bg-white border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-4 sm:px-5 py-3.5 border-b-1.5 border-[#171717] bg-[#FAF7F2] flex items-center gap-2.5 text-[#FF2F92]">
+              <AlertTriangle size={20} strokeWidth={2.5} />
+              <h3 className="font-display text-lg uppercase tracking-tight text-[#171717]">Hapus Tugas?</h3>
+            </div>
+
+            <div className="p-4 sm:p-5 space-y-3 text-xs font-semibold text-[#171717]/85">
+              <p>Tindakan ini bersifat permanen dan menghapus catatan tugas operasional.</p>
+              <div className="p-3 bg-[#FAF7F2] border border-[#171717]/25 rounded-md text-xs space-y-1">
+                <p className="font-black text-[#171717]">{selectedTask.title}</p>
+                <p className="text-[10.5px] text-[#171717]/65">
+                  Proyek: <strong>{selectedTask.project?.name || '-'}</strong> · PIC: <strong>{selectedTask.assignee_name || '-'}</strong>
+                </p>
               </div>
             </div>
 
-            <div className="p-3 bg-white border border-[#171717] rounded text-xs">
-              <p className="font-black text-[#171717]">{selectedTask.title}</p>
-              <p className="text-[10px] text-[#171717]/60 mt-1">
-                Proyek: {selectedTask.project?.name || '-'} · PIC: {selectedTask.assignee_name || '-'}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#171717]/20">
+            <div className="px-4 sm:px-5 py-3 border-t-1.5 border-[#171717] bg-[#FAF7F2] flex items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setIsDeleteOpen(false)}
-                className="px-3 py-1.5 bg-white border border-[#171717] rounded text-xs font-black uppercase text-[#171717] hover:bg-neutral-100"
+                className="pkm-btn-outline min-h-[38px] px-4 cursor-pointer"
+                disabled={submitting}
               >
                 Batal
               </button>
               <button
                 onClick={handleDeleteSubmit}
                 disabled={submitting}
-                className="px-4 py-1.5 bg-[#FF2F92] text-white border border-[#171717] rounded shadow-[2px_2px_0px_#171717] text-xs font-black uppercase flex items-center gap-1.5 disabled:opacity-50"
+                className="px-4 py-2 min-h-[38px] bg-[#FF2F92] hover:bg-[#e0267d] text-white border border-[#171717] rounded-md shadow-[2px_2px_0px_#171717] text-xs font-black uppercase flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 {submitting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                Ya, Hapus
+                <span>Ya, Hapus</span>
               </button>
             </div>
           </div>

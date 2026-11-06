@@ -46,7 +46,7 @@ export default function Development() {
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState(null)
   const [activeId, setActiveId]       = useState(null)
-  
+
   // Real milestones from DB
   const [milestones, setMilestones]   = useState([])
   const [loadingMilestones, setLoadingMilestones] = useState(false)
@@ -59,6 +59,20 @@ export default function Development() {
   const [deletingMilestone, setDeletingMilestone] = useState(null)
   const [viewingSprintTasks, setViewingSprintTasks] = useState(null)
   const [modalError, setModalError]   = useState(null)
+
+  // Handle Escape key to close any open modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isCreatingSprint) setIsCreatingSprint(false)
+        if (editingMilestone) setEditingMilestone(null)
+        if (deletingMilestone) setDeletingMilestone(null)
+        if (viewingSprintTasks) setViewingSprintTasks(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isCreatingSprint, editingMilestone, deletingMilestone, viewingSprintTasks])
 
   // Create Milestone Form
   const [createForm, setCreateForm] = useState({
@@ -106,7 +120,7 @@ export default function Development() {
       const res = await api.get(`/projects/${projectId}/milestones`)
       const list = res.data.data || []
       setMilestones(list)
-      
+
       // Update viewingSprintTasks if currently open
       if (viewingSprintTasks) {
         const updatedSprint = list.find(m => m.id === viewingSprintTasks.id)
@@ -182,7 +196,7 @@ export default function Development() {
       setIsCreatingSprint(false)
       setActiveId(targetProjectId)
       await fetchMilestones(targetProjectId)
-      
+
       // Refresh all projects
       const resProj = await api.get('/projects')
       setProjects(resProj.data.projects || [])
@@ -364,7 +378,7 @@ export default function Development() {
             <button
               key={p.id}
               onClick={() => handleSelectProject(p.id)}
-              className={`px-3 py-1.5 rounded-md border text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              className={`px-3 py-1.5 rounded-md border text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 shrink-0 min-h-[36px] ${
                 isActive
                   ? 'bg-[#171717] text-white border-[#171717] shadow-[2px_2px_0px_#FF2F92]'
                   : 'bg-white text-[#171717] border-[#171717]/30 hover:border-[#171717]'
@@ -471,17 +485,17 @@ export default function Development() {
                                   <>
                                     <button
                                       onClick={() => openEditModal(ms)}
-                                      className="p-1 hover:bg-[#FFD83D] rounded border border-transparent hover:border-[#171717] text-[#171717] transition-all cursor-pointer"
+                                      className="p-1.5 min-w-[28px] min-h-[28px] flex items-center justify-center hover:bg-[#FFD83D] rounded border border-transparent hover:border-[#171717] text-[#171717] transition-all cursor-pointer"
                                       title="Edit Sprint"
                                     >
-                                      <Edit3 size={12} />
+                                      <Edit3 size={13} />
                                     </button>
                                     <button
                                       onClick={() => setDeletingMilestone(ms)}
-                                      className="p-1 hover:bg-[#FF2F92] hover:text-white rounded border border-transparent hover:border-[#171717] text-[#171717]/70 transition-all cursor-pointer"
+                                      className="p-1.5 min-w-[28px] min-h-[28px] flex items-center justify-center hover:bg-[#FF2F92] hover:text-white rounded border border-transparent hover:border-[#171717] text-[#171717]/70 transition-all cursor-pointer"
                                       title="Hapus Sprint"
                                     >
-                                      <Trash2 size={12} />
+                                      <Trash2 size={13} />
                                     </button>
                                   </>
                                 )}
@@ -504,9 +518,9 @@ export default function Development() {
                               <span>Tugas: <strong className="text-[#171717]">{ms.completed_tasks ?? 0} / {ms.total_tasks ?? 0} Selesai</strong></span>
                               <button
                                 onClick={() => setViewingSprintTasks(ms)}
-                                className="text-[9px] font-black text-[#FF2F92] hover:underline flex items-center gap-1 cursor-pointer"
+                                className="text-[9.5px] font-black text-[#FF2F92] hover:underline flex items-center gap-1 cursor-pointer py-1 px-1.5 hover:bg-[#FF2F92]/10 rounded transition-colors"
                               >
-                                <ListTodo size={11} /> Lihat Tugas
+                                <ListTodo size={12} /> Lihat Tugas
                               </button>
                             </div>
                           </div>
@@ -651,45 +665,60 @@ export default function Development() {
 
       {/* MODAL: Buat Sprint Baru */}
       {isCreatingSprint && (
-        <div className="fixed inset-0 z-50 bg-[#171717]/60 backdrop-blur-[1px] flex items-center justify-center p-4">
-          <div className="bg-[#FAF7F2] border-2 border-[#171717] rounded-lg shadow-[6px_6px_0px_#171717] w-full max-w-lg p-5 space-y-4">
-            <div className="flex items-center justify-between border-b-1.5 border-[#171717] pb-3">
-              <div>
-                <h3 className="font-display text-xl uppercase tracking-wider text-[#171717]">Buat Sprint Baru</h3>
-                <p className="text-[11px] font-semibold text-[#171717]/60">Tambahkan tahapan pengembangan teknis ke proyek</p>
+        <div
+          className="fixed inset-0 z-50 bg-[#171717]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !submitting) setIsCreatingSprint(false)
+          }}
+        >
+          <div className="bg-white border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="px-4 sm:px-5 py-3.5 border-b-1.5 border-[#171717] bg-[#FAF7F2] shrink-0 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 bg-[#FF2F92] border border-[#171717]"></span>
+                <div>
+                  <h3 className="font-display text-lg uppercase tracking-tight text-[#171717]">Buat Sprint Baru</h3>
+                  <p className="text-[10.5px] font-semibold text-[#171717]/60">Tambahkan tahapan pengembangan teknis ke proyek</p>
+                </div>
               </div>
-              <button onClick={() => setIsCreatingSprint(false)} className="text-[#171717] hover:text-[#FF2F92] cursor-pointer">
-                <X size={20} />
+              <button
+                onClick={() => setIsCreatingSprint(false)}
+                className="p-1.5 hover:bg-[#FFD83D] border border-[#171717] rounded-md cursor-pointer transition-colors"
+                title="Tutup Modal"
+                disabled={submitting}
+              >
+                <X size={15} />
               </button>
             </div>
 
-            {modalError && (
-              <div className="p-2.5 bg-[#FF2F92]/10 border border-[#FF2F92] rounded text-xs font-bold text-[#FF2F92] flex items-center gap-2">
-                <AlertCircle size={14} className="shrink-0" />
-                <span>{modalError}</span>
-              </div>
-            )}
+            {/* Scrollable Form Body */}
+            <form id="create-sprint-form" onSubmit={handleCreateSprint} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 min-h-0">
+              {modalError && (
+                <div className="p-2.5 bg-[#FF2F92]/10 border border-[#FF2F92] rounded-md text-xs font-bold text-[#FF2F92] flex items-center gap-2">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>{modalError}</span>
+                </div>
+              )}
 
-            <form onSubmit={handleCreateSprint} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Nama Sprint / Milestone *</label>
+                <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Nama Sprint / Milestone <span className="text-[#FF2F92]">*</span></label>
                 <input
                   type="text"
                   required
                   placeholder="Misal: Sprint 1 - Otentikasi & Basis Data"
                   value={createForm.title}
                   onChange={e => setCreateForm({ ...createForm, title: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                  className="w-full pkm-input"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Proyek Induk *</label>
+                <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Proyek Induk <span className="text-[#FF2F92]">*</span></label>
                 <select
                   required
                   value={createForm.project_id}
                   onChange={e => setCreateForm({ ...createForm, project_id: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                  className="w-full pkm-input cursor-pointer"
                 >
                   <option value="">-- Pilih Proyek Induk --</option>
                   {projects.map(p => (
@@ -699,142 +728,161 @@ export default function Development() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Deskripsi Scope / Sasaran</label>
+                <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Deskripsi Scope / Sasaran</label>
                 <textarea
                   rows={2}
                   placeholder="Ringkasan deliverable atau target fase..."
                   value={createForm.description}
                   onChange={e => setCreateForm({ ...createForm, description: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                  className="w-full pkm-input"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Tanggal Mulai</label>
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Tanggal Mulai</label>
                   <input
                     type="date"
                     value={createForm.start_date}
                     onChange={e => setCreateForm({ ...createForm, start_date: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className="w-full pkm-input"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Tanggal Selesai (Target)</label>
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Tanggal Selesai (Target)</label>
                   <input
                     type="date"
                     value={createForm.due_date}
                     onChange={e => setCreateForm({ ...createForm, due_date: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className="w-full pkm-input"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Status Awal</label>
+                <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Status Awal</label>
                 <select
                   value={createForm.status}
                   onChange={e => setCreateForm({ ...createForm, status: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                  className="w-full pkm-input cursor-pointer"
                 >
                   <option value="pending">Pending (Belum Berjalan)</option>
                   <option value="in_progress">In Progress (Sedang Dikerjakan)</option>
                   <option value="completed">Completed (Tuntas)</option>
                 </select>
               </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#171717]/20">
-                <button
-                  type="button"
-                  onClick={() => setIsCreatingSprint(false)}
-                  className="px-3 py-1.5 bg-white border border-[#171717] rounded text-xs font-black uppercase text-[#171717] hover:bg-neutral-100 cursor-pointer"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="pkm-btn-pink flex items-center gap-1.5 text-xs font-black uppercase disabled:opacity-50 cursor-pointer"
-                >
-                  {submitting ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
-                  Simpan Sprint
-                </button>
-              </div>
             </form>
+
+            {/* Modal Footer */}
+            <div className="px-4 sm:px-5 py-3 border-t-1.5 border-[#171717] bg-[#FAF7F2] shrink-0 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsCreatingSprint(false)}
+                className="pkm-btn-outline min-h-[38px] px-4 cursor-pointer"
+                disabled={submitting}
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                form="create-sprint-form"
+                disabled={submitting}
+                className="pkm-btn-pink min-h-[38px] px-4 flex items-center gap-1.5 text-xs font-black uppercase disabled:opacity-50 cursor-pointer"
+              >
+                {submitting ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} strokeWidth={3} />}
+                <span>Simpan Sprint</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* MODAL: Edit Sprint */}
       {editingMilestone && (
-        <div className="fixed inset-0 z-50 bg-[#171717]/60 backdrop-blur-[1px] flex items-center justify-center p-4">
-          <div className="bg-[#FAF7F2] border-2 border-[#171717] rounded-lg shadow-[6px_6px_0px_#171717] w-full max-w-md p-5 space-y-4">
-            <div className="flex items-center justify-between border-b-1.5 border-[#171717] pb-3">
-              <div>
-                <h3 className="font-display text-xl uppercase tracking-wider text-[#171717]">Perbarui Sprint</h3>
-                <p className="text-[11px] font-semibold text-[#171717]/60">Fase {editingMilestone.phase_order} — {editingMilestone.project?.name || selected?.name}</p>
+        <div
+          className="fixed inset-0 z-50 bg-[#171717]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !submitting) setEditingMilestone(null)
+          }}
+        >
+          <div className="bg-white border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="px-4 sm:px-5 py-3.5 border-b-1.5 border-[#171717] bg-[#FAF7F2] shrink-0 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 bg-[#FFD83D] border border-[#171717]"></span>
+                <div>
+                  <h3 className="font-display text-lg uppercase tracking-tight text-[#171717]">Perbarui Sprint</h3>
+                  <p className="text-[10.5px] font-semibold text-[#171717]/60">Fase {editingMilestone.phase_order} — {editingMilestone.project?.name || selected?.name}</p>
+                </div>
               </div>
-              <button onClick={() => setEditingMilestone(null)} className="text-[#171717] hover:text-[#FF2F92] cursor-pointer">
-                <X size={20} />
+              <button
+                onClick={() => setEditingMilestone(null)}
+                className="p-1.5 hover:bg-[#FFD83D] border border-[#171717] rounded-md cursor-pointer transition-colors"
+                title="Tutup Modal"
+                disabled={submitting}
+              >
+                <X size={15} />
               </button>
             </div>
 
-            {modalError && (
-              <div className="p-2.5 bg-[#FF2F92]/10 border border-[#FF2F92] rounded text-xs font-bold text-[#FF2F92] flex items-center gap-2">
-                <AlertCircle size={14} className="shrink-0" />
-                <span>{modalError}</span>
-              </div>
-            )}
+            {/* Scrollable Form Body */}
+            <form id="edit-sprint-form" onSubmit={handleUpdateMilestone} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 min-h-0">
+              {modalError && (
+                <div className="p-2.5 bg-[#FF2F92]/10 border border-[#FF2F92] rounded-md text-xs font-bold text-[#FF2F92] flex items-center gap-2">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>{modalError}</span>
+                </div>
+              )}
 
-            <form onSubmit={handleUpdateMilestone} className="space-y-3">
               <div>
-                <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Judul Fase / Sprint *</label>
+                <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Judul Fase / Sprint <span className="text-[#FF2F92]">*</span></label>
                 <input
                   type="text"
                   required
                   value={editForm.title}
                   onChange={e => setEditForm({ ...editForm, title: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                  className="w-full pkm-input"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Deskripsi Scope Pekerjaan</label>
+                <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Deskripsi Scope Pekerjaan</label>
                 <textarea
                   rows={2}
                   value={editForm.description}
                   onChange={e => setEditForm({ ...editForm, description: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                  className="w-full pkm-input"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Tanggal Mulai</label>
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Tanggal Mulai</label>
                   <input
                     type="date"
                     value={editForm.start_date}
                     onChange={e => setEditForm({ ...editForm, start_date: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className="w-full pkm-input"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Target Selesai</label>
+                  <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Target Selesai</label>
                   <input
                     type="date"
                     value={editForm.due_date}
                     onChange={e => setEditForm({ ...editForm, due_date: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                    className="w-full pkm-input"
                   />
                 </div>
               </div>
 
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-[11px] font-black uppercase text-[#171717]">Progres Selesai (%) *</label>
-                  <span className="font-black text-sm text-[#FF2F92]">{editForm.progress}%</span>
+              {/* Progress Slider */}
+              <div className="p-3 bg-[#FAF7F2] border border-[#171717]/20 rounded-lg space-y-2">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10.5px] font-black uppercase text-[#171717]">Progres Selesai (%) <span className="text-[#FF2F92]">*</span></label>
+                  <span className="font-mono font-black text-sm text-[#FF2F92]">{editForm.progress}%</span>
                 </div>
                 <input
                   type="range"
@@ -852,74 +900,83 @@ export default function Development() {
                   }}
                   className="w-full accent-[#FF2F92] cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] text-[#171717]/50 mt-1">
-                  <button type="button" onClick={() => setEditForm({ ...editForm, progress: 0, status: 'pending' })} className="hover:underline cursor-pointer">0%</button>
-                  <button type="button" onClick={() => setEditForm({ ...editForm, progress: 50, status: 'in_progress' })} className="hover:underline cursor-pointer">50%</button>
-                  <button type="button" onClick={() => setEditForm({ ...editForm, progress: 100, status: 'completed' })} className="hover:underline cursor-pointer">100%</button>
+                <div className="flex justify-between text-[10px] font-bold text-[#171717]/60">
+                  <button type="button" onClick={() => setEditForm({ ...editForm, progress: 0, status: 'pending' })} className="hover:text-[#FF2F92] cursor-pointer">0%</button>
+                  <button type="button" onClick={() => setEditForm({ ...editForm, progress: 50, status: 'in_progress' })} className="hover:text-[#FF2F92] cursor-pointer">50%</button>
+                  <button type="button" onClick={() => setEditForm({ ...editForm, progress: 100, status: 'completed' })} className="hover:text-[#FF2F92] cursor-pointer">100%</button>
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-black uppercase text-[#171717] mb-1">Status</label>
+                <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">Status Pengerjaan</label>
                 <select
                   value={editForm.status}
                   onChange={e => setEditForm({ ...editForm, status: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:border-[#FF2F92]"
+                  className="w-full pkm-input cursor-pointer"
                 >
                   <option value="pending">Pending</option>
                   <option value="in_progress">In Progress</option>
                   <option value="completed">Completed</option>
                 </select>
               </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#171717]/20">
-                <button
-                  type="button"
-                  onClick={() => setEditingMilestone(null)}
-                  className="px-3 py-1.5 bg-white border border-[#171717] rounded text-xs font-black uppercase text-[#171717] hover:bg-neutral-100 cursor-pointer"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="pkm-btn-pink flex items-center gap-1.5 text-xs font-black uppercase disabled:opacity-50 cursor-pointer"
-                >
-                  {submitting ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-                  Simpan Perubahan
-                </button>
-              </div>
             </form>
+
+            {/* Modal Footer */}
+            <div className="px-4 sm:px-5 py-3 border-t-1.5 border-[#171717] bg-[#FAF7F2] shrink-0 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setEditingMilestone(null)}
+                className="pkm-btn-outline min-h-[38px] px-4 cursor-pointer"
+                disabled={submitting}
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                form="edit-sprint-form"
+                disabled={submitting}
+                className="pkm-btn-pink min-h-[38px] px-4 flex items-center gap-1.5 text-xs font-black uppercase disabled:opacity-50 cursor-pointer"
+              >
+                {submitting ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} strokeWidth={3} />}
+                <span>Simpan Perubahan</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* MODAL: Konfirmasi Hapus Sprint */}
       {deletingMilestone && (
-        <div className="fixed inset-0 z-50 bg-[#171717]/60 backdrop-blur-[1px] flex items-center justify-center p-4">
-          <div className="bg-[#FAF7F2] border-2 border-[#171717] rounded-lg shadow-[6px_6px_0px_#171717] w-full max-w-md p-5 space-y-4">
-            <div className="flex items-center gap-3 text-[#FF2F92] border-b border-[#171717]/10 pb-3">
-              <AlertTriangle size={24} className="shrink-0" />
-              <div>
-                <h3 className="font-display text-lg uppercase tracking-wider text-[#171717]">Konfirmasi Hapus Sprint</h3>
-                <p className="text-[11px] font-semibold text-[#171717]/60">Tindakan ini tidak dapat dibatalkan</p>
-              </div>
+        <div
+          className="fixed inset-0 z-50 bg-[#171717]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !submitting) setDeletingMilestone(null)
+          }}
+        >
+          <div className="bg-white border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-4 sm:px-5 py-3.5 border-b-1.5 border-[#171717] bg-[#FAF7F2] flex items-center gap-2.5 text-[#FF2F92]">
+              <AlertTriangle size={20} strokeWidth={2.5} />
+              <h3 className="font-display text-lg uppercase tracking-tight text-[#171717]">Konfirmasi Hapus Sprint</h3>
             </div>
 
-            <div className="p-3 bg-white border border-[#171717]/20 rounded space-y-2 text-xs">
+            <div className="p-4 sm:p-5 space-y-3 text-xs font-semibold text-[#171717]/85">
               <p className="font-bold text-[#171717]">
                 Apakah Anda yakin ingin menghapus sprint <u>{deletingMilestone.title}</u>?
               </p>
-              <p className="text-[#171717]/70 text-[11px] leading-relaxed">
-                Tugas yang terhubung (<strong>{deletingMilestone.total_tasks ?? 0} tugas</strong>) <u>TIDAK AKAN DIHAPUS</u>, melainkan tetap tersimpan di dalam proyek induknya dan dapat dipindahkan ke sprint lain kapan saja.
-              </p>
+              <div className="p-3 bg-[#FAF7F2] border border-[#171717]/25 rounded-md text-[11px] text-[#171717] space-y-1">
+                <p className="font-black text-[#171717]">ℹ️ Catatan Integritas Tugas:</p>
+                <p className="text-[#171717]/70 leading-relaxed">
+                  Tugas yang terhubung (<strong>{deletingMilestone.total_tasks ?? 0} tugas</strong>) <u>TIDAK AKAN DIHAPUS</u>, melainkan tetap tersimpan di dalam proyek induknya dan dapat dipindahkan ke sprint lain kapan saja.
+                </p>
+              </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="px-4 sm:px-5 py-3 border-t-1.5 border-[#171717] bg-[#FAF7F2] flex items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={() => setDeletingMilestone(null)}
-                className="px-3.5 py-1.5 bg-white border border-[#171717] rounded text-xs font-black uppercase text-[#171717] hover:bg-neutral-100 cursor-pointer"
+                className="pkm-btn-outline min-h-[38px] px-4 cursor-pointer"
+                disabled={submitting}
               >
                 Batal
               </button>
@@ -927,10 +984,10 @@ export default function Development() {
                 type="button"
                 disabled={submitting}
                 onClick={handleDeleteMilestone}
-                className="px-3.5 py-1.5 bg-[#FF2F92] text-white border border-[#171717] rounded text-xs font-black uppercase hover:bg-[#e0267f] disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-2 min-h-[38px] bg-[#FF2F92] text-white border border-[#171717] rounded-md text-xs font-black uppercase hover:bg-[#e0267f] disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shadow-[2px_2px_0px_#171717]"
               >
                 {submitting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                Ya, Hapus Sprint
+                <span>Ya, Hapus Sprint</span>
               </button>
             </div>
           </div>
@@ -939,42 +996,52 @@ export default function Development() {
 
       {/* MODAL: Daftar Tugas Terkait Sprint */}
       {viewingSprintTasks && (
-        <div className="fixed inset-0 z-50 bg-[#171717]/60 backdrop-blur-[1px] flex items-center justify-center p-4">
-          <div className="bg-[#FAF7F2] border-2 border-[#171717] rounded-lg shadow-[6px_6px_0px_#171717] w-full max-w-xl p-5 space-y-4 max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between border-b-1.5 border-[#171717] pb-3 shrink-0">
-              <div>
-                <span className="text-[10px] font-black uppercase text-[#171717]/60 tracking-wider">
+        <div
+          className="fixed inset-0 z-50 bg-[#171717]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setViewingSprintTasks(null)
+          }}
+        >
+          <div className="bg-white border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="px-4 sm:px-5 py-3.5 border-b-1.5 border-[#171717] bg-[#FAF7F2] flex items-center justify-between shrink-0">
+              <div className="min-w-0 pr-2">
+                <span className="text-[10px] font-black uppercase text-[#171717]/60 tracking-wider block leading-tight">
                   Fase {viewingSprintTasks.phase_order} · {viewingSprintTasks.project?.name || selected?.name}
                 </span>
-                <h3 className="font-display text-xl uppercase tracking-wider text-[#171717] mt-0.5">
+                <h3 className="font-display text-lg uppercase tracking-tight text-[#171717] truncate mt-0.5">
                   {viewingSprintTasks.title}
                 </h3>
               </div>
-              <button onClick={() => setViewingSprintTasks(null)} className="text-[#171717] hover:text-[#FF2F92] cursor-pointer">
-                <X size={20} />
+              <button
+                onClick={() => setViewingSprintTasks(null)}
+                className="p-1.5 hover:bg-[#FFD83D] border border-[#171717] rounded-md cursor-pointer transition-colors shrink-0"
+                title="Tutup Modal"
+              >
+                <X size={15} />
               </button>
             </div>
 
             {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-3 gap-2 bg-white p-2.5 rounded border border-[#171717]/20 text-center shrink-0">
+            <div className="grid grid-cols-3 gap-2 bg-[#FAF7F2] p-2.5 mx-4 sm:mx-5 mt-4 rounded-lg border border-[#171717]/20 text-center shrink-0 shadow-[1px_1px_0px_#171717]">
               <div>
                 <span className="text-[9px] font-bold text-[#171717]/60 uppercase block">Total Tugas</span>
-                <span className="font-display text-lg">{viewingSprintTasks.total_tasks ?? 0}</span>
+                <span className="font-display text-lg leading-tight">{viewingSprintTasks.total_tasks ?? 0}</span>
               </div>
               <div>
                 <span className="text-[9px] font-bold text-[#10B981] uppercase block">Selesai</span>
-                <span className="font-display text-lg text-[#10B981]">{viewingSprintTasks.completed_tasks ?? 0}</span>
+                <span className="font-display text-lg text-[#10B981] leading-tight">{viewingSprintTasks.completed_tasks ?? 0}</span>
               </div>
               <div>
                 <span className="text-[9px] font-bold text-[#FF2F92] uppercase block">Progres</span>
-                <span className="font-display text-lg text-[#FF2F92]">{viewingSprintTasks.progress ?? 0}%</span>
+                <span className="font-display text-lg text-[#FF2F92] leading-tight">{viewingSprintTasks.progress ?? 0}%</span>
               </div>
             </div>
 
-            {/* Tasks List */}
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+            {/* Tasks List Body */}
+            <div className="flex-1 overflow-y-auto space-y-2 p-4 sm:p-5 min-h-0">
               {(!viewingSprintTasks.tasks || viewingSprintTasks.tasks.length === 0) ? (
-                <div className="p-8 text-center bg-white border border-[#171717]/10 rounded-lg space-y-2">
+                <div className="p-8 text-center bg-[#FAF7F2] border border-[#171717]/15 rounded-lg space-y-2">
                   <ListTodo size={28} className="mx-auto text-[#171717]/30" />
                   <p className="text-xs font-bold text-[#171717]/70">Belum ada tugas yang dihubungkan ke sprint ini.</p>
                   <p className="text-[11px] text-[#171717]/50">
@@ -987,26 +1054,26 @@ export default function Development() {
                   const priorityBg =
                     task.priority === 'high' ? 'bg-[#FF2F92] text-white' :
                     task.priority === 'medium' ? 'bg-[#FFD83D] text-[#171717]' :
-                    'bg-[#10B981] text-white'
-                  
+                    'bg-[#B8A0F0] text-[#171717]'
+
                   return (
                     <div
                       key={task.id}
                       className={`p-3 bg-white border border-[#171717] rounded-lg flex items-center justify-between gap-3 shadow-[2px_2px_0px_#171717] ${
-                        isDone ? 'opacity-85 bg-neutral-50' : ''
+                        isDone ? 'opacity-80 bg-[#FAF7F2]' : ''
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         {isDone ? (
                           <CheckCircle2 size={16} className="text-[#10B981] shrink-0" />
                         ) : (
                           <Circle size={16} className="text-[#171717]/40 shrink-0" />
                         )}
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className={`font-bold text-xs text-[#171717] truncate ${isDone ? 'line-through text-[#171717]/60' : ''}`}>
                             {task.title}
                           </p>
-                          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-[#171717]/60">
+                          <div className="flex items-center gap-2 mt-0.5 text-[10px] text-[#171717]/60 flex-wrap">
                             <span>PIC: <strong>{task.assignee?.name || task.assignee_name || 'Belum Ditugaskan'}</strong></span>
                             <span>·</span>
                             <span>Deadline: <strong>{formatDate(task.deadline)}</strong></span>
@@ -1015,10 +1082,10 @@ export default function Development() {
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border border-[#171717]/30 ${priorityBg}`}>
+                        <span className={`text-[8.5px] font-black uppercase px-1.5 py-0.5 rounded border border-[#171717]/30 ${priorityBg}`}>
                           {task.priority}
                         </span>
-                        <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border border-[#171717]/30 ${
+                        <span className={`text-[8.5px] font-black uppercase px-1.5 py-0.5 rounded border border-[#171717]/30 ${
                           isDone ? 'bg-[#10B981] text-white' : 'bg-neutral-100 text-[#171717]'
                         }`}>
                           {task.status}
@@ -1030,11 +1097,12 @@ export default function Development() {
               )}
             </div>
 
-            <div className="pt-2 border-t border-[#171717]/20 flex justify-end shrink-0">
+            {/* Modal Footer */}
+            <div className="px-4 sm:px-5 py-3 border-t-1.5 border-[#171717] bg-[#FAF7F2] flex justify-end shrink-0">
               <button
                 type="button"
                 onClick={() => setViewingSprintTasks(null)}
-                className="px-4 py-1.5 bg-[#171717] text-white rounded text-xs font-black uppercase hover:bg-neutral-800 cursor-pointer"
+                className="px-4 py-1.5 bg-[#171717] text-white rounded-md text-xs font-black uppercase hover:bg-neutral-800 cursor-pointer min-h-[36px]"
               >
                 Tutup
               </button>
