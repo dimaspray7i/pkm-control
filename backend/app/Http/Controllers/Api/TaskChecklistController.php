@@ -67,6 +67,18 @@ class TaskChecklistController extends Controller
             ], 403);
         }
 
+        if ($task->status === 'in_review') {
+            return response()->json([
+                'message' => 'Checklist tidak dapat ditambah karena tugas sedang dalam tahap peninjauan (in_review).',
+            ], 422);
+        }
+
+        if (in_array($task->status, ['completed', 'done']) || $task->is_completed) {
+            return response()->json([
+                'message' => 'Checklist tidak dapat ditambah karena tugas sudah selesai (done).',
+            ], 422);
+        }
+
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'position' => ['nullable', 'integer'],
@@ -110,6 +122,18 @@ class TaskChecklistController extends Controller
             return response()->json([
                 'message' => 'Anda hanya dapat mengubah checklist pada proyek yang Anda pimpin.',
             ], 403);
+        }
+
+        if ($task->status === 'in_review') {
+            return response()->json([
+                'message' => 'Checklist tidak dapat diubah karena tugas sedang dalam tahap peninjauan (in_review).',
+            ], 422);
+        }
+
+        if (in_array($task->status, ['completed', 'done']) || $task->is_completed) {
+            return response()->json([
+                'message' => 'Checklist tidak dapat diubah karena tugas sudah selesai (done).',
+            ], 422);
         }
 
         $validated = $request->validate([
@@ -177,6 +201,18 @@ class TaskChecklistController extends Controller
             }
         }
 
+        if ($task->status === 'in_review') {
+            return response()->json([
+                'message' => 'Checklist tidak dapat diubah karena tugas sedang dalam tahap peninjauan (in_review).',
+            ], 422);
+        }
+
+        if (in_array($task->status, ['completed', 'done']) || $task->is_completed) {
+            return response()->json([
+                'message' => 'Checklist tidak dapat diubah karena tugas sudah selesai (done). Buka kembali tugas (reopen) untuk mengubah checklist.',
+            ], 422);
+        }
+
         $checklist->is_completed = !$checklist->is_completed;
         if ($checklist->is_completed) {
             $checklist->completed_by = $user ? $user->id : null;
@@ -215,6 +251,18 @@ class TaskChecklistController extends Controller
             return response()->json([
                 'message' => 'Anda hanya dapat menghapus checklist pada proyek yang Anda pimpin.',
             ], 403);
+        }
+
+        if ($task->status === 'in_review') {
+            return response()->json([
+                'message' => 'Checklist tidak dapat dihapus karena tugas sedang dalam tahap peninjauan (in_review).',
+            ], 422);
+        }
+
+        if (in_array($task->status, ['completed', 'done']) || $task->is_completed) {
+            return response()->json([
+                'message' => 'Checklist tidak dapat dihapus karena tugas sudah selesai (done).',
+            ], 422);
         }
 
         $checklist->delete();

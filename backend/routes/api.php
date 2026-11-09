@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\TaskChecklistController;
 use App\Http\Controllers\Api\TaskController;
+use App\Http\Controllers\Api\TaskReviewController;
 use App\Http\Controllers\Api\TaskUpdateController;
 use App\Http\Controllers\Api\UserController;
 use App\Models\Activity;
@@ -55,6 +56,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Task Management (Full CRUD + Toggle + Quick Assign + Summary)
     Route::get('/tasks/summary', [TaskController::class, 'summary']);
+    Route::get('/tasks/pending-review', [TaskReviewController::class, 'pending']);
     Route::get('/tasks', [TaskController::class, 'index']);
     Route::post('/tasks', [TaskController::class, 'store']);
     Route::get('/tasks/{id}', [TaskController::class, 'show']);
@@ -74,6 +76,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tasks/{taskId}/updates', [TaskUpdateController::class, 'index']);
     Route::post('/tasks/{taskId}/updates', [TaskUpdateController::class, 'store']);
     Route::get('/task-updates/{id}/download', [TaskUpdateController::class, 'download']);
+
+    // Task Approval Workflow & Reviews (PM-H)
+    Route::get('/tasks/{taskId}/reviews', [TaskReviewController::class, 'index']);
+    Route::post('/tasks/{taskId}/submit-review', [TaskReviewController::class, 'submit']);
+    Route::post('/tasks/{taskId}/approve', [TaskReviewController::class, 'approve']);
+    Route::post('/tasks/{taskId}/request-revision', [TaskReviewController::class, 'requestRevision']);
+    Route::post('/tasks/{taskId}/reopen', [TaskReviewController::class, 'reopen']);
 
     // Milestone / Sprint Tracker (CRUD synced with project progress)
     Route::get('/milestones', [MilestoneController::class, 'all']);

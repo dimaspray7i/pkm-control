@@ -29,7 +29,11 @@ import {
   Sparkles,
   History,
   Download,
-  FileText
+  FileText,
+  ShieldCheck,
+  ThumbsUp,
+  MessageSquareWarning,
+  RefreshCw
 } from 'lucide-react'
 import PageHeader from '../../components/ui/PageHeader'
 
@@ -91,9 +95,20 @@ export default function PmTaskDistributionBoard() {
   const [quickAssignLoading, setQuickAssignLoading] = useState(null)
 
   // Progress Updates History State (PM-G)
-  const [detailTab, setDetailTab] = useState('overview') // 'overview' | 'history'
+  const [detailTab, setDetailTab] = useState('overview') // 'overview' | 'history' | 'approval'
   const [taskUpdates, setTaskUpdates] = useState([])
   const [loadingUpdates, setLoadingUpdates] = useState(false)
+
+  // Approval Workflow State (PM-H)
+  const [taskReviews, setTaskReviews] = useState([])
+  const [pendingReviewCount, setPendingReviewCount] = useState(0)
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false)
+  const [showRevisionModal, setShowRevisionModal] = useState(false)
+  const [showReopenModal, setShowReopenModal] = useState(false)
+  const [approveNotes, setApproveNotes] = useState('')
+  const [revisionReason, setRevisionReason] = useState('')
+  const [reopenReason, setReopenReason] = useState('')
+  const [submittingReview, setSubmittingReview] = useState(false)
 
   // Project Milestones for Form
   const [projectMilestones, setProjectMilestones] = useState([])
@@ -181,6 +196,7 @@ export default function PmTaskDistributionBoard() {
 
   useEffect(() => {
     fetchData()
+    fetchPendingReviewCount()
   }, [])
 
   // Handle Escape key to close modals
@@ -309,18 +325,20 @@ export default function PmTaskDistributionBoard() {
     loadMilestones(task.project_id)
   }
 
-  // Open Detail Modal & load Progress History (PM-G)
+  // Open Detail Modal & load Progress History (PM-G) + Reviews (PM-H)
   const handleOpenDetail = async (task) => {
     setSelectedTask(task)
     setShowDetailModal(true)
     setDetailTab('overview')
     setTaskUpdates([])
+    setTaskReviews([])
     setLoadingUpdates(true)
 
     try {
-      const [detailRes, updatesRes] = await Promise.allSettled([
+      const [detailRes, updatesRes, reviewsRes] = await Promise.allSettled([
         api.get(`/tasks/${task.id}`),
         api.get(`/tasks/${task.id}/updates`),
+        api.get(`/tasks/${task.id}/reviews`),
       ])
       if (detailRes.status === 'fulfilled' && detailRes.value?.data?.task) {
         setSelectedTask(detailRes.value.data.task)
@@ -328,10 +346,98 @@ export default function PmTaskDistributionBoard() {
       if (updatesRes.status === 'fulfilled' && updatesRes.value?.data?.updates) {
         setTaskUpdates(updatesRes.value.data.updates)
       }
+      if (reviewsRes.status === 'fulfilled' && reviewsRes.value?.data?.reviews) {
+        setTaskReviews(reviewsRes.value.data.reviews)
+      }
     } catch {
       // Keep existing task object if show endpoint fails
     } finally {
       setLoadingUpdates(false)
+    }
+  }
+
+  // Fetch pending review count on mount (PM-H)
+  const fetchPendingReviewCount = async () => {
+    try {
+      const res = await api.get('/tasks/pending-review')
+      setPendingReviewCount(res.data.count ?? res.data.tasks?.length ?? 0)
+    } catch {
+      // non-critical, ignore
+    }
+  }
+
+  // Handle Approve (PM-H)
+  const handleApprove = async () => {
+    if (!selectedTask || submittingReview) return
+    setSubmittingReview(true)
+    try {
+      const res = await api.post(`/tasks/${selectedTask.id}/approve`, {
+        notes: approveNotes.trim() || undefined,
+      })
+      const updatedTask = res.data.task
+      const newReview = res.data.review
+      setSelectedTask(prev => ({ ...prev, ...updatedTask }))
+      setTaskReviews(prev => [newReview, ...prev])
+      setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, ...updatedTask } : t))
+      setShowApproveConfirm(false)
+      setApproveNotes('')
+      fetchData()
+      fetchPendingReviewCount()
+      showNotification('success', `Tugas "${updatedTask.title}" berhasil disetujui dan ditandai Done!`)
+    } catch (err) {
+      showNotification('error', err.response?.data?.message || 'Gagal menyetujui tugas.')
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
+
+  // Handle Request Revision (PM-H)
+  const handleRequestRevision = async () => {
+    if (!selectedTask || submittingReview || !revisionReason.trim()) return
+    setSubmittingReview(true)
+    try {
+      const res = await api.post(`/tasks/${selectedTask.id}/request-revision`, {
+        reason: revisionReason.trim(),
+      })
+      const updatedTask = res.data.task
+      const newReview = res.data.review
+      setSelectedTask(prev => ({ ...prev, ...updatedTask }))
+      setTaskReviews(prev => [newReview, ...prev])
+      setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, ...updatedTask } : t))
+      setShowRevisionModal(false)
+      setRevisionReason('')
+      fetchData()
+      fetchPendingReviewCount()
+      showNotification('success', 'Tugas dikembalikan ke Member untuk revisi.')
+    } catch (err) {
+      showNotification('error', err.response?.data?.message || 'Gagal meminta revisi.')
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
+
+  // Handle Reopen (PM-H)
+  const handleReopen = async () => {
+    if (!selectedTask || submittingReview || !reopenReason.trim()) return
+    setSubmittingReview(true)
+    try {
+      const res = await api.post(`/tasks/${selectedTask.id}/reopen`, {
+        reason: reopenReason.trim(),
+      })
+      const updatedTask = res.data.task
+      const newReview = res.data.review
+      setSelectedTask(prev => ({ ...prev, ...updatedTask }))
+      setTaskReviews(prev => [newReview, ...prev])
+      setTasks(prev => prev.map(t => t.id === selectedTask.id ? { ...t, ...updatedTask } : t))
+      setShowReopenModal(false)
+      setReopenReason('')
+      fetchData()
+      fetchPendingReviewCount()
+      showNotification('success', 'Tugas berhasil dibuka kembali untuk pengerjaan ulang.')
+    } catch (err) {
+      showNotification('error', err.response?.data?.message || 'Gagal membuka kembali tugas.')
+    } finally {
+      setSubmittingReview(false)
     }
   }
 
@@ -405,6 +511,15 @@ export default function PmTaskDistributionBoard() {
 
   // Toggle Checklist in Detail Modal
   const handleToggleChecklist = async (checklistId) => {
+    if (selectedTask?.status === 'in_review') {
+      showNotification('error', 'Checklist terkunci selama tugas dalam proses review.')
+      return
+    }
+    if (selectedTask?.status === 'done' || selectedTask?.status === 'completed' || selectedTask?.is_completed) {
+      showNotification('error', 'Checklist terkunci karena tugas telah disetujui selesai (Done). Buka kembali tugas jika ingin mengubah.')
+      return
+    }
+
     try {
       const res = await api.post(`/checklists/${checklistId}/toggle`)
       const updatedChk = res.data.checklist
@@ -437,7 +552,7 @@ export default function PmTaskDistributionBoard() {
         return t
       }))
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal memperbarui status checklist.')
+      showNotification('error', err.response?.data?.message || 'Gagal memperbarui status checklist.')
     }
   }
 
@@ -616,12 +731,37 @@ export default function PmTaskDistributionBoard() {
       )}
 
       {/* ================= 3. TASK SUMMARY METRICS ================= */}
+      {pendingReviewCount > 0 && (
+        <div className="p-3 bg-[#B8A0F0]/20 border-1.5 border-[#7C3AED] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={18} className="text-[#7C3AED] shrink-0" />
+            <div>
+              <p className="text-xs font-black uppercase text-[#171717]">
+                {pendingReviewCount} Tugas Menunggu Review Anda
+              </p>
+              <p className="text-[10px] text-[#171717]/70 font-semibold">
+                Member telah mengajukan penyelesaian tugas. Tinjau dan berikan persetujuan atau minta revisi.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setStatusFilter('in_review')
+              setMemberFilter('all')
+            }}
+            className="px-3 py-1.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white text-xs font-black uppercase rounded border border-[#171717] shadow-[2px_2px_0px_#171717] cursor-pointer shrink-0 flex items-center gap-1.5 transition-all"
+          >
+            <ShieldCheck size={12} />
+            <span>Review Sekarang</span>
+          </button>
+        </div>
+      )}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
         {[
           { id: 'all',        label: 'Total Tasks',  value: summary.total,       bg: 'bg-white',       accent: 'text-[#171717]' },
           { id: 'todo',       label: 'To-do',        value: summary.todo,        bg: 'bg-[#FAF7F2]',   accent: 'text-[#171717]' },
           { id: 'in_progress',label: 'In Progress',  value: summary.in_progress, bg: 'bg-[#FFD83D]/30',accent: 'text-[#171717]' },
-          { id: 'in_review',  label: 'In Review',    value: summary.in_review,   bg: 'bg-[#B8A0F0]/30',accent: 'text-[#171717]' },
+          { id: 'in_review',  label: 'In Review',    value: summary.in_review,   bg: pendingReviewCount > 0 ? 'bg-[#B8A0F0]' : 'bg-[#B8A0F0]/30', accent: 'text-[#171717]' },
           { id: 'done',       label: 'Done',         value: summary.done,        bg: 'bg-[#ECFDF5]',   accent: 'text-[#065F46]' },
           { id: 'overdue',    label: 'Overdue',      value: summary.overdue,     bg: summary.overdue > 0 ? 'bg-[#FF2F92]' : 'bg-white', accent: summary.overdue > 0 ? 'text-white' : 'text-[#FF2F92]' },
           { id: 'unassigned', label: 'Unassigned',   value: summary.unassigned,  bg: summary.unassigned > 0 ? 'bg-[#FFD83D]' : 'bg-white', accent: 'text-[#171717]' },
@@ -1641,7 +1781,7 @@ export default function PmTaskDistributionBoard() {
               </button>
             </div>
 
-            {/* Sub-tab Navigation (PM-G) */}
+            {/* Sub-tab Navigation (PM-G + PM-H) */}
             <div className="flex items-center gap-1.5 px-4 sm:px-5 py-2 bg-[#FAF7F2] border-b border-[#171717]/20 shrink-0 overflow-x-auto">
               <button
                 type="button"
@@ -1665,10 +1805,27 @@ export default function PmTaskDistributionBoard() {
                 }`}
               >
                 <History size={13} />
-                <span>Riwayat Perkembangan</span>
+                <span>Riwayat Progres</span>
                 {taskUpdates.length > 0 && (
                   <span className="px-1.5 py-0.2 bg-[#FF2F92] text-white text-[9px] rounded-full font-black">
                     {taskUpdates.length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDetailTab('approval')}
+                className={`px-3 py-1.5 rounded-md text-[11px] font-black uppercase transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                  detailTab === 'approval'
+                    ? 'bg-[#171717] text-white shadow-[2px_2px_0px_#B8A0F0]'
+                    : 'bg-white text-[#171717] border border-[#171717]/30 hover:border-[#171717]'
+                }`}
+              >
+                <ShieldCheck size={13} />
+                <span>Riwayat Approval</span>
+                {taskReviews.length > 0 && (
+                  <span className="px-1.5 py-0.2 bg-[#7C3AED] text-white text-[9px] rounded-full font-black">
+                    {taskReviews.length}
                   </span>
                 )}
               </button>
@@ -1783,16 +1940,83 @@ export default function PmTaskDistributionBoard() {
                     )}
                   </div>
 
-                  {/* Important Rule Alert */}
-                  <div className="p-3 bg-[#FFF0F8] border border-[#FF2F92]/40 rounded-lg text-[10.5px] text-[#171717] space-y-1">
-                    <p className="font-black uppercase text-[#FF2F92] flex items-center gap-1">
-                      <AlertCircle size={13} />
-                      <span>Aturan Persetujuan Status Done</span>
-                    </p>
-                    <p className="text-[#171717]/75 leading-relaxed">
-                      Penyelesaian checklist 100% tidak otomatis menjadikan status tugas Done. Status Done hanya dapat disetujui setelah proses review oleh Project Manager.
-                    </p>
-                  </div>
+                  {/* PM-H: Approval Action Banners */}
+                  {selectedTask.status === 'in_review' && (
+                    <div className="p-3.5 bg-[#B8A0F0]/20 border border-[#7C3AED] rounded-lg space-y-3">
+                      <div>
+                        <p className="font-black uppercase text-[#7C3AED] flex items-center gap-1.5 text-xs mb-1">
+                          <ShieldCheck size={14} />
+                          <span>Menunggu Keputusan Review Anda</span>
+                        </p>
+                        <p className="text-[10.5px] text-[#171717]/75 leading-relaxed">
+                          Member telah mengajukan penyelesaian tugas ini (checklist 100%). Checklist terkunci hingga Anda menyetujui atau meminta revisi.
+                        </p>
+                        {/* Show submission notes from latest 'submitted' review */}
+                        {taskReviews.find(r => r.action === 'submitted') && (
+                          <div className="mt-2 p-2.5 bg-white rounded border border-[#7C3AED]/30 text-xs">
+                            <span className="text-[9.5px] font-black uppercase text-[#7C3AED] block mb-1">Catatan Pengajuan Member:</span>
+                            <p className="text-[#171717]/80 leading-relaxed italic">
+                              {taskReviews.find(r => r.action === 'submitted')?.notes || '(Tidak ada catatan tambahan)'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-[#7C3AED]/20">
+                        <button
+                          type="button"
+                          onClick={() => { setApproveNotes(''); setShowApproveConfirm(true) }}
+                          className="px-3.5 py-2 bg-[#10B981] hover:bg-[#059669] text-white border border-[#171717] rounded text-xs font-black uppercase flex items-center gap-1.5 cursor-pointer shadow-[2px_2px_0px_#171717] transition-all"
+                        >
+                          <ThumbsUp size={12} />
+                          <span>Setujui (Approve)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setRevisionReason(''); setShowRevisionModal(true) }}
+                          className="px-3.5 py-2 bg-[#FFD83D] hover:bg-[#FFC300] text-[#171717] border border-[#171717] rounded text-xs font-black uppercase flex items-center gap-1.5 cursor-pointer shadow-[2px_2px_0px_#171717] transition-all"
+                        >
+                          <MessageSquareWarning size={12} />
+                          <span>Minta Revisi</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {(selectedTask.status === 'done' || selectedTask.status === 'completed' || selectedTask.is_completed) && selectedTask.status !== 'in_review' && (
+                    <div className="p-3.5 bg-[#ECFDF5] border border-[#10B981] rounded-lg space-y-3">
+                      <div>
+                        <p className="font-black uppercase text-[#065F46] flex items-center gap-1.5 text-xs mb-1">
+                          <CheckCircle2 size={14} />
+                          <span>Tugas Selesai (Done)</span>
+                        </p>
+                        <p className="text-[10.5px] text-[#171717]/75 leading-relaxed">
+                          Tugas ini telah disetujui selesai. Anda dapat membukanya kembali (reopen) jika ada perbaikan yang perlu dikerjakan ulang.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-[#10B981]/30">
+                        <button
+                          type="button"
+                          onClick={() => { setReopenReason(''); setShowReopenModal(true) }}
+                          className="px-3.5 py-2 bg-white hover:bg-[#FFD83D] text-[#171717] border border-[#171717] rounded text-xs font-black uppercase flex items-center gap-1.5 cursor-pointer shadow-[2px_2px_0px_#171717] transition-all"
+                        >
+                          <RefreshCw size={12} />
+                          <span>Buka Kembali (Reopen)</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedTask.status !== 'in_review' && selectedTask.status !== 'done' && selectedTask.status !== 'completed' && !selectedTask.is_completed && (
+                    <div className="p-3 bg-[#FFF0F8] border border-[#FF2F92]/40 rounded-lg text-[10.5px] text-[#171717] space-y-1">
+                      <p className="font-black uppercase text-[#FF2F92] flex items-center gap-1">
+                        <AlertCircle size={13} />
+                        <span>Aturan Persetujuan Status Done</span>
+                      </p>
+                      <p className="text-[#171717]/75 leading-relaxed">
+                        Penyelesaian checklist 100% tidak otomatis menjadikan status tugas Done. Status Done hanya dapat disetujui setelah proses review oleh Project Manager.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1913,6 +2137,94 @@ export default function PmTaskDistributionBoard() {
                   )}
                 </div>
               )}
+
+              {/* TAB 3: APPROVAL HISTORY (PM-H) */}
+              {detailTab === 'approval' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between pb-1">
+                    <h4 className="text-xs font-black uppercase text-[#171717] flex items-center gap-1.5">
+                      <ShieldCheck size={14} className="text-[#7C3AED]" />
+                      <span>Riwayat Keputusan Approval</span>
+                    </h4>
+                    <span className="text-[10px] text-[#171717]/60 font-bold">
+                      {taskReviews.length} Catatan
+                    </span>
+                  </div>
+
+                  {loadingUpdates ? (
+                    <div className="py-8 flex flex-col items-center justify-center gap-2 text-xs text-[#171717]/70">
+                      <Loader2 size={18} className="animate-spin text-[#7C3AED]" />
+                      <span>Memuat riwayat approval...</span>
+                    </div>
+                  ) : taskReviews.length === 0 ? (
+                    <div className="p-6 bg-[#FAF7F2] rounded-lg border border-[#171717]/20 text-center space-y-2">
+                      <ShieldCheck size={24} className="mx-auto text-[#171717]/30" />
+                      <p className="text-xs font-bold text-[#171717]">Belum ada riwayat approval pada tugas ini.</p>
+                      <p className="text-[11px] text-[#171717]/60 max-w-sm mx-auto">
+                        Setelah Member mengajukan penyelesaian tugas, keputusan approval, revisi, atau reopen akan tercatat secara permanen di sini.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {taskReviews.map((rev, idx) => {
+                        const ACTION_CONFIG = {
+                          submitted:          { label: 'Diajukan Member',    bg: 'bg-[#B8A0F0]/20 border-[#7C3AED]', badge: 'bg-[#B8A0F0] text-[#171717]', icon: <ShieldCheck size={12} /> },
+                          approved:           { label: 'Disetujui (Done)',   bg: 'bg-[#ECFDF5] border-[#10B981]',    badge: 'bg-[#10B981] text-white',      icon: <ThumbsUp size={12} /> },
+                          revision_requested: { label: 'Diminta Revisi',     bg: 'bg-[#FFF9E6] border-[#FFD83D]',    badge: 'bg-[#FFD83D] text-[#171717]',  icon: <MessageSquareWarning size={12} /> },
+                          reopened:           { label: 'Dibuka Kembali',     bg: 'bg-[#FAF7F2] border-[#171717]',    badge: 'bg-[#171717] text-white',      icon: <RefreshCw size={12} /> },
+                        }
+                        const cfg = ACTION_CONFIG[rev.action] || { label: rev.action, bg: 'bg-white border-[#171717]/20', badge: 'bg-[#171717] text-white', icon: null }
+
+                        return (
+                          <div key={rev.id || idx} className={`p-3.5 rounded-lg border ${cfg.bg} space-y-2`}>
+                            <div className="flex items-start justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-[#B8A0F0] border border-[#171717] text-[#171717] text-[10px] font-black flex items-center justify-center shrink-0">
+                                  {rev.user?.name ? rev.user.name.charAt(0).toUpperCase() : 'U'}
+                                </div>
+                                <div>
+                                  <span className="text-xs font-bold text-[#171717]">{rev.user?.name || 'User'}</span>
+                                  <span className="text-[9.5px] text-[#171717]/60 block">
+                                    {rev.created_at
+                                      ? new Date(rev.created_at).toLocaleString('id-ID', {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          year: 'numeric',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        }) + ' WIB'
+                                      : '—'}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border flex items-center gap-1 shrink-0 ${cfg.badge}`}>
+                                {cfg.icon}
+                                <span>{cfg.label}</span>
+                              </span>
+                            </div>
+
+                            {rev.notes && (
+                              <div className="p-2.5 bg-white/70 rounded border border-[#171717]/15 text-xs text-[#171717] leading-relaxed whitespace-pre-wrap font-medium">
+                                <span className="text-[9.5px] font-black uppercase text-[#171717]/60 block mb-0.5">
+                                  Catatan / Alasan:
+                                </span>
+                                {rev.notes}
+                              </div>
+                            )}
+
+                            <div className="text-[9.5px] text-[#171717]/50 font-bold uppercase flex items-center gap-1.5">
+                              <span>Review Cycle #{rev.review_cycle}</span>
+                              {rev.from_status && rev.to_status && (
+                                <span>• {rev.from_status} → {rev.to_status}</span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Footer */}
@@ -1932,6 +2244,195 @@ export default function PmTaskDistributionBoard() {
                 className="pkm-btn-outline cursor-pointer"
               >
                 Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= PM-H: APPROVE CONFIRMATION MODAL ================= */}
+      {showApproveConfirm && selectedTask && (
+        <div
+          className="fixed inset-0 bg-[#171717]/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-[60] animate-in fade-in duration-150"
+          onClick={(e) => { if (e.target === e.currentTarget && !submittingReview) setShowApproveConfirm(false) }}
+        >
+          <div className="bg-white border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#10B981] w-full max-w-sm p-5 space-y-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-full bg-[#ECFDF5] border border-[#10B981] flex items-center justify-center shrink-0">
+                <ThumbsUp size={18} className="text-[#10B981]" strokeWidth={2.5} />
+              </div>
+              <h3 className="font-display text-lg uppercase text-[#171717]">SETUJUI TUGAS</h3>
+            </div>
+            <p className="text-xs text-[#171717]/80 leading-relaxed">
+              Anda akan menyetujui penyelesaian tugas <strong>&quot;{selectedTask.title}&quot;</strong>. Status akan berubah menjadi <strong>Done</strong>.
+            </p>
+            <div>
+              <label className="block text-xs font-black uppercase text-[#171717] mb-1">
+                Catatan Approval <span className="text-[10px] font-normal text-[#171717]/60 normal-case">(Opsional)</span>
+              </label>
+              <textarea
+                rows={2}
+                value={approveNotes}
+                onChange={(e) => setApproveNotes(e.target.value)}
+                placeholder="Contoh: Pekerjaan sudah sesuai acceptance criteria..."
+                className="pkm-input w-full text-xs font-medium"
+                disabled={submittingReview}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#171717]/15">
+              <button
+                type="button"
+                onClick={() => setShowApproveConfirm(false)}
+                disabled={submittingReview}
+                className="pkm-btn-outline cursor-pointer text-xs"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleApprove}
+                disabled={submittingReview}
+                className="px-4 py-2 bg-[#10B981] hover:bg-[#059669] disabled:opacity-50 text-white font-black uppercase text-xs rounded border border-[#171717] shadow-[2px_2px_0px_#171717] flex items-center gap-2 cursor-pointer transition-all"
+              >
+                {submittingReview ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>Menyetujui...</span>
+                  </>
+                ) : (
+                  <>
+                    <ThumbsUp size={13} />
+                    <span>Ya, Setujui Tugas</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= PM-H: REQUEST REVISION MODAL ================= */}
+      {showRevisionModal && selectedTask && (
+        <div
+          className="fixed inset-0 bg-[#171717]/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-[60] animate-in fade-in duration-150"
+          onClick={(e) => { if (e.target === e.currentTarget && !submittingReview) setShowRevisionModal(false) }}
+        >
+          <div className="bg-white border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#FFD83D] w-full max-w-sm p-5 space-y-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-full bg-[#FFF9E6] border border-[#FFD83D] flex items-center justify-center shrink-0">
+                <MessageSquareWarning size={18} className="text-[#171717]" strokeWidth={2.5} />
+              </div>
+              <h3 className="font-display text-lg uppercase text-[#171717]">MINTA REVISI</h3>
+            </div>
+            <p className="text-xs text-[#171717]/80 leading-relaxed">
+              Tugas <strong>&quot;{selectedTask.title}&quot;</strong> akan dikembalikan kepada Member dengan status <strong>In Progress</strong>.
+            </p>
+            <div>
+              <label className="block text-xs font-black uppercase text-[#171717] mb-1">
+                Alasan / Instruksi Revisi <span className="text-[#FF2F92]">* Wajib</span>
+              </label>
+              <textarea
+                rows={3}
+                value={revisionReason}
+                onChange={(e) => setRevisionReason(e.target.value)}
+                placeholder="Jelaskan secara detail apa yang harus diperbaiki oleh Member..."
+                className="pkm-input w-full text-xs font-medium"
+                disabled={submittingReview}
+              />
+              {!revisionReason.trim() && (
+                <p className="text-[9.5px] text-[#FF2F92] mt-0.5 font-bold">Alasan revisi wajib diisi sebelum mengirim.</p>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#171717]/15">
+              <button
+                type="button"
+                onClick={() => setShowRevisionModal(false)}
+                disabled={submittingReview}
+                className="pkm-btn-outline cursor-pointer text-xs"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleRequestRevision}
+                disabled={submittingReview || !revisionReason.trim()}
+                className="px-4 py-2 bg-[#FFD83D] hover:bg-[#FFC300] disabled:opacity-50 text-[#171717] font-black uppercase text-xs rounded border border-[#171717] shadow-[2px_2px_0px_#171717] flex items-center gap-2 cursor-pointer transition-all"
+              >
+                {submittingReview ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>Mengirim...</span>
+                  </>
+                ) : (
+                  <>
+                    <MessageSquareWarning size={13} />
+                    <span>Kirim Permintaan Revisi</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= PM-H: REOPEN MODAL ================= */}
+      {showReopenModal && selectedTask && (
+        <div
+          className="fixed inset-0 bg-[#171717]/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-[60] animate-in fade-in duration-150"
+          onClick={(e) => { if (e.target === e.currentTarget && !submittingReview) setShowReopenModal(false) }}
+        >
+          <div className="bg-white border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] w-full max-w-sm p-5 space-y-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-full bg-[#FAF7F2] border border-[#171717] flex items-center justify-center shrink-0">
+                <RefreshCw size={18} className="text-[#171717]" strokeWidth={2.5} />
+              </div>
+              <h3 className="font-display text-lg uppercase text-[#171717]">BUKA KEMBALI TUGAS</h3>
+            </div>
+            <p className="text-xs text-[#171717]/80 leading-relaxed">
+              Tugas <strong>&quot;{selectedTask.title}&quot;</strong> yang sudah berstatus Done akan dibuka kembali ke status <strong>In Progress</strong>.
+            </p>
+            <div>
+              <label className="block text-xs font-black uppercase text-[#171717] mb-1">
+                Alasan Pembukaan Kembali <span className="text-[#FF2F92]">* Wajib</span>
+              </label>
+              <textarea
+                rows={3}
+                value={reopenReason}
+                onChange={(e) => setReopenReason(e.target.value)}
+                placeholder="Jelaskan alasan mengapa tugas yang sudah Done ini perlu dibuka kembali..."
+                className="pkm-input w-full text-xs font-medium"
+                disabled={submittingReview}
+              />
+              {!reopenReason.trim() && (
+                <p className="text-[9.5px] text-[#FF2F92] mt-0.5 font-bold">Alasan pembukaan kembali wajib diisi.</p>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#171717]/15">
+              <button
+                type="button"
+                onClick={() => setShowReopenModal(false)}
+                disabled={submittingReview}
+                className="pkm-btn-outline cursor-pointer text-xs"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleReopen}
+                disabled={submittingReview || !reopenReason.trim()}
+                className="px-4 py-2 bg-[#171717] hover:bg-[#333] disabled:opacity-50 text-white font-black uppercase text-xs rounded border border-[#171717] shadow-[2px_2px_0px_#171717] flex items-center gap-2 cursor-pointer transition-all"
+              >
+                {submittingReview ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>Memproses...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={13} />
+                    <span>Ya, Buka Kembali</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

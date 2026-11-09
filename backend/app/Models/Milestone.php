@@ -55,7 +55,7 @@ class Milestone extends Model
         $completedTasks = $this->tasks()
             ->where(function ($q) {
                 $q->where('is_completed', true)
-                  ->orWhere('status', 'completed');
+                  ->orWhereIn('status', ['completed', 'done']);
             })
             ->count();
 

@@ -25,7 +25,13 @@ import {
   History,
   Download,
   Paperclip,
-  FileText
+  FileText,
+  ShieldCheck,
+  Lock,
+  CheckCheck,
+  ThumbsUp,
+  MessageSquareWarning,
+  RefreshCw
 } from 'lucide-react'
 import PageHeader from '../../components/ui/PageHeader'
 
@@ -81,6 +87,12 @@ export default function MemberTodoList() {
   const [nextPlan, setNextPlan] = useState('')
   const [attachmentFile, setAttachmentFile] = useState(null)
   const [submittingReport, setSubmittingReport] = useState(false)
+
+  // Approval Workflow State (PM-H)
+  const [taskReviews, setTaskReviews] = useState([])
+  const [showSubmitReviewModal, setShowSubmitReviewModal] = useState(false)
+  const [submissionNotes, setSubmissionNotes] = useState('')
+  const [submittingReview, setSubmittingReview] = useState(false)
 
   const showNotification = (type, message) => {
     setFeedback({ type, message })
@@ -207,7 +219,7 @@ export default function MemberTodoList() {
     })
   }, [tasks, search, statusFilter, priorityFilter, sortBy])
 
-  // Open Detail Modal & fetch latest detail + progress updates (PM-G)
+  // Open Detail Modal & fetch latest detail + progress updates (PM-G) + reviews (PM-H)
   const handleOpenDetail = async (task) => {
     setSelectedTask(task)
     setShowDetailModal(true)
@@ -217,12 +229,14 @@ export default function MemberTodoList() {
     setNextPlan('')
     setAttachmentFile(null)
     setTaskUpdates([])
+    setTaskReviews([])
     setLoadingUpdates(true)
 
     try {
-      const [taskRes, updatesRes] = await Promise.allSettled([
+      const [taskRes, updatesRes, reviewsRes] = await Promise.allSettled([
         api.get(`/tasks/${task.id}`),
         api.get(`/tasks/${task.id}/updates`),
+        api.get(`/tasks/${task.id}/reviews`),
       ])
 
       if (taskRes.status === 'fulfilled' && taskRes.value?.data?.task) {
@@ -231,10 +245,50 @@ export default function MemberTodoList() {
       if (updatesRes.status === 'fulfilled' && updatesRes.value?.data?.updates) {
         setTaskUpdates(updatesRes.value.data.updates)
       }
+      if (reviewsRes.status === 'fulfilled' && reviewsRes.value?.data?.reviews) {
+        setTaskReviews(reviewsRes.value.data.reviews)
+      }
     } catch {
       // Keep existing object if error
     } finally {
       setLoadingUpdates(false)
+    }
+  }
+
+  // Submit Task for Review (PM-H)
+  const handleSubmitReview = async (e) => {
+    if (e) e.preventDefault()
+    if (!selectedTask) return
+
+    setSubmittingReview(true)
+    try {
+      const res = await api.post(`/tasks/${selectedTask.id}/submit-review`, {
+        notes: submissionNotes.trim() || undefined,
+      })
+
+      const updatedTask = res.data.task
+      const newReview = res.data.review
+
+      // Update state in modal
+      setSelectedTask(prev => ({
+        ...prev,
+        ...updatedTask,
+      }))
+      setTaskReviews(prev => [newReview, ...prev])
+
+      // Update state in main tasks list
+      setTasks(prev => prev.map(t => (t.id === selectedTask.id ? { ...t, ...updatedTask } : t)))
+
+      // Refresh tasks and summary from backend
+      fetchTasks()
+
+      setShowSubmitReviewModal(false)
+      setSubmissionNotes('')
+      showNotification('success', 'Penyelesaian tugas berhasil diajukan! Menunggu review Project Manager.')
+    } catch (err) {
+      showNotification('error', err.response?.data?.message || 'Gagal mengajukan review tugas.')
+    } finally {
+      setSubmittingReview(false)
     }
   }
 
@@ -304,6 +358,16 @@ export default function MemberTodoList() {
   // Toggle checklist item
   const handleToggleChecklist = async (checklistId) => {
     if (togglingChecklistId) return
+
+    if (selectedTask?.status === 'in_review') {
+      showNotification('error', 'Checklist terkunci selama tugas dalam proses review oleh Project Manager.')
+      return
+    }
+    if (selectedTask?.status === 'done' || selectedTask?.status === 'completed' || selectedTask?.is_completed) {
+      showNotification('error', 'Checklist terkunci karena tugas telah disetujui selesai (Done).')
+      return
+    }
+
     setTogglingChecklistId(checklistId)
 
     try {
@@ -693,7 +757,7 @@ export default function MemberTodoList() {
               </button>
             </div>
 
-            {/* Sub-tab Navigation (PM-G) */}
+            {/* Sub-tab Navigation (PM-G + PM-H) */}
             <div className="flex items-center gap-1.5 px-4 sm:px-5 py-2 bg-[#FAF7F2] border-b border-[#171717]/20 shrink-0 overflow-x-auto">
               <button
                 type="button"
@@ -710,7 +774,8 @@ export default function MemberTodoList() {
               <button
                 type="button"
                 onClick={() => setModalTab('report')}
-                className={`px-3 py-1.5 rounded-md text-[11px] font-black uppercase transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                disabled={selectedTask?.status === 'in_review' || selectedTask?.status === 'done' || selectedTask?.status === 'completed' || selectedTask?.is_completed}
+                className={`px-3 py-1.5 rounded-md text-[11px] font-black uppercase transition-all flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                   modalTab === 'report'
                     ? 'bg-[#171717] text-white shadow-[2px_2px_0px_#FFD83D]'
                     : 'bg-white text-[#171717] border border-[#171717]/30 hover:border-[#171717]'
@@ -733,6 +798,23 @@ export default function MemberTodoList() {
                 {taskUpdates.length > 0 && (
                   <span className="px-1.5 py-0.2 bg-[#FF2F92] text-white text-[9px] rounded-full font-black">
                     {taskUpdates.length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalTab('approval')}
+                className={`px-3 py-1.5 rounded-md text-[11px] font-black uppercase transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                  modalTab === 'approval'
+                    ? 'bg-[#171717] text-white shadow-[2px_2px_0px_#B8A0F0]'
+                    : 'bg-white text-[#171717] border border-[#171717]/30 hover:border-[#171717]'
+                }`}
+              >
+                <ShieldCheck size={13} />
+                <span>Riwayat Approval</span>
+                {taskReviews.length > 0 && (
+                  <span className="px-1.5 py-0.2 bg-[#7C3AED] text-white text-[9px] rounded-full font-black">
+                    {taskReviews.length}
                   </span>
                 )}
               </button>
@@ -827,80 +909,176 @@ export default function MemberTodoList() {
                       </p>
                     ) : (
                       <div className="space-y-2">
-                        {selectedTask.checklists.map((chk, index) => (
-                          <div
-                            key={chk.id || index}
-                            onClick={() => handleToggleChecklist(chk.id)}
-                            className={`p-3 rounded-lg border-1.5 transition-all cursor-pointer flex items-center justify-between gap-3 min-h-[44px] ${
-                              chk.is_completed
-                                ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-[1px_1px_0px_#10B981]'
-                                : 'bg-[#FAF7F2] border-[#171717]/30 hover:border-[#FF2F92] text-[#171717] hover:bg-white'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className={`w-5 h-5 rounded border-1.5 flex items-center justify-center shrink-0 transition-colors ${
+                        {(() => {
+                          const isLocked = selectedTask.status === 'in_review' || selectedTask.status === 'done' || selectedTask.status === 'completed' || selectedTask.is_completed
+                          return selectedTask.checklists.map((chk, index) => (
+                            <div
+                              key={chk.id || index}
+                              onClick={() => handleToggleChecklist(chk.id)}
+                              className={`p-3 rounded-lg border-1.5 transition-all flex items-center justify-between gap-3 min-h-[44px] ${
+                                isLocked ? 'cursor-not-allowed opacity-90' : 'cursor-pointer'
+                              } ${
                                 chk.is_completed
-                                  ? 'bg-[#10B981] border-[#10B981] text-white'
-                                  : 'bg-white border-[#171717]'
-                              }`}>
-                                {togglingChecklistId === chk.id ? (
-                                  <Loader2 size={11} className="animate-spin text-[#171717]" />
-                                ) : chk.is_completed ? (
-                                  <Check size={13} strokeWidth={3} />
-                                ) : null}
+                                  ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-[1px_1px_0px_#10B981]'
+                                  : isLocked
+                                  ? 'bg-[#FAF7F2] border-[#171717]/20 text-[#171717]/70'
+                                  : 'bg-[#FAF7F2] border-[#171717]/30 hover:border-[#FF2F92] text-[#171717] hover:bg-white'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className={`w-5 h-5 rounded border-1.5 flex items-center justify-center shrink-0 transition-colors ${
+                                  chk.is_completed
+                                    ? 'bg-[#10B981] border-[#10B981] text-white'
+                                    : isLocked
+                                    ? 'bg-neutral-200 border-[#171717]/40 text-[#171717]/50'
+                                    : 'bg-white border-[#171717]'
+                                }`}>
+                                  {togglingChecklistId === chk.id ? (
+                                    <Loader2 size={11} className="animate-spin text-[#171717]" />
+                                  ) : chk.is_completed ? (
+                                    <Check size={13} strokeWidth={3} />
+                                  ) : isLocked ? (
+                                    <Lock size={10} />
+                                  ) : null}
+                                </div>
+                                <span className={`text-xs font-bold leading-snug ${chk.is_completed ? 'line-through opacity-75' : ''}`}>
+                                  {chk.title}
+                                </span>
                               </div>
-                              <span className={`text-xs font-bold leading-snug ${chk.is_completed ? 'line-through opacity-75' : ''}`}>
-                                {chk.title}
-                              </span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {isLocked && !chk.is_completed && (
+                                  <span className="text-[8.5px] font-bold text-[#171717]/50 flex items-center gap-0.5">
+                                    <Lock size={9} /> Terkunci
+                                  </span>
+                                )}
+                                {chk.is_completed && (
+                                  <span className="text-[9px] font-black uppercase text-[#10B981]">
+                                    ✓ Tuntas
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            {chk.is_completed && (
-                              <span className="text-[9px] font-black uppercase text-[#10B981] shrink-0">
-                                ✓ Tuntas
-                              </span>
-                            )}
-                          </div>
-                        ))}
+                          ))
+                        })()}
                       </div>
                     )}
                   </div>
 
-                  {/* Informative Rule & Status Banner */}
-                  {selectedTask.checklist_progress === 100 ? (
-                    <div className="p-3.5 bg-[#ECFDF5] border border-[#10B981] rounded-lg text-xs space-y-1">
-                      <p className="font-display uppercase text-[#065F46] flex items-center gap-1.5">
-                        <CheckCircle2 size={15} />
-                        <span>Checklist 100% Selesai!</span>
+                  {/* PM-H: Status Banner & Approval Actions */}
+                  {/* In Review: Locked, awaiting PM decision */}
+                  {selectedTask.status === 'in_review' && (
+                    <div className="p-3.5 bg-[#B8A0F0]/20 border border-[#7C3AED] rounded-lg space-y-2">
+                      <p className="font-black uppercase text-[#7C3AED] flex items-center gap-1.5 text-xs">
+                        <Lock size={13} />
+                        <span>Menunggu Review Project Manager</span>
                       </p>
-                      <p className="text-[#065F46]/85 text-[11px] leading-relaxed">
-                        Seluruh item checklist telah Anda tuntaskan. Status tugas saat ini menunggu tahapan review dan persetujuan akhir dari Project Manager.
+                      <p className="text-[10.5px] text-[#171717]/75 leading-relaxed">
+                        Pengajuan penyelesaian Anda telah diterima. Checklist dikunci sementara hingga Project Manager mengambil keputusan. Anda akan diinformasikan hasilnya.
+                      </p>
+                      {/* Show revision notes from latest revision_requested if any */}
+                      {taskReviews.find(r => r.action === 'revision_requested') && (
+                        <div className="p-2.5 bg-white rounded border border-[#FFD83D] text-xs space-y-1 mt-1">
+                          <span className="text-[9.5px] font-black uppercase text-[#171717] flex items-center gap-1">
+                            <AlertTriangle size={11} className="text-[#FF2F92]" />
+                            <span>Catatan Revisi Terakhir dari PM:</span>
+                          </span>
+                          <p className="text-[#171717]/80 leading-relaxed italic">
+                            {taskReviews.find(r => r.action === 'revision_requested')?.notes || '(Tidak ada catatan)'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Done: Task completed */}
+                  {(selectedTask.status === 'done' || selectedTask.status === 'completed' || selectedTask.is_completed) && selectedTask.status !== 'in_review' && (
+                    <div className="p-3.5 bg-[#ECFDF5] border border-[#10B981] rounded-lg space-y-1">
+                      <p className="font-black uppercase text-[#065F46] flex items-center gap-1.5 text-xs">
+                        <CheckCheck size={14} />
+                        <span>Tugas Selesai & Disetujui!</span>
+                      </p>
+                      <p className="text-[10.5px] text-[#171717]/75 leading-relaxed">
+                        Project Manager telah menyetujui penyelesaian tugas ini. Pekerjaan Anda sudah tercatat sebagai Done.
                       </p>
                     </div>
-                  ) : (
+                  )}
+
+                  {/* Show revision notes from last revision_requested (when status is in_progress after revision) */}
+                  {selectedTask.status === 'in_progress' && taskReviews.some(r => r.action === 'revision_requested') && (
+                    <div className="p-3 bg-[#FFF9E6] border border-[#FFD83D] rounded-lg text-xs space-y-1.5">
+                      <p className="font-black uppercase text-[#171717] flex items-center gap-1">
+                        <AlertTriangle size={12} className="text-[#FF2F92]" />
+                        <span>Tugas Memerlukan Revisi</span>
+                      </p>
+                      <p className="text-[#171717]/80 leading-relaxed italic">
+                        {taskReviews.find(r => r.action === 'revision_requested')?.notes || 'PM meminta perubahan pada tugas ini. Perbaiki sesuai instruksi.'}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Checklist 100% — Show Submit for Review CTA */}
+                  {selectedTask.checklist_progress === 100 &&
+                    selectedTask.status !== 'in_review' &&
+                    selectedTask.status !== 'done' &&
+                    selectedTask.status !== 'completed' &&
+                    !selectedTask.is_completed && (
+                    <div className="p-3.5 bg-[#ECFDF5] border border-[#10B981] rounded-lg text-xs space-y-3">
+                      <div>
+                        <p className="font-display uppercase text-[#065F46] flex items-center gap-1.5 mb-1">
+                          <CheckCircle2 size={15} />
+                          <span>Checklist 100% Selesai!</span>
+                        </p>
+                        <p className="text-[#065F46]/85 text-[11px] leading-relaxed">
+                          Seluruh checklist telah dituntaskan. Ajukan penyelesaian tugas untuk direview oleh Project Manager.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowSubmitReviewModal(true)}
+                        className="w-full px-4 py-2.5 bg-[#10B981] hover:bg-[#059669] text-white border border-[#171717] rounded-lg font-black uppercase text-xs flex items-center justify-center gap-2 cursor-pointer shadow-[2px_2px_0px_#171717] transition-all"
+                      >
+                        <ShieldCheck size={14} />
+                        <span>Ajukan Penyelesaian Tugas</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Default info banner if checklist < 100% and not in special status */}
+                  {selectedTask.checklist_progress < 100 &&
+                    selectedTask.status !== 'in_review' &&
+                    selectedTask.status !== 'done' &&
+                    selectedTask.status !== 'completed' &&
+                    !selectedTask.is_completed && (
                     <div className="p-3 bg-[#FFF0F8] border border-[#FF2F92]/40 rounded-lg text-[10.5px] text-[#171717] space-y-1">
                       <p className="font-black uppercase text-[#FF2F92] flex items-center gap-1">
                         <Info size={13} />
                         <span>Aturan Persetujuan Status Done</span>
                       </p>
                       <p className="text-[#171717]/75 leading-relaxed">
-                        Penyelesaian checklist secara bertahap menghitung progres pekerjaan Anda. Status tugas akan disetujui (Done) oleh Project Manager setelah pekerjaan ditinjau.
+                        Penyelesaian checklist secara bertahap menghitung progres pekerjaan Anda. Status tugas akan disetujui (Done) oleh Project Manager setelah seluruh checklist selesai dan Anda mengajukan review.
                       </p>
                     </div>
                   )}
 
-                  {/* Quick CTA to Report Tab */}
-                  <div className="pt-2 flex items-center justify-between gap-2 border-t border-[#171717]/15">
-                    <span className="text-[11px] text-[#171717]/70 font-semibold">
-                      Ada progres pekerjaan yang ingin dicatat?
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setModalTab('report')}
-                      className="px-3 py-1.5 bg-[#FF2F92] hover:bg-[#FF2F92]/90 text-white border border-[#171717] rounded text-xs font-black uppercase flex items-center gap-1.5 cursor-pointer shadow-[2px_2px_0px_#171717]"
-                    >
-                      <Send size={12} />
-                      <span>Buat Laporan Progres</span>
-                    </button>
-                  </div>
+                  {/* Quick CTA to Report Tab — only if not locked */}
+                  {selectedTask.status !== 'in_review' &&
+                    selectedTask.status !== 'done' &&
+                    selectedTask.status !== 'completed' &&
+                    !selectedTask.is_completed && (
+                    <div className="pt-2 flex items-center justify-between gap-2 border-t border-[#171717]/15">
+                      <span className="text-[11px] text-[#171717]/70 font-semibold">
+                        Ada progres pekerjaan yang ingin dicatat?
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setModalTab('report')}
+                        className="px-3 py-1.5 bg-[#FF2F92] hover:bg-[#FF2F92]/90 text-white border border-[#171717] rounded text-xs font-black uppercase flex items-center gap-1.5 cursor-pointer shadow-[2px_2px_0px_#171717]"
+                      >
+                        <Send size={12} />
+                        <span>Buat Laporan Progres</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1181,16 +1359,185 @@ export default function MemberTodoList() {
                   )}
                 </div>
               )}
+
+              {/* TAB 4: APPROVAL HISTORY (PM-H) */}
+              {modalTab === 'approval' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between pb-1">
+                    <h4 className="text-xs font-black uppercase text-[#171717] flex items-center gap-1.5">
+                      <ShieldCheck size={14} className="text-[#7C3AED]" />
+                      <span>Riwayat Persetujuan Tugas</span>
+                    </h4>
+                    <span className="text-[10px] text-[#171717]/60 font-bold">
+                      {taskReviews.length} Catatan
+                    </span>
+                  </div>
+
+                  {loadingUpdates ? (
+                    <div className="py-8 flex flex-col items-center justify-center gap-2 text-xs text-[#171717]/70">
+                      <Loader2 size={18} className="animate-spin text-[#7C3AED]" />
+                      <span>Memuat riwayat persetujuan...</span>
+                    </div>
+                  ) : taskReviews.length === 0 ? (
+                    <div className="p-6 bg-[#FAF7F2] rounded-lg border border-[#171717]/20 text-center space-y-2">
+                      <ShieldCheck size={24} className="mx-auto text-[#171717]/30" />
+                      <p className="text-xs font-bold text-[#171717]">
+                        Belum ada riwayat persetujuan pada tugas ini.
+                      </p>
+                      <p className="text-[11px] text-[#171717]/60 max-w-sm mx-auto">
+                        Setelah seluruh checklist selesai 100%, Anda dapat mengajukan penyelesaian tugas untuk direview oleh Project Manager.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {taskReviews.map((rev, idx) => {
+                        const ACTION_CONFIG = {
+                          submitted:          { label: 'Diajukan ke PM',   bg: 'bg-[#B8A0F0]/20 border-[#7C3AED]', badge: 'bg-[#B8A0F0] text-[#171717]', icon: <ShieldCheck size={12} /> },
+                          approved:           { label: 'Disetujui (Done)', bg: 'bg-[#ECFDF5] border-[#10B981]',    badge: 'bg-[#10B981] text-white',      icon: <ThumbsUp size={12} /> },
+                          revision_requested: { label: 'Diminta Revisi',   bg: 'bg-[#FFF9E6] border-[#FFD83D]',    badge: 'bg-[#FFD83D] text-[#171717]',  icon: <MessageSquareWarning size={12} /> },
+                          reopened:           { label: 'Dibuka Kembali',   bg: 'bg-[#FAF7F2] border-[#171717]',    badge: 'bg-[#171717] text-white',      icon: <RefreshCw size={12} /> },
+                        }
+                        const cfg = ACTION_CONFIG[rev.action] || { label: rev.action, bg: 'bg-white border-[#171717]/20', badge: 'bg-[#171717] text-white', icon: null }
+
+                        return (
+                          <div key={rev.id || idx} className={`p-3.5 rounded-lg border ${cfg.bg} space-y-2`}>
+                            <div className="flex items-start justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-[#B8A0F0] border border-[#171717] text-[#171717] text-[10px] font-black flex items-center justify-center shrink-0">
+                                  {rev.user?.name ? rev.user.name.charAt(0).toUpperCase() : 'U'}
+                                </div>
+                                <div>
+                                  <span className="text-xs font-bold text-[#171717]">{rev.user?.name || 'User'}</span>
+                                  <span className="text-[9.5px] text-[#171717]/60 block">
+                                    {rev.created_at
+                                      ? new Date(rev.created_at).toLocaleString('id-ID', {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          year: 'numeric',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        }) + ' WIB'
+                                      : '—'}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border flex items-center gap-1 shrink-0 ${cfg.badge}`}>
+                                {cfg.icon}
+                                <span>{cfg.label}</span>
+                              </span>
+                            </div>
+
+                            {rev.notes && (
+                              <div className="p-2.5 bg-white/70 rounded border border-[#171717]/15 text-xs text-[#171717] leading-relaxed whitespace-pre-wrap font-medium">
+                                <span className="text-[9.5px] font-black uppercase text-[#171717]/60 block mb-0.5">
+                                  Catatan / Alasan:
+                                </span>
+                                {rev.notes}
+                              </div>
+                            )}
+
+                            <div className="text-[9.5px] text-[#171717]/50 font-bold uppercase flex items-center gap-1.5">
+                              <span>Review Cycle #{rev.review_cycle}</span>
+                              {rev.from_status && rev.to_status && (
+                                <span>• {rev.from_status} → {rev.to_status}</span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Footer */}
             <div className="px-4 sm:px-5 py-3 border-t-1.5 border-[#171717] bg-[#FAF7F2] shrink-0 flex items-center justify-end">
               <button
                 onClick={() => setShowDetailModal(false)}
-                disabled={submittingReport}
+                disabled={submittingReport || submittingReview}
                 className="pkm-btn-outline cursor-pointer text-xs"
               >
                 Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= PM-H: SUBMIT FOR REVIEW CONFIRMATION MODAL ================= */}
+      {showSubmitReviewModal && selectedTask && (
+        <div
+          className="fixed inset-0 bg-[#171717]/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-[60] animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !submittingReview) setShowSubmitReviewModal(false)
+          }}
+        >
+          <div className="bg-white border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#10B981] w-full max-w-md p-5 space-y-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-full bg-[#ECFDF5] border border-[#10B981] flex items-center justify-center shrink-0">
+                <ShieldCheck size={18} className="text-[#10B981]" strokeWidth={2.5} />
+              </div>
+              <div>
+                <h3 className="font-display text-lg uppercase text-[#171717]">AJUKAN REVIEW TUGAS</h3>
+                <p className="text-[10px] text-[#171717]/60 font-bold uppercase">Konfirmasi Penyelesaian Tugas</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-[#171717]/80 leading-relaxed">
+              Anda akan mengajukan penyelesaian tugas <strong>&quot;{selectedTask.title}&quot;</strong> untuk ditinjau oleh Project Manager.
+            </p>
+
+            <div className="p-3 bg-[#FAF7F2] rounded-lg border border-[#171717]/20 text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-[#171717]">Checklist Selesai:</span>
+                <span className="font-black text-[#10B981]">{selectedTask.checklist_completed}/{selectedTask.checklist_total} (100%)</span>
+              </div>
+              <p className="text-[10.5px] text-[#171717]/60 leading-tight">
+                * Setelah diajukan, status berubah menjadi <strong>In Review</strong> dan checklist terkunci hingga PM memberikan keputusan.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase text-[#171717] mb-1">
+                Catatan Pengajuan <span className="text-[10px] font-normal text-[#171717]/60 normal-case">(Opsional)</span>
+              </label>
+              <textarea
+                rows={2}
+                value={submissionNotes}
+                onChange={(e) => setSubmissionNotes(e.target.value)}
+                placeholder="Tambahkan catatan khusus untuk PM jika diperlukan..."
+                className="pkm-input w-full text-xs font-medium"
+                disabled={submittingReview}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#171717]/15">
+              <button
+                type="button"
+                onClick={() => setShowSubmitReviewModal(false)}
+                disabled={submittingReview}
+                className="pkm-btn-outline cursor-pointer text-xs"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitReview}
+                disabled={submittingReview}
+                className="px-4 py-2 bg-[#10B981] hover:bg-[#059669] disabled:opacity-50 text-white font-black uppercase text-xs rounded border border-[#171717] shadow-[2px_2px_0px_#171717] flex items-center gap-2 cursor-pointer transition-all"
+              >
+                {submittingReview ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>Mengajukan...</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck size={13} />
+                    <span>Ya, Ajukan Penyelesaian</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

@@ -55,6 +55,11 @@ class User extends Authenticatable
         return $this->hasMany(TaskUpdate::class);
     }
 
+    public function taskReviews()
+    {
+        return $this->hasMany(TaskReview::class);
+    }
+
     // Helper untuk cek role
     public function isAdmin(): bool
     {

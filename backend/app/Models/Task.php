@@ -67,6 +67,16 @@ class Task extends Model
         return $this->hasMany(TaskUpdate::class)->orderBy('created_at', 'desc');
     }
 
+    public function reviews()
+    {
+        return $this->hasMany(TaskReview::class)->orderBy('created_at', 'desc');
+    }
+
+    public function latestReview()
+    {
+        return $this->hasOne(TaskReview::class)->latestOfMany();
+    }
+
     /**
      * Hitung persentase progres checklist secara otomatis.
      * Progress = (Checklist selesai / Total checklist) * 100%
