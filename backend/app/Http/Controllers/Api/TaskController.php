@@ -18,11 +18,20 @@ class TaskController extends Controller
      */
     public function index(Request $request)
     {
+        $user = $request->user();
+
         $query = Task::with([
-            'project:id,code,name,client,status',
+            'project:id,code,name,client,status,pic_id',
             'milestone:id,project_id,title,phase_order,status',
             'assignee:id,name,email,role'
         ]);
+
+        // Scoping otorisasi: Project Manager hanya melihat tugas pada proyek miliknya
+        if ($user && $user->role === 'project_manager') {
+            $query->whereHas('project', function ($pq) use ($user) {
+                $pq->where('pic_id', $user->id);
+            });
+        }
 
         // Filter berdasarkan proyek
         if ($request->filled('project_id') && $request->project_id !== 'all') {
@@ -139,6 +148,33 @@ class TaskController extends Controller
             }
         }
 
+        // Otorisasi proyek: PM hanya boleh membuat task pada proyek yang dipimpinnya
+        $project = Project::findOrFail($validated['project_id']);
+        if ($user->role === 'project_manager' && (int) $project->pic_id !== (int) $user->id) {
+            return response()->json([
+                'message' => 'Anda hanya dapat menambahkan tugas pada proyek yang Anda pimpin.',
+            ], 403);
+        }
+
+        // Validasi Assignee: PM tidak boleh menugaskan admin atau pimpinan sebagai member pelaksana
+        if ($user->role === 'project_manager') {
+            $candidateUser = null;
+            if (!empty($validated['assignee_id'])) {
+                $candidateUser = \App\Models\User::find($validated['assignee_id']);
+            } elseif (!empty($validated['assignee_name'])) {
+                $candidateUser = \App\Models\User::where('name', trim($validated['assignee_name']))->first();
+            }
+
+            if ($candidateUser && in_array($candidateUser->role, ['admin', 'pimpinan'])) {
+                return response()->json([
+                    'message' => 'Admin atau Pimpinan tidak dapat ditugaskan sebagai pelaksana tugas proyek.',
+                    'errors' => [
+                        'assignee_id' => ['Pengguna dengan role admin atau pimpinan tidak dapat ditugaskan sebagai pelaksana tugas.'],
+                    ],
+                ], 422);
+            }
+        }
+
         $task = DB::transaction(function () use ($validated, $user) {
             $isCompleted = !empty($validated['is_completed']) || ($validated['status'] ?? '') === 'completed';
             $status = $isCompleted ? 'completed' : ($validated['status'] ?? 'pending');
@@ -189,13 +225,25 @@ class TaskController extends Controller
     /**
      * Tampilkan detail tugas tunggal.
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        $user = $request->user();
         $task = Task::with([
-            'project:id,code,name,client,status',
+            'project:id,code,name,client,status,pic_id',
             'milestone:id,project_id,title,phase_order,status',
             'assignee:id,name,email,role'
         ])->findOrFail($id);
+
+        // Scoping otorisasi: PM hanya boleh melihat tugas pada proyek miliknya atau yang ditugaskan kepadanya
+        if ($user && $user->role === 'project_manager') {
+            $isPic = $task->project && (int) $task->project->pic_id === (int) $user->id;
+            $isAssignee = (int) $task->assignee_id === (int) $user->id;
+            if (!$isPic && !$isAssignee) {
+                return response()->json([
+                    'message' => 'Anda tidak memiliki hak akses untuk melihat tugas ini.',
+                ], 403);
+            }
+        }
 
         return response()->json([
             'task' => $task,
@@ -216,7 +264,14 @@ class TaskController extends Controller
             ], 403);
         }
 
-        $task = Task::findOrFail($id);
+        $task = Task::with('project')->findOrFail($id);
+
+        // Otorisasi tugas: PM hanya boleh mengubah task pada proyek yang dipimpinnya
+        if ($user->role === 'project_manager' && (int) $task->project->pic_id !== (int) $user->id) {
+            return response()->json([
+                'message' => 'Anda hanya dapat mengubah tugas pada proyek yang Anda pimpin.',
+            ], 403);
+        }
 
         $validated = $request->validate([
             'project_id' => ['required', 'exists:projects,id'],
@@ -245,6 +300,35 @@ class TaskController extends Controller
                     'message' => 'Sprint/Milestone yang dipilih tidak sesuai dengan proyek yang ditentukan.',
                     'errors' => [
                         'milestone_id' => ['Sprint/Milestone harus berasal dari proyek yang sama.'],
+                    ],
+                ], 422);
+            }
+        }
+
+        // Validasi pemindahan proyek: PM tidak boleh memindahkan task ke proyek milik PM lain
+        if ((int) $validated['project_id'] !== (int) $task->project_id) {
+            $targetProject = Project::find($validated['project_id']);
+            if ($user->role === 'project_manager' && (!$targetProject || (int) $targetProject->pic_id !== (int) $user->id)) {
+                return response()->json([
+                    'message' => 'Anda tidak diizinkan memindahkan tugas ke proyek milik Project Manager lain.',
+                ], 403);
+            }
+        }
+
+        // Validasi Assignee: PM tidak boleh menugaskan admin atau pimpinan sebagai member pelaksana
+        if ($user->role === 'project_manager') {
+            $candidateUser = null;
+            if (!empty($validated['assignee_id'])) {
+                $candidateUser = \App\Models\User::find($validated['assignee_id']);
+            } elseif (!empty($validated['assignee_name'])) {
+                $candidateUser = \App\Models\User::where('name', trim($validated['assignee_name']))->first();
+            }
+
+            if ($candidateUser && in_array($candidateUser->role, ['admin', 'pimpinan'])) {
+                return response()->json([
+                    'message' => 'Admin atau Pimpinan tidak dapat ditugaskan sebagai pelaksana tugas proyek.',
+                    'errors' => [
+                        'assignee_id' => ['Pengguna dengan role admin atau pimpinan tidak dapat ditugaskan sebagai pelaksana tugas.'],
                     ],
                 ], 422);
             }
@@ -318,6 +402,13 @@ class TaskController extends Controller
         }
 
         $task = Task::with('project')->findOrFail($id);
+
+        // Otorisasi tugas: PM hanya boleh menghapus task pada proyek yang dipimpinnya
+        if ($user->role === 'project_manager' && (int) $task->project->pic_id !== (int) $user->id) {
+            return response()->json([
+                'message' => 'Anda hanya dapat menghapus tugas pada proyek yang Anda pimpin.',
+            ], 403);
+        }
         $taskTitle = $task->title;
         $projectName = $task->project ? $task->project->name : null;
 
@@ -353,6 +444,17 @@ class TaskController extends Controller
         }
 
         $task = Task::with('project')->findOrFail($id);
+
+        // Otorisasi PM: PM hanya boleh memperbarui status tugas pada proyek yang dipimpinnya atau ditugaskan kepadanya
+        if ($user && $user->role === 'project_manager') {
+            $isPic = $task->project && (int) $task->project->pic_id === (int) $user->id;
+            $isAssignee = (int) $task->assignee_id === (int) $user->id;
+            if (!$isPic && !$isAssignee) {
+                return response()->json([
+                    'message' => 'Anda hanya dapat memperbarui status tugas pada proyek yang Anda pimpin.',
+                ], 403);
+            }
+        }
 
         // RBAC: Member (karyawan) hanya dapat mengubah status tugas yang ditugaskan kepadanya
         if ($user && $user->role === 'member' && !empty($task->assignee_name)) {

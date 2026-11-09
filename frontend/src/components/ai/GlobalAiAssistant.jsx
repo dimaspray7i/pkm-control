@@ -222,6 +222,11 @@ export default function GlobalAiAssistant() {
   // If user role is not allowed full AI Analyst, they still have quick assistant but button clarifies
   const canAccessFullAnalyst = user && ['admin', 'pimpinan', 'project_manager'].includes(user.role)
 
+  // Sembunyikan floating assistant untuk role yang tidak memiliki akses AI Analyst (Member)
+  if (!canAccessFullAnalyst) {
+    return null
+  }
+
   // Sembunyikan floating assistant khusus ketika berada di Dashboard utama (karena sudah ada panel AI terdedikasi)
   if (location.pathname === '/' || location.pathname === '/dashboard') {
     return null

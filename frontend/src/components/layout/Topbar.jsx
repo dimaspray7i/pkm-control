@@ -399,13 +399,15 @@ export default function Topbar({ onToggleMobile }) {
                 </div>
 
                 <div className="mt-2.5 pt-2 border-t border-[#171717]/10 flex items-center justify-between text-[10px] shrink-0">
-                  <button
-                    onClick={() => { setShowNotif(false); navigate('/reports') }}
-                    className="text-[#FF2F92] font-black hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>Buka Semua Laporan</span>
-                    <ArrowRight size={11} />
-                  </button>
+                  {['admin', 'pimpinan', 'project_manager'].includes(user?.role) ? (
+                    <button
+                      onClick={() => { setShowNotif(false); navigate('/reports') }}
+                      className="text-[#FF2F92] font-black hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Buka Semua Laporan</span>
+                      <ArrowRight size={11} />
+                    </button>
+                  ) : <span />}
                   <button
                     onClick={() => setShowNotif(false)}
                     className="text-[#171717]/50 hover:text-[#171717] font-bold cursor-pointer"

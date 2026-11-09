@@ -16,7 +16,13 @@ class ProjectController extends Controller
      */
     public function index(Request $request)
     {
+        $user = $request->user();
         $query = Project::query();
+
+        // Scoping otorisasi: Project Manager hanya melihat proyek dengan pic_id miliknya
+        if ($user && $user->role === 'project_manager') {
+            $query->where('pic_id', $user->id);
+        }
 
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
@@ -62,6 +68,16 @@ class ProjectController extends Controller
             ], 403);
         }
 
+        // PM tidak boleh membuat proyek dengan pic_id milik orang lain
+        if ($user->role === 'project_manager' && $request->filled('pic_id') && (int) $request->pic_id !== (int) $user->id) {
+            return response()->json([
+                'message' => 'Project Manager tidak diizinkan mendaftarkan proyek atas nama pengguna lain.',
+                'errors' => [
+                    'pic_id' => ['Project Manager hanya dapat mendaftarkan proyek atas nama dirinya sendiri.'],
+                ],
+            ], 403);
+        }
+
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:50', 'unique:projects,code'],
             'name' => ['required', 'string', 'max:255'],
@@ -85,12 +101,18 @@ class ProjectController extends Controller
         ]);
 
         $project = DB::transaction(function () use ($validated, $user) {
-            // Resolve PIC name if pic_id provided
-            $picName = $validated['pic_name'] ?? null;
-            if (!empty($validated['pic_id']) && empty($picName)) {
-                $assignedUser = \App\Models\User::find($validated['pic_id']);
-                if ($assignedUser) {
-                    $picName = $assignedUser->name;
+            // Untuk Project Manager, kepemilikan proyek otomatis disetel ke dirinya sendiri
+            if ($user->role === 'project_manager') {
+                $validated['pic_id'] = $user->id;
+                $picName = $user->name;
+            } else {
+                // Resolve PIC name if pic_id provided
+                $picName = $validated['pic_name'] ?? null;
+                if (!empty($validated['pic_id']) && empty($picName)) {
+                    $assignedUser = \App\Models\User::find($validated['pic_id']);
+                    if ($assignedUser) {
+                        $picName = $assignedUser->name;
+                    }
                 }
             }
 
@@ -131,8 +153,10 @@ class ProjectController extends Controller
     /**
      * Tampilkan detail proyek tunggal beserta tugas, milestone, dan aktivitasnya.
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        $user = $request->user();
+
         if (!is_numeric($id)) {
             return response()->json([
                 'message' => 'Proyek tidak ditemukan (ID tidak valid).',
@@ -154,6 +178,13 @@ class ProjectController extends Controller
             return response()->json([
                 'message' => 'Proyek tidak ditemukan.',
             ], 404);
+        }
+
+        // Scoping otorisasi: PM hanya boleh melihat proyek yang dipimpinnya
+        if ($user && $user->role === 'project_manager' && (int) $project->pic_id !== (int) $user->id) {
+            return response()->json([
+                'message' => 'Anda tidak memiliki hak akses untuk melihat proyek milik Project Manager lain.',
+            ], 403);
         }
 
         // Sinkronisasi otomatis progres aktual dari tugas terkait
@@ -196,6 +227,23 @@ class ProjectController extends Controller
 
         $project = Project::findOrFail($id);
 
+        // Scoping otorisasi: PM hanya boleh mengubah proyek miliknya
+        if ($user->role === 'project_manager' && (int) $project->pic_id !== (int) $user->id) {
+            return response()->json([
+                'message' => 'Anda tidak memiliki hak untuk mengubah proyek milik Project Manager lain.',
+            ], 403);
+        }
+
+        // PM tidak boleh memindahkan kepemilikan proyek ke pengguna lain
+        if ($user->role === 'project_manager' && $request->filled('pic_id') && (int) $request->pic_id !== (int) $user->id) {
+            return response()->json([
+                'message' => 'Project Manager tidak diizinkan memindahkan kepemilikan proyek ke pengguna lain.',
+                'errors' => [
+                    'pic_id' => ['Kepemilikan proyek hanya dapat diubah oleh Super Admin.'],
+                ],
+            ], 403);
+        }
+
         $validated = $request->validate([
             'code' => ['sometimes', 'required', 'string', 'max:50', Rule::unique('projects', 'code')->ignore($project->id)],
             'name' => ['sometimes', 'required', 'string', 'max:255'],
@@ -218,18 +266,23 @@ class ProjectController extends Controller
         ]);
 
         $project = DB::transaction(function () use ($project, $validated, $user) {
-            $picId = array_key_exists('pic_id', $validated) ? $validated['pic_id'] : $project->pic_id;
-            
-            // If pic_id is updated, automatically re-resolve or update pic_name
-            if (array_key_exists('pic_id', $validated)) {
-                if (!empty($picId)) {
-                    $assignedUser = \App\Models\User::find($picId);
-                    $picName = $assignedUser ? $assignedUser->name : ($validated['pic_name'] ?? null);
-                } else {
-                    $picName = null;
-                }
+            if ($user->role === 'project_manager') {
+                $picId = $project->pic_id;
+                $picName = $project->pic_name;
             } else {
-                $picName = array_key_exists('pic_name', $validated) ? $validated['pic_name'] : $project->pic_name;
+                $picId = array_key_exists('pic_id', $validated) ? $validated['pic_id'] : $project->pic_id;
+
+                // If pic_id is updated, automatically re-resolve or update pic_name
+                if (array_key_exists('pic_id', $validated)) {
+                    if (!empty($picId)) {
+                        $assignedUser = \App\Models\User::find($picId);
+                        $picName = $assignedUser ? $assignedUser->name : ($validated['pic_name'] ?? null);
+                    } else {
+                        $picName = null;
+                    }
+                } else {
+                    $picName = array_key_exists('pic_name', $validated) ? $validated['pic_name'] : $project->pic_name;
+                }
             }
 
             $project->update([
@@ -291,6 +344,13 @@ class ProjectController extends Controller
             return response()->json([
                 'message' => 'Proyek tidak ditemukan.',
             ], 404);
+        }
+
+        // Scoping otorisasi: PM hanya boleh menghapus proyek miliknya
+        if ($user->role === 'project_manager' && (int) $project->pic_id !== (int) $user->id) {
+            return response()->json([
+                'message' => 'Anda tidak memiliki hak untuk menghapus proyek milik Project Manager lain.',
+            ], 403);
         }
 
         $projectName = $project->name;

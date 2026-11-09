@@ -43,6 +43,7 @@ class MilestoneController extends Controller
      */
     public function all(Request $request)
     {
+        $user = $request->user();
         $query = Milestone::with([
             'project',
             'tasks' => function ($q) {
@@ -52,6 +53,13 @@ class MilestoneController extends Controller
                   ->orderByRaw("deadline IS NULL, deadline ASC");
             }
         ])->orderBy('phase_order', 'asc');
+
+        // Scoping otorisasi: PM hanya melihat milestone pada proyek miliknya
+        if ($user && $user->role === 'project_manager') {
+            $query->whereHas('project', function ($q) use ($user) {
+                $q->where('pic_id', $user->id);
+            });
+        }
 
         if ($request->filled('project_id')) {
             $query->where('project_id', $request->input('project_id'));
@@ -69,9 +77,18 @@ class MilestoneController extends Controller
      * Dapatkan seluruh milestone untuk proyek tertentu.
      * Auto-seed 4 fase standar jika belum ada milestone.
      */
-    public function index($projectId)
+    public function index(Request $request, $projectId)
     {
+        $user = $request->user();
         $project = Project::findOrFail($projectId);
+
+        // Scoping otorisasi: PM hanya boleh melihat milestone proyek miliknya
+        if ($user && $user->role === 'project_manager' && (int) $project->pic_id !== (int) $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki hak akses untuk melihat Sprint/Milestone pada proyek ini.',
+            ], 403);
+        }
 
         $milestones = Milestone::with([
             'project',
@@ -157,8 +174,9 @@ class MilestoneController extends Controller
     /**
      * Dapatkan detail satu milestone dengan daftar task lengkap.
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        $user = $request->user();
         $milestone = Milestone::with([
             'project',
             'tasks' => function ($q) {
@@ -168,6 +186,14 @@ class MilestoneController extends Controller
                   ->orderByRaw("deadline IS NULL, deadline ASC");
             }
         ])->findOrFail($id);
+
+        // Scoping otorisasi: PM hanya boleh melihat milestone proyek miliknya
+        if ($user && $user->role === 'project_manager' && (int) $milestone->project->pic_id !== (int) $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki hak akses untuk melihat Sprint/Milestone ini.',
+            ], 403);
+        }
 
         $this->enrichMilestone($milestone);
 
@@ -240,6 +266,14 @@ class MilestoneController extends Controller
 
         $project = Project::findOrFail($resolvedProjectId);
 
+        // Otorisasi: PM hanya boleh membuat sprint pada proyek yang dipimpinnya
+        if ($user && $user->role === 'project_manager' && (int) $project->pic_id !== (int) $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda hanya dapat mengelola Sprint/Milestone pada proyek yang Anda pimpin.',
+            ], 403);
+        }
+
         $milestone = DB::transaction(function () use ($validated, $resolvedProjectId, $project, $user) {
             // Urutan fase otomatis jika tidak disediakan
             if (empty($validated['phase_order'])) {
@@ -292,7 +326,15 @@ class MilestoneController extends Controller
             ], 403);
         }
 
-        $milestone = Milestone::findOrFail($id);
+        $milestone = Milestone::with('project')->findOrFail($id);
+
+        // Otorisasi: PM hanya boleh mengubah sprint pada proyek yang dipimpinnya
+        if ($user && $user->role === 'project_manager' && (int) $milestone->project->pic_id !== (int) $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda hanya dapat mengelola Sprint/Milestone pada proyek yang Anda pimpin.',
+            ], 403);
+        }
 
         $validated = $request->validate([
             'title' => 'sometimes|required|string|max:255',
@@ -372,7 +414,15 @@ class MilestoneController extends Controller
             ], 403);
         }
 
-        $milestone = Milestone::findOrFail($id);
+        $milestone = Milestone::with('project')->findOrFail($id);
+
+        // Otorisasi: PM hanya boleh mengubah sprint pada proyek yang dipimpinnya
+        if ($user && $user->role === 'project_manager' && (int) $milestone->project->pic_id !== (int) $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda hanya dapat mengelola Sprint/Milestone pada proyek yang Anda pimpin.',
+            ], 403);
+        }
         $projectId = $milestone->project_id;
         $title = $milestone->title;
 

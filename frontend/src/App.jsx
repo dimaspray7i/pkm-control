@@ -14,6 +14,15 @@ import Reports from './pages/Reports'
 import Team from './pages/Team'
 import Settings from './pages/Settings'
 
+function DashboardRoute() {
+  const { user } = useAuth()
+  // Member tidak memiliki akses ke Dashboard eksekutif/operasional; arahkan langsung ke My Tasks
+  if (user?.role === 'member') {
+    return <Navigate to="/tasks" replace />
+  }
+  return <Dashboard />
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -29,11 +38,32 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Dashboard />} />
-        <Route path="projects" element={<Projects />} />
-        <Route path="projects/:id" element={<ProjectDetail />} />
+        <Route index element={<DashboardRoute />} />
+        <Route
+          path="projects"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'pimpinan', 'project_manager']}>
+              <Projects />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="projects/:id"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'pimpinan', 'project_manager']}>
+              <ProjectDetail />
+            </ProtectedRoute>
+          }
+        />
         <Route path="tasks" element={<Tasks />} />
-        <Route path="development" element={<Development />} />
+        <Route
+          path="development"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'pimpinan', 'project_manager']}>
+              <Development />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="ai-analyst"
           element={
@@ -50,7 +80,14 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route path="team" element={<Team />} />
+        <Route
+          path="team"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'pimpinan', 'project_manager']}>
+              <Team />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="reports"
           element={

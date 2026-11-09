@@ -44,11 +44,11 @@ export default function ProtectedRoute({ children, allowedRoles = null }) {
           </div>
           <div className="mt-6">
             <Link
-              to="/"
+              to={user?.role === 'member' ? '/tasks' : '/'}
               className="inline-flex items-center gap-2 px-4 py-2 bg-white text-[#171717] font-black text-xs uppercase tracking-wider border-2 border-[#171717] shadow-[3px_3px_0px_#171717] hover:bg-[#F5F1E9] active:translate-x-0.5 active:translate-y-0.5"
             >
               <ArrowLeft size={16} />
-              Kembali ke Dashboard
+              {user?.role === 'member' ? 'Kembali ke Daftar Tugas' : 'Kembali ke Dashboard'}
             </Link>
           </div>
         </div>

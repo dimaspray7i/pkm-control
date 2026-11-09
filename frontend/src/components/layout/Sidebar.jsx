@@ -13,41 +13,124 @@ import {
   Settings,
   ChevronsLeft,
   ChevronsRight,
-  X,
-  Building2
+  X
 } from 'lucide-react'
 
-const MENU_SECTIONS = [
-  {
-    category: 'UTAMA',
-    items: [
-      { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: null },
-    ]
-  },
-  {
-    category: 'MANAJEMEN PROYEK',
-    items: [
-      { path: '/projects', label: 'Proyek Bisnis', icon: FolderKanban, roles: null },
-      { path: '/tasks', label: 'Daftar Tugas', icon: CheckSquare, roles: null },
-      { path: '/development', label: 'Sprint Tracker', icon: Terminal, roles: null },
-    ]
-  },
-  {
-    category: 'ANALITIK & AI',
-    items: [
-      { path: '/ai-analyst', label: 'AI Business Analyst', icon: Sparkles, roles: ['admin', 'pimpinan', 'project_manager'], badge: 'AI' },
-      { path: '/reports', label: 'Laporan & Metrik', icon: FileBarChart, roles: ['admin', 'pimpinan', 'project_manager'] },
-    ]
-  },
-  {
-    category: 'TIM & PENGATURAN',
-    items: [
-      { path: '/team', label: 'Anggota Tim', icon: Users, roles: null },
-      { path: '/users', label: 'Kelola Pengguna', icon: ShieldCheck, roles: ['admin'] },
-      { path: '/settings', label: 'Pengaturan Sistem', icon: Settings, roles: null },
-    ]
-  }
-]
+// Konfigurasi Navigasi Terpisah Berdasarkan Role (Tahap PM-C)
+const ROLE_NAV_CONFIG = {
+  admin: [
+    {
+      category: 'UTAMA',
+      items: [
+        { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+      ]
+    },
+    {
+      category: 'MANAJEMEN OPERASIONAL',
+      items: [
+        { path: '/projects', label: 'Projects', icon: FolderKanban },
+        { path: '/tasks', label: 'Tasks', icon: CheckSquare },
+        { path: '/development', label: 'Sprint Tracker', icon: Terminal },
+      ]
+    },
+    {
+      category: 'TIM & PENGGUNA',
+      items: [
+        { path: '/team', label: 'Team Management', icon: Users },
+        { path: '/users', label: 'User Management', icon: ShieldCheck },
+      ]
+    },
+    {
+      category: 'ANALITIK & SISTEM',
+      items: [
+        { path: '/reports', label: 'Reports', icon: FileBarChart },
+        { path: '/ai-analyst', label: 'AI Business Analyst', icon: Sparkles, badge: 'AI' },
+        { path: '/settings', label: 'Settings', icon: Settings },
+      ]
+    }
+  ],
+  pimpinan: [
+    {
+      category: 'EKSEKUTIF',
+      items: [
+        { path: '/', label: 'Executive Overview', icon: LayoutDashboard },
+      ]
+    },
+    {
+      category: 'MONITORING PROYEK',
+      items: [
+        { path: '/projects', label: 'Project Monitoring', icon: FolderKanban },
+        { path: '/tasks', label: 'Task Monitoring', icon: CheckSquare },
+        { path: '/development', label: 'Sprint Monitoring', icon: Terminal },
+      ]
+    },
+    {
+      category: 'TIM & LAPORAN',
+      items: [
+        { path: '/team', label: 'Team Overview', icon: Users },
+        { path: '/reports', label: 'Business Reports', icon: FileBarChart },
+        { path: '/ai-analyst', label: 'AI Business Analyst', icon: Sparkles, badge: 'AI' },
+      ]
+    },
+    {
+      category: 'PENGATURAN',
+      items: [
+        { path: '/settings', label: 'Settings', icon: Settings },
+      ]
+    }
+  ],
+  project_manager: [
+    {
+      category: 'WORKSPACE',
+      items: [
+        { path: '/', label: 'PM Workspace', icon: LayoutDashboard },
+      ]
+    },
+    {
+      category: 'EKSEKUSI PROYEK',
+      items: [
+        { path: '/projects', label: 'My Projects', icon: FolderKanban },
+        { path: '/tasks', label: 'Task Distribution', icon: CheckSquare },
+        { path: '/development', label: 'Sprint & Milestones', icon: Terminal },
+      ]
+    },
+    {
+      category: 'TIM & EVALUASI',
+      items: [
+        { path: '/team', label: 'Team Workload', icon: Users },
+        { path: '/reports', label: 'Project Reports', icon: FileBarChart },
+        { path: '/ai-analyst', label: 'AI Project Assistant', icon: Sparkles, badge: 'AI' },
+      ]
+    },
+    {
+      category: 'PENGATURAN',
+      items: [
+        { path: '/settings', label: 'Settings', icon: Settings },
+      ]
+    }
+  ],
+  member: [
+    {
+      category: 'PEKERJAAN SAYA',
+      items: [
+        { path: '/tasks', label: 'My Tasks', icon: CheckSquare },
+      ]
+    },
+    {
+      category: 'PENGATURAN',
+      items: [
+        { path: '/settings', label: 'Settings', icon: Settings },
+      ]
+    }
+  ]
+}
+
+const ROLE_DISPLAY_NAMES = {
+  admin: 'Super Admin',
+  pimpinan: 'Pimpinan',
+  project_manager: 'Project Manager',
+  member: 'Team Member'
+}
 
 export default function Sidebar({ mobileOpen = false, setMobileOpen }) {
   const location = useLocation()
@@ -55,6 +138,8 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }) {
   const [collapsed, setCollapsed] = useState(false)
 
   const role = user?.role || 'member'
+  const navSections = ROLE_NAV_CONFIG[role] || ROLE_NAV_CONFIG.member
+  const homePath = role === 'member' ? '/tasks' : '/'
 
   const handleLinkClick = () => {
     if (setMobileOpen) setMobileOpen(false)
@@ -89,7 +174,7 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }) {
         <div className="shrink-0 px-3.5 sm:px-4 py-3.5 sm:py-4 flex items-center justify-between border-b-1.5 border-[#171717] bg-white">
           {(!collapsed || mobileOpen) ? (
             <div className="flex items-center justify-between w-full">
-              <Link to="/" className="flex items-center gap-2 text-decoration-none" onClick={handleLinkClick}>
+              <Link to={homePath} className="flex items-center gap-2 text-decoration-none" onClick={handleLinkClick}>
                 <div className="flex items-baseline">
                   <span className="font-display text-2xl sm:text-3xl tracking-tight leading-none text-[#171717]">
                     PKM
@@ -115,69 +200,78 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }) {
               )}
             </div>
           ) : (
-            <Link to="/" className="mx-auto flex items-baseline" onClick={handleLinkClick} title="PKM Control Center">
+            <Link to={homePath} className="mx-auto flex items-baseline" onClick={handleLinkClick} title="PKM Control Center">
               <span className="font-display text-2xl text-[#171717]">PKM</span>
               <span className="w-2 h-2 bg-[#FF2F92] ml-0.5 border border-[#171717] inline-block"></span>
             </Link>
           )}
         </div>
 
+        {/* Role Identity Indicator */}
+        {(!collapsed || mobileOpen) && (
+          <div className="px-3 pt-2.5 pb-1 shrink-0">
+            <div className="flex items-center justify-between px-2.5 py-1.5 bg-white/70 border border-[#171717]/40 rounded-md">
+              <span className="text-[8.5px] font-black tracking-wider text-[#171717]/60 uppercase">ROLE</span>
+              <span className="text-[9px] font-black tracking-wider uppercase px-1.5 py-0.5 bg-[#FFD83D] text-[#171717] border border-[#171717] rounded">
+                {ROLE_DISPLAY_NAMES[role] || role}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Navigation Sections with Independent Scroll & Touch Targets */}
         <nav className="flex-1 overflow-y-auto min-h-0 p-3 space-y-3.5">
-          {MENU_SECTIONS.map((sec, idx) => {
-            const visibleItems = sec.items.filter(item => !item.roles || item.roles.includes(role))
-            if (visibleItems.length === 0) return null
+          {navSections.map((sec, idx) => (
+            <div key={idx} className="space-y-1">
+              {(!collapsed || mobileOpen) && (
+                <p className="px-2 text-[9px] font-black tracking-widest text-[#171717]/50 uppercase mb-1">
+                  {sec.category}
+                </p>
+              )}
 
-            return (
-              <div key={idx} className="space-y-1">
-                {(!collapsed || mobileOpen) && (
-                  <p className="px-2 text-[9px] font-black tracking-widest text-[#171717]/50 uppercase mb-1">
-                    {sec.category}
-                  </p>
-                )}
+              <ul className="space-y-1">
+                {sec.items.map((item) => {
+                  const Icon = item.icon
+                  const isActive = item.path === '/'
+                    ? location.pathname === '/'
+                    : location.pathname.startsWith(item.path)
+                  const isCollapsedDesktop = collapsed && !mobileOpen
 
-                <ul className="space-y-1">
-                  {visibleItems.map((item) => {
-                    const Icon = item.icon
-                    const isActive = location.pathname === item.path
-                    const isCollapsedDesktop = collapsed && !mobileOpen
-
-                    return (
-                      <li key={item.path}>
-                        <Link
-                          to={item.path}
-                          onClick={handleLinkClick}
-                          title={isCollapsedDesktop ? item.label : undefined}
-                          aria-current={isActive ? 'page' : undefined}
-                          className={`flex items-center min-h-[42px] font-bold text-xs uppercase tracking-wider transition-all rounded-lg overflow-hidden ${
-                            isCollapsedDesktop
-                              ? 'justify-center px-0 py-2'
-                              : 'gap-2.5 px-3 py-2.5'
-                          } ${
-                            isActive
-                              ? 'bg-[#FF2F92] text-white border-1.5 border-[#171717] shadow-[2px_2px_0px_#171717] translate-x-0.5'
-                              : 'text-[#171717] hover:bg-white hover:border-1.5 hover:border-[#171717] hover:shadow-[2px_2px_0px_#171717] border-1.5 border-transparent'
-                          }`}
-                        >
-                          <Icon size={17} strokeWidth={2.4} className="shrink-0" />
-                          {!isCollapsedDesktop && (
-                            <span className="truncate flex-1 text-[11px] font-bold tracking-wide">
-                              {item.label}
-                            </span>
-                          )}
-                          {!isCollapsedDesktop && item.badge && (
-                            <span className="px-1.5 py-0.2 text-[8px] font-black bg-[#FFD83D] text-[#171717] border border-[#171717] rounded-sm shrink-0">
-                              {item.badge}
-                            </span>
-                          )}
-                        </Link>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            )
-          })}
+                  return (
+                    <li key={item.path}>
+                      <Link
+                        to={item.path}
+                        onClick={handleLinkClick}
+                        title={isCollapsedDesktop ? item.label : undefined}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={`flex items-center min-h-[42px] font-bold text-xs uppercase tracking-wider transition-all rounded-lg overflow-hidden ${
+                          isCollapsedDesktop
+                            ? 'justify-center px-0 py-2'
+                            : 'gap-2.5 px-3 py-2.5'
+                        } ${
+                          isActive
+                            ? 'bg-[#FF2F92] text-white border-1.5 border-[#171717] shadow-[2px_2px_0px_#171717] translate-x-0.5'
+                            : 'text-[#171717] hover:bg-white hover:border-1.5 hover:border-[#171717] hover:shadow-[2px_2px_0px_#171717] border-1.5 border-transparent'
+                        }`}
+                      >
+                        <Icon size={17} strokeWidth={2.4} className="shrink-0" />
+                        {!isCollapsedDesktop && (
+                          <span className="truncate flex-1 text-[11px] font-bold tracking-wide">
+                            {item.label}
+                          </span>
+                        )}
+                        {!isCollapsedDesktop && item.badge && (
+                          <span className="px-1.5 py-0.2 text-[8px] font-black bg-[#FFD83D] text-[#171717] border border-[#171717] rounded-sm shrink-0">
+                            {item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
 
         {/* Bottom Section */}
