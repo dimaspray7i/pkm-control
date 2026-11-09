@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\TaskChecklistController;
 use App\Http\Controllers\Api\TaskController;
+use App\Http\Controllers\Api\TaskUpdateController;
 use App\Http\Controllers\Api\UserController;
 use App\Models\Activity;
 use Illuminate\Support\Facades\Route;
@@ -68,6 +69,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/checklists/{id}', [TaskChecklistController::class, 'update']);
     Route::post('/checklists/{id}/toggle', [TaskChecklistController::class, 'toggle']);
     Route::delete('/checklists/{id}', [TaskChecklistController::class, 'destroy']);
+
+    // Task Progress Updates & Work Reports (PM-G)
+    Route::get('/tasks/{taskId}/updates', [TaskUpdateController::class, 'index']);
+    Route::post('/tasks/{taskId}/updates', [TaskUpdateController::class, 'store']);
+    Route::get('/task-updates/{id}/download', [TaskUpdateController::class, 'download']);
 
     // Milestone / Sprint Tracker (CRUD synced with project progress)
     Route::get('/milestones', [MilestoneController::class, 'all']);

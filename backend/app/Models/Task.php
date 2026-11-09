@@ -62,6 +62,11 @@ class Task extends Model
         return $this->hasMany(TaskChecklist::class)->orderBy('position', 'asc');
     }
 
+    public function updates()
+    {
+        return $this->hasMany(TaskUpdate::class)->orderBy('created_at', 'desc');
+    }
+
     /**
      * Hitung persentase progres checklist secara otomatis.
      * Progress = (Checklist selesai / Total checklist) * 100%

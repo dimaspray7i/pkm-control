@@ -20,7 +20,12 @@ import {
   ChevronRight,
   ArrowUpDown,
   Sparkles,
-  Info
+  Info,
+  Send,
+  History,
+  Download,
+  Paperclip,
+  FileText
 } from 'lucide-react'
 import PageHeader from '../../components/ui/PageHeader'
 
@@ -66,6 +71,16 @@ export default function MemberTodoList() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [feedback, setFeedback] = useState(null)
   const [togglingChecklistId, setTogglingChecklistId] = useState(null)
+
+  // Progress Update & Work Report state (PM-G)
+  const [modalTab, setModalTab] = useState('overview') // 'overview' | 'report' | 'history'
+  const [taskUpdates, setTaskUpdates] = useState([])
+  const [loadingUpdates, setLoadingUpdates] = useState(false)
+  const [workDescription, setWorkDescription] = useState('')
+  const [blocker, setBlocker] = useState('')
+  const [nextPlan, setNextPlan] = useState('')
+  const [attachmentFile, setAttachmentFile] = useState(null)
+  const [submittingReport, setSubmittingReport] = useState(false)
 
   const showNotification = (type, message) => {
     setFeedback({ type, message })
@@ -192,15 +207,97 @@ export default function MemberTodoList() {
     })
   }, [tasks, search, statusFilter, priorityFilter, sortBy])
 
-  // Open Detail Modal & fetch latest detail
+  // Open Detail Modal & fetch latest detail + progress updates (PM-G)
   const handleOpenDetail = async (task) => {
     setSelectedTask(task)
     setShowDetailModal(true)
+    setModalTab('overview')
+    setWorkDescription('')
+    setBlocker('')
+    setNextPlan('')
+    setAttachmentFile(null)
+    setTaskUpdates([])
+    setLoadingUpdates(true)
+
     try {
-      const res = await api.get(`/tasks/${task.id}`)
-      setSelectedTask(res.data.task)
+      const [taskRes, updatesRes] = await Promise.allSettled([
+        api.get(`/tasks/${task.id}`),
+        api.get(`/tasks/${task.id}/updates`),
+      ])
+
+      if (taskRes.status === 'fulfilled' && taskRes.value?.data?.task) {
+        setSelectedTask(taskRes.value.data.task)
+      }
+      if (updatesRes.status === 'fulfilled' && updatesRes.value?.data?.updates) {
+        setTaskUpdates(updatesRes.value.data.updates)
+      }
     } catch {
       // Keep existing object if error
+    } finally {
+      setLoadingUpdates(false)
+    }
+  }
+
+  // Submit Progress Update & Work Report (PM-G)
+  const handleSubmitReport = async (e) => {
+    if (e) e.preventDefault()
+    if (!workDescription.trim()) {
+      showNotification('error', 'Deskripsi pekerjaan wajib diisi.')
+      return
+    }
+
+    if (!selectedTask) return
+
+    setSubmittingReport(true)
+    try {
+      const formData = new FormData()
+      formData.append('work_description', workDescription.trim())
+      if (blocker.trim()) formData.append('blocker', blocker.trim())
+      if (nextPlan.trim()) formData.append('next_plan', nextPlan.trim())
+      if (attachmentFile) formData.append('attachment', attachmentFile)
+
+      const res = await api.post(`/tasks/${selectedTask.id}/updates`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+
+      const newUpdate = res.data.update
+      setTaskUpdates(prev => [newUpdate, ...prev])
+      setWorkDescription('')
+      setBlocker('')
+      setNextPlan('')
+      setAttachmentFile(null)
+
+      // Reset file input if present in DOM
+      const fileInput = document.getElementById('member-report-attachment')
+      if (fileInput) fileInput.value = ''
+
+      showNotification('success', 'Progress update berhasil dicatat ke histori!')
+      setModalTab('history')
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || 'Gagal mencatat progress update.'
+      showNotification('error', errorMsg)
+    } finally {
+      setSubmittingReport(false)
+    }
+  }
+
+  // Download attachment securely (PM-G)
+  const handleDownloadAttachment = async (updateId, fileName) => {
+    try {
+      const res = await api.get(`/task-updates/${updateId}/download`, {
+        responseType: 'blob',
+      })
+      const blob = new Blob([res.data])
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', fileName || 'lampiran')
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      showNotification('error', err.response?.data?.message || 'Gagal mengunduh lampiran. Periksa hak akses Anda.')
     }
   }
 
@@ -567,12 +664,12 @@ export default function MemberTodoList() {
         </div>
       )}
 
-      {/* ================= 6. MODAL TASK DETAIL & INTERACTIVE CHECKLIST ================= */}
+      {/* ================= 6. MODAL TASK DETAIL & PROGRESS UPDATE (PM-G) ================= */}
       {showDetailModal && selectedTask && (
         <div
           className="fixed inset-0 bg-[#171717]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in duration-150"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setShowDetailModal(false)
+            if (e.target === e.currentTarget && !submittingReport) setShowDetailModal(false)
           }}
         >
           <div className="bg-white border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -588,16 +685,62 @@ export default function MemberTodoList() {
               </div>
               <button
                 onClick={() => setShowDetailModal(false)}
-                className="p-1.5 hover:bg-[#FFD83D] border border-[#171717] rounded-md cursor-pointer transition-colors"
+                disabled={submittingReport}
+                className="p-1.5 hover:bg-[#FFD83D] border border-[#171717] rounded-md cursor-pointer transition-colors disabled:opacity-50"
                 title="Tutup (Esc)"
               >
                 <X size={15} />
               </button>
             </div>
 
+            {/* Sub-tab Navigation (PM-G) */}
+            <div className="flex items-center gap-1.5 px-4 sm:px-5 py-2 bg-[#FAF7F2] border-b border-[#171717]/20 shrink-0 overflow-x-auto">
+              <button
+                type="button"
+                onClick={() => setModalTab('overview')}
+                className={`px-3 py-1.5 rounded-md text-[11px] font-black uppercase transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                  modalTab === 'overview'
+                    ? 'bg-[#171717] text-white shadow-[2px_2px_0px_#FF2F92]'
+                    : 'bg-white text-[#171717] border border-[#171717]/30 hover:border-[#171717]'
+                }`}
+              >
+                <ListTodo size={13} />
+                <span>Detail & Checklist</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalTab('report')}
+                className={`px-3 py-1.5 rounded-md text-[11px] font-black uppercase transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                  modalTab === 'report'
+                    ? 'bg-[#171717] text-white shadow-[2px_2px_0px_#FFD83D]'
+                    : 'bg-white text-[#171717] border border-[#171717]/30 hover:border-[#171717]'
+                }`}
+              >
+                <Send size={13} />
+                <span>Lapor Progres</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalTab('history')}
+                className={`px-3 py-1.5 rounded-md text-[11px] font-black uppercase transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                  modalTab === 'history'
+                    ? 'bg-[#171717] text-white shadow-[2px_2px_0px_#B8A0F0]'
+                    : 'bg-white text-[#171717] border border-[#171717]/30 hover:border-[#171717]'
+                }`}
+              >
+                <History size={13} />
+                <span>Riwayat Progres</span>
+                {taskUpdates.length > 0 && (
+                  <span className="px-1.5 py-0.2 bg-[#FF2F92] text-white text-[9px] rounded-full font-black">
+                    {taskUpdates.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
             {/* Scrollable Body */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 min-h-0">
-              {/* Task Title & Badges */}
+              {/* Task Title & Badges always visible */}
               <div>
                 <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                   <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${STATUS_CONFIG[selectedTask.status]?.bg || 'bg-neutral-200'}`}>
@@ -616,128 +759,426 @@ export default function MemberTodoList() {
                 <h2 className="font-display text-xl uppercase text-[#171717] leading-tight">
                   {selectedTask.title}
                 </h2>
+              </div>
 
-                {selectedTask.description && (
-                  <div className="mt-2.5 p-3 bg-[#FAF7F2] rounded-md border border-[#171717]/15">
-                    <span className="text-[9.5px] font-black uppercase text-[#171717]/60 block mb-1">
-                      Deskripsi & Instruksi:
+              {/* TAB 1: OVERVIEW & CHECKLIST */}
+              {modalTab === 'overview' && (
+                <div className="space-y-4">
+                  {selectedTask.description && (
+                    <div className="p-3 bg-[#FAF7F2] rounded-md border border-[#171717]/15">
+                      <span className="text-[9.5px] font-black uppercase text-[#171717]/60 block mb-1">
+                        Deskripsi & Instruksi:
+                      </span>
+                      <p className="text-xs text-[#171717] leading-relaxed whitespace-pre-line font-medium">
+                        {selectedTask.description}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Information Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs font-semibold">
+                    <div className="p-2.5 bg-[#FAF7F2] rounded border border-[#171717]/15">
+                      <span className="text-[9px] uppercase font-black text-[#171717]/60 block mb-0.5">Nama Proyek</span>
+                      <p className="truncate font-bold text-[#171717]">{selectedTask.project?.name || '—'}</p>
+                    </div>
+                    <div className="p-2.5 bg-[#FAF7F2] rounded border border-[#171717]/15">
+                      <span className="text-[9px] uppercase font-black text-[#171717]/60 block mb-0.5">Project Manager (PIC)</span>
+                      <p className="truncate font-bold text-[#171717]">{selectedTask.project?.pic?.name || 'Project Manager'}</p>
+                    </div>
+                    <div className="p-2.5 bg-[#FAF7F2] rounded border border-[#171717]/15">
+                      <span className="text-[9px] uppercase font-black text-[#171717]/60 block mb-0.5">Batas Waktu (Due Date)</span>
+                      <p className="truncate font-bold text-[#171717]">
+                        {selectedTask.deadline ? new Date(selectedTask.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar Summary */}
+                  <div className="p-3.5 bg-white border border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] space-y-2">
+                    <div className="flex items-center justify-between text-xs font-black">
+                      <span className="text-[10px] uppercase text-[#171717]/70">Capaian Progres Checklist</span>
+                      <span className="font-display text-sm text-[#171717]">
+                        {selectedTask.checklist_completed || 0} / {selectedTask.checklist_total || 0} Selesai ({selectedTask.checklist_progress || 0}%)
+                      </span>
+                    </div>
+                    <div className="w-full bg-[#EAE4D8] h-3 rounded-full overflow-hidden border border-[#171717]/30">
+                      <div
+                        className="h-full bg-[#10B981] transition-all duration-300"
+                        style={{ width: `${selectedTask.checklist_progress || 0}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Interactive Checklist Section */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-black uppercase text-[#171717] flex items-center gap-1.5">
+                        <ListTodo size={14} className="text-[#FF2F92]" />
+                        <span>Checklist Pekerjaan Anda</span>
+                      </h4>
+                      <span className="text-[9.5px] font-bold text-[#171717]/60">
+                        Centang item yang sudah Anda selesaikan
+                      </span>
+                    </div>
+
+                    {(!selectedTask.checklists || selectedTask.checklists.length === 0) ? (
+                      <p className="text-xs text-[#171717]/60 italic p-3 bg-[#FAF7F2] rounded text-center">
+                        Tidak ada checklist yang ditetapkan pada tugas ini.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {selectedTask.checklists.map((chk, index) => (
+                          <div
+                            key={chk.id || index}
+                            onClick={() => handleToggleChecklist(chk.id)}
+                            className={`p-3 rounded-lg border-1.5 transition-all cursor-pointer flex items-center justify-between gap-3 min-h-[44px] ${
+                              chk.is_completed
+                                ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-[1px_1px_0px_#10B981]'
+                                : 'bg-[#FAF7F2] border-[#171717]/30 hover:border-[#FF2F92] text-[#171717] hover:bg-white'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`w-5 h-5 rounded border-1.5 flex items-center justify-center shrink-0 transition-colors ${
+                                chk.is_completed
+                                  ? 'bg-[#10B981] border-[#10B981] text-white'
+                                  : 'bg-white border-[#171717]'
+                              }`}>
+                                {togglingChecklistId === chk.id ? (
+                                  <Loader2 size={11} className="animate-spin text-[#171717]" />
+                                ) : chk.is_completed ? (
+                                  <Check size={13} strokeWidth={3} />
+                                ) : null}
+                              </div>
+                              <span className={`text-xs font-bold leading-snug ${chk.is_completed ? 'line-through opacity-75' : ''}`}>
+                                {chk.title}
+                              </span>
+                            </div>
+                            {chk.is_completed && (
+                              <span className="text-[9px] font-black uppercase text-[#10B981] shrink-0">
+                                ✓ Tuntas
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Informative Rule & Status Banner */}
+                  {selectedTask.checklist_progress === 100 ? (
+                    <div className="p-3.5 bg-[#ECFDF5] border border-[#10B981] rounded-lg text-xs space-y-1">
+                      <p className="font-display uppercase text-[#065F46] flex items-center gap-1.5">
+                        <CheckCircle2 size={15} />
+                        <span>Checklist 100% Selesai!</span>
+                      </p>
+                      <p className="text-[#065F46]/85 text-[11px] leading-relaxed">
+                        Seluruh item checklist telah Anda tuntaskan. Status tugas saat ini menunggu tahapan review dan persetujuan akhir dari Project Manager.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-[#FFF0F8] border border-[#FF2F92]/40 rounded-lg text-[10.5px] text-[#171717] space-y-1">
+                      <p className="font-black uppercase text-[#FF2F92] flex items-center gap-1">
+                        <Info size={13} />
+                        <span>Aturan Persetujuan Status Done</span>
+                      </p>
+                      <p className="text-[#171717]/75 leading-relaxed">
+                        Penyelesaian checklist secara bertahap menghitung progres pekerjaan Anda. Status tugas akan disetujui (Done) oleh Project Manager setelah pekerjaan ditinjau.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Quick CTA to Report Tab */}
+                  <div className="pt-2 flex items-center justify-between gap-2 border-t border-[#171717]/15">
+                    <span className="text-[11px] text-[#171717]/70 font-semibold">
+                      Ada progres pekerjaan yang ingin dicatat?
                     </span>
-                    <p className="text-xs text-[#171717] leading-relaxed whitespace-pre-line font-medium">
-                      {selectedTask.description}
+                    <button
+                      type="button"
+                      onClick={() => setModalTab('report')}
+                      className="px-3 py-1.5 bg-[#FF2F92] hover:bg-[#FF2F92]/90 text-white border border-[#171717] rounded text-xs font-black uppercase flex items-center gap-1.5 cursor-pointer shadow-[2px_2px_0px_#171717]"
+                    >
+                      <Send size={12} />
+                      <span>Buat Laporan Progres</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: PROGRESS UPDATE & WORK REPORT (PM-G) */}
+              {modalTab === 'report' && (
+                <div className="space-y-4">
+                  {/* Informative Banner */}
+                  <div className="p-3 bg-[#FFF9E6] border border-[#FFD83D] rounded-lg text-xs space-y-1">
+                    <p className="font-display uppercase text-[#171717] flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-[#FF2F92]" />
+                      <span>Pencatatan Progres Pekerjaan</span>
+                    </p>
+                    <p className="text-[#171717]/80 text-[11px] leading-relaxed">
+                      Laporan ini akan disimpan sebagai riwayat perkembangan resmi yang dapat ditinjau oleh Project Manager. Snapshot checklist selesai dan persentase progres akan disimpan otomatis dari kondisi aktual saat ini.
                     </p>
                   </div>
-                )}
-              </div>
 
-              {/* Information Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs font-semibold">
-                <div className="p-2.5 bg-[#FAF7F2] rounded border border-[#171717]/15">
-                  <span className="text-[9px] uppercase font-black text-[#171717]/60 block mb-0.5">Nama Proyek</span>
-                  <p className="truncate font-bold text-[#171717]">{selectedTask.project?.name || '—'}</p>
-                </div>
-                <div className="p-2.5 bg-[#FAF7F2] rounded border border-[#171717]/15">
-                  <span className="text-[9px] uppercase font-black text-[#171717]/60 block mb-0.5">Project Manager (PIC)</span>
-                  <p className="truncate font-bold text-[#171717]">{selectedTask.project?.pic?.name || 'Project Manager'}</p>
-                </div>
-                <div className="p-2.5 bg-[#FAF7F2] rounded border border-[#171717]/15">
-                  <span className="text-[9px] uppercase font-black text-[#171717]/60 block mb-0.5">Batas Waktu (Due Date)</span>
-                  <p className="truncate font-bold text-[#171717]">
-                    {selectedTask.deadline ? new Date(selectedTask.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Progress Bar Summary */}
-              <div className="p-3.5 bg-white border border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] space-y-2">
-                <div className="flex items-center justify-between text-xs font-black">
-                  <span className="text-[10px] uppercase text-[#171717]/70">Capaian Progres Checklist</span>
-                  <span className="font-display text-sm text-[#171717]">
-                    {selectedTask.checklist_completed || 0} / {selectedTask.checklist_total || 0} Selesai ({selectedTask.checklist_progress || 0}%)
-                  </span>
-                </div>
-                <div className="w-full bg-[#EAE4D8] h-3 rounded-full overflow-hidden border border-[#171717]/30">
-                  <div
-                    className="h-full bg-[#10B981] transition-all duration-300"
-                    style={{ width: `${selectedTask.checklist_progress || 0}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Interactive Checklist Section */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black uppercase text-[#171717] flex items-center gap-1.5">
-                    <ListTodo size={14} className="text-[#FF2F92]" />
-                    <span>Checklist Pekerjaan Anda</span>
-                  </h4>
-                  <span className="text-[9.5px] font-bold text-[#171717]/60">
-                    Centang item yang sudah Anda selesaikan
-                  </span>
-                </div>
-
-                {(!selectedTask.checklists || selectedTask.checklists.length === 0) ? (
-                  <p className="text-xs text-[#171717]/60 italic p-3 bg-[#FAF7F2] rounded text-center">
-                    Tidak ada checklist yang ditetapkan pada tugas ini.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {selectedTask.checklists.map((chk, index) => (
+                  {/* Auto-captured Progress Snapshot Card */}
+                  <div className="p-3 bg-white border border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[10px] uppercase font-black text-[#171717]/70">Snapshot Capaian Otomatis</span>
+                      <span className="font-display text-xs text-[#065F46] bg-[#ECFDF5] border border-[#10B981] px-2 py-0.5 rounded">
+                        {selectedTask.checklist_completed || 0} / {selectedTask.checklist_total || 0} Checklist Selesai ({selectedTask.checklist_progress || 0}%)
+                      </span>
+                    </div>
+                    <div className="w-full bg-[#EAE4D8] h-2.5 rounded-full overflow-hidden border border-[#171717]/30">
                       <div
-                        key={chk.id || index}
-                        onClick={() => handleToggleChecklist(chk.id)}
-                        className={`p-3 rounded-lg border-1.5 transition-all cursor-pointer flex items-center justify-between gap-3 min-h-[44px] ${
-                          chk.is_completed
-                            ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-[1px_1px_0px_#10B981]'
-                            : 'bg-[#FAF7F2] border-[#171717]/30 hover:border-[#FF2F92] text-[#171717] hover:bg-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className={`w-5 h-5 rounded border-1.5 flex items-center justify-center shrink-0 transition-colors ${
-                            chk.is_completed
-                              ? 'bg-[#10B981] border-[#10B981] text-white'
-                              : 'bg-white border-[#171717]'
-                          }`}>
-                            {togglingChecklistId === chk.id ? (
-                              <Loader2 size={11} className="animate-spin text-[#171717]" />
-                            ) : chk.is_completed ? (
-                              <Check size={13} strokeWidth={3} />
-                            ) : null}
-                          </div>
-                          <span className={`text-xs font-bold leading-snug ${chk.is_completed ? 'line-through opacity-75' : ''}`}>
-                            {chk.title}
-                          </span>
-                        </div>
-                        {chk.is_completed && (
-                          <span className="text-[9px] font-black uppercase text-[#10B981] shrink-0">
-                            ✓ Tuntas
-                          </span>
+                        className="h-full bg-[#10B981] transition-all duration-300"
+                        style={{ width: `${selectedTask.checklist_progress || 0}%` }}
+                      />
+                    </div>
+                    <p className="text-[9.5px] text-[#171717]/60 italic">
+                      * Persentase diambil otomatis dari sistem, Anda tidak perlu mengisi angka progres secara manual.
+                    </p>
+                  </div>
+
+                  {/* Report Form */}
+                  <form onSubmit={handleSubmitReport} className="space-y-3.5">
+                    {/* Deskripsi Pekerjaan (Wajib) */}
+                    <div>
+                      <label className="block text-xs font-black uppercase text-[#171717] mb-1">
+                        Deskripsi Pekerjaan <span className="text-[#FF2F92]">*</span>
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={workDescription}
+                        onChange={(e) => setWorkDescription(e.target.value)}
+                        placeholder="Contoh: Menyelesaikan integrasi API login, penanganan validasi form, dan styling UI..."
+                        className="pkm-input w-full text-xs font-medium"
+                        required
+                        disabled={submittingReport}
+                      />
+                      <span className="text-[9.5px] text-[#171717]/60 mt-0.5 block">
+                        Jelaskan secara spesifik apa yang telah Anda tuntaskan pada tahapan ini.
+                      </span>
+                    </div>
+
+                    {/* Blocker / Kendala (Opsional) */}
+                    <div>
+                      <label className="block text-xs font-black uppercase text-[#171717] mb-1">
+                        Kendala / Blocker <span className="text-[10px] font-normal text-[#171717]/60 normal-case">(Opsional)</span>
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={blocker}
+                        onChange={(e) => setBlocker(e.target.value)}
+                        placeholder="Contoh: Server staging sempat mengalami delay respons; membutuhkan review konfigurasi CORS..."
+                        className="pkm-input w-full text-xs font-medium"
+                        disabled={submittingReport}
+                      />
+                    </div>
+
+                    {/* Rencana Berikutnya (Opsional) */}
+                    <div>
+                      <label className="block text-xs font-black uppercase text-[#171717] mb-1">
+                        Rencana Kerja Berikutnya <span className="text-[10px] font-normal text-[#171717]/60 normal-case">(Opsional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={nextPlan}
+                        onChange={(e) => setNextPlan(e.target.value)}
+                        placeholder="Contoh: Melanjutkan pembuatan automated unit test dan integrasi auth guard..."
+                        className="pkm-input w-full text-xs font-medium"
+                        disabled={submittingReport}
+                      />
+                    </div>
+
+                    {/* Lampiran Dokumen (Opsional) */}
+                    <div>
+                      <label className="block text-xs font-black uppercase text-[#171717] mb-1">
+                        Lampiran Dokumen / Screenshot <span className="text-[10px] font-normal text-[#171717]/60 normal-case">(Opsional, PDF/DOC/XLS/Gambar/ZIP, maks 10MB)</span>
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="file"
+                          id="member-report-attachment"
+                          onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
+                          className="text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded file:border file:border-[#171717] file:text-xs file:font-bold file:bg-[#FAF7F2] file:hover:bg-[#FFD83D] file:cursor-pointer"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip"
+                          disabled={submittingReport}
+                        />
+                        {attachmentFile && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAttachmentFile(null)
+                              const el = document.getElementById('member-report-attachment')
+                              if (el) el.value = ''
+                            }}
+                            className="p-1 text-red-600 hover:bg-red-50 rounded cursor-pointer"
+                            title="Hapus file"
+                          >
+                            <X size={14} />
+                          </button>
                         )}
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      {attachmentFile && (
+                        <p className="text-[10px] font-bold text-[#10B981] mt-1 flex items-center gap-1">
+                          <Check size={11} /> File terpilih: {attachmentFile.name} ({(attachmentFile.size / 1024).toFixed(1)} KB)
+                        </p>
+                      )}
+                    </div>
 
-              {/* Informative Rule & Status Banner */}
-              {selectedTask.checklist_progress === 100 ? (
-                <div className="p-3.5 bg-[#ECFDF5] border border-[#10B981] rounded-lg text-xs space-y-1">
-                  <p className="font-display uppercase text-[#065F46] flex items-center gap-1.5">
-                    <CheckCircle2 size={15} />
-                    <span>Checklist 100% Selesai!</span>
-                  </p>
-                  <p className="text-[#065F46]/85 text-[11px] leading-relaxed">
-                    Seluruh item checklist telah Anda tuntaskan. Status tugas saat ini menunggu tahapan review dan persetujuan akhir dari Project Manager.
-                  </p>
+                    {/* Submit Actions */}
+                    <div className="pt-2 flex items-center justify-end gap-2 border-t border-[#171717]/15">
+                      <button
+                        type="button"
+                        onClick={() => setModalTab('overview')}
+                        className="pkm-btn-outline cursor-pointer text-xs"
+                        disabled={submittingReport}
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={submittingReport || !workDescription.trim()}
+                        className="px-4 py-2 bg-[#FF2F92] hover:bg-[#FF2F92]/90 disabled:opacity-50 text-white font-black uppercase text-xs rounded border border-[#171717] shadow-[2px_2px_0px_#171717] flex items-center gap-2 cursor-pointer transition-all"
+                      >
+                        {submittingReport ? (
+                          <>
+                            <Loader2 size={13} className="animate-spin" />
+                            <span>Menyimpan...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send size={13} />
+                            <span>Simpan Progress Update</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
                 </div>
-              ) : (
-                <div className="p-3 bg-[#FFF0F8] border border-[#FF2F92]/40 rounded-lg text-[10.5px] text-[#171717] space-y-1">
-                  <p className="font-black uppercase text-[#FF2F92] flex items-center gap-1">
-                    <Info size={13} />
-                    <span>Aturan Persetujuan Status Done</span>
-                  </p>
-                  <p className="text-[#171717]/75 leading-relaxed">
-                    Penyelesaian checklist secara bertahap menghitung progres pekerjaan Anda. Status tugas akan disetujui (Done) oleh Project Manager setelah pekerjaan ditinjau.
-                  </p>
+              )}
+
+              {/* TAB 3: PROGRESS HISTORY (PM-G) */}
+              {modalTab === 'history' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between pb-1">
+                    <h4 className="text-xs font-black uppercase text-[#171717] flex items-center gap-1.5">
+                      <History size={14} className="text-[#FF2F92]" />
+                      <span>Riwayat Perkembangan Pekerjaan</span>
+                    </h4>
+                    <span className="text-[10px] text-[#171717]/60 font-bold">
+                      {taskUpdates.length} Laporan Tercatat
+                    </span>
+                  </div>
+
+                  {loadingUpdates ? (
+                    <div className="py-8 flex flex-col items-center justify-center gap-2 text-xs text-[#171717]/70">
+                      <Loader2 size={18} className="animate-spin text-[#FF2F92]" />
+                      <span>Memuat riwayat perkembangan...</span>
+                    </div>
+                  ) : taskUpdates.length === 0 ? (
+                    <div className="p-6 bg-[#FAF7F2] rounded-lg border border-[#171717]/20 text-center space-y-2">
+                      <History size={24} className="mx-auto text-[#171717]/40" />
+                      <p className="text-xs font-bold text-[#171717]">
+                        Belum ada riwayat perkembangan pada tugas ini.
+                      </p>
+                      <p className="text-[11px] text-[#171717]/60 max-w-sm mx-auto">
+                        Gunakan tab &quot;Lapor Progres&quot; untuk mencatat perkembangan pekerjaan yang telah Anda selesaikan.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setModalTab('report')}
+                        className="mt-2 px-3 py-1.5 bg-white hover:bg-[#FFD83D] text-[#171717] border border-[#171717] rounded text-xs font-bold uppercase shadow-[1px_1px_0px_#171717] inline-flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Send size={12} />
+                        <span>Mulai Buat Laporan</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {taskUpdates.map((upd, idx) => (
+                        <div
+                          key={upd.id || idx}
+                          className="p-3.5 bg-white border border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] space-y-2.5 transition-all"
+                        >
+                          {/* Card Header: Author, Date, Snapshot */}
+                          <div className="flex items-start justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-[#B8A0F0] border border-[#171717] text-[#171717] text-[10px] font-black flex items-center justify-center shrink-0">
+                                {upd.user?.name ? upd.user.name.charAt(0).toUpperCase() : 'M'}
+                              </div>
+                              <div>
+                                <span className="text-xs font-bold text-[#171717]">
+                                  {upd.user?.name || 'Member'}
+                                </span>
+                                <span className="text-[9.5px] text-[#171717]/60 block">
+                                  {upd.created_at
+                                    ? new Date(upd.created_at).toLocaleString('id-ID', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                      }) + ' WIB'
+                                    : '—'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <span className="text-[9.5px] font-black uppercase px-2 py-0.5 rounded border border-[#10B981] bg-[#ECFDF5] text-[#065F46] shrink-0">
+                              Snapshot: {upd.completed_checklists || 0}/{upd.total_checklists || 0} Checklist ({upd.progress_snapshot || 0}%)
+                            </span>
+                          </div>
+
+                          {/* Work Description */}
+                          <div className="p-2.5 bg-[#FAF7F2] rounded border border-[#171717]/15 text-xs text-[#171717] leading-relaxed whitespace-pre-wrap font-medium">
+                            {upd.work_description}
+                          </div>
+
+                          {/* Blocker if any */}
+                          {upd.blocker && (
+                            <div className="p-2.5 bg-[#FFF0F8] border border-[#FF2F92]/40 rounded text-xs space-y-0.5">
+                              <span className="text-[9.5px] font-black uppercase text-[#FF2F92] flex items-center gap-1">
+                                <AlertTriangle size={11} />
+                                <span>Kendala / Blocker:</span>
+                              </span>
+                              <p className="text-[#171717]/85 text-[11px] leading-relaxed">
+                                {upd.blocker}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Next Plan if any */}
+                          {upd.next_plan && (
+                            <div className="p-2.5 bg-[#F0FDF4] border border-[#10B981]/40 rounded text-xs space-y-0.5">
+                              <span className="text-[9.5px] font-black uppercase text-[#065F46] flex items-center gap-1">
+                                <CheckCircle2 size={11} />
+                                <span>Rencana Kerja Berikutnya:</span>
+                              </span>
+                              <p className="text-[#171717]/85 text-[11px] leading-relaxed">
+                                {upd.next_plan}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Attachment if any */}
+                          {upd.has_attachment && (
+                            <div className="pt-1 flex items-center justify-between border-t border-[#171717]/10">
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadAttachment(upd.id, upd.attachment_name)}
+                                className="px-2.5 py-1 bg-white hover:bg-[#FFD83D] active:bg-[#FF2F92] active:text-white border border-[#171717] rounded text-[11px] font-bold text-[#171717] flex items-center gap-1.5 cursor-pointer shadow-[1px_1px_0px_#171717] transition-all"
+                              >
+                                <Download size={11} />
+                                <span className="truncate max-w-[200px]">{upd.attachment_name || 'Unduh Lampiran'}</span>
+                              </button>
+                              <span className="text-[9px] text-[#171717]/50 font-bold uppercase">
+                                Dokumen Privat
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -746,6 +1187,7 @@ export default function MemberTodoList() {
             <div className="px-4 sm:px-5 py-3 border-t-1.5 border-[#171717] bg-[#FAF7F2] shrink-0 flex items-center justify-end">
               <button
                 onClick={() => setShowDetailModal(false)}
+                disabled={submittingReport}
                 className="pkm-btn-outline cursor-pointer text-xs"
               >
                 Tutup
