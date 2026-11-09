@@ -103,6 +103,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/team', [UserController::class, 'team']);
     Route::get('/team/{id}', [UserController::class, 'teamMember']);
 
+    // PM-I: Team Workload & Member Capacity Monitoring
+    Route::get('/workload/summary', [\App\Http\Controllers\Api\PmTeamWorkloadController::class, 'summary']);
+    Route::get('/workload/members', [\App\Http\Controllers\Api\PmTeamWorkloadController::class, 'memberList']);
+    Route::get('/workload/members/{id}', [\App\Http\Controllers\Api\PmTeamWorkloadController::class, 'memberDetail']);
+    Route::get('/workload/distribution', [\App\Http\Controllers\Api\PmTeamWorkloadController::class, 'distribution']);
+
     // Settings & Notification Preferences
     Route::get('/settings/preferences', [SettingsController::class, 'getPreferences']);
     Route::put('/settings/preferences', [SettingsController::class, 'updatePreferences']);

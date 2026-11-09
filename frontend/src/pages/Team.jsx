@@ -9,6 +9,7 @@ import {
   UserCheck, Shield
 } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
+import PmTeamWorkload from './pm/PmTeamWorkload'
 
 const ROLE_CONFIG = {
   admin:           { label: 'Super Admin',     bg: 'bg-[#FF2F92] text-white', color: 'bg-[#FF2F92] text-white' },
@@ -28,7 +29,7 @@ const formatDate = (dateStr) => {
   return dateStr
 }
 
-export default function Team() {
+function TeamDirectory() {
   const { user: currentUser } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -758,4 +759,12 @@ export default function Team() {
       )}
     </div>
   )
+}
+
+export default function Team() {
+  const { user } = useAuth()
+  if (user?.role === 'project_manager') {
+    return <PmTeamWorkload />
+  }
+  return <TeamDirectory />
 }
