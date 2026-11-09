@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Activity;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\TaskChecklist;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +16,40 @@ use Illuminate\Validation\Rule;
 class TaskController extends Controller
 {
     /**
-     * Tampilkan daftar tugas operasional dengan filter dan relasi proyek.
+     * Tampilkan ringkasan metrik tugas (Task Distribution Summary).
+     */
+    public function summary(Request $request)
+    {
+        $user = $request->user();
+        $baseQuery = Task::query();
+
+        // Scoping otorisasi: PM hanya menghitung tugas proyek miliknya
+        if ($user && $user->role === 'project_manager') {
+            $baseQuery->whereHas('project', function ($pq) use ($user) {
+                $pq->where('pic_id', $user->id);
+            });
+        }
+
+        $today = Carbon::now()->toDateString();
+        $summary = [
+            'total' => (clone $baseQuery)->count(),
+            'todo' => (clone $baseQuery)->whereIn('status', ['pending', 'todo'])->where('is_completed', false)->count(),
+            'in_progress' => (clone $baseQuery)->where('status', 'in_progress')->where('is_completed', false)->count(),
+            'in_review' => (clone $baseQuery)->where('status', 'in_review')->where('is_completed', false)->count(),
+            'done' => (clone $baseQuery)->where(function ($q) {
+                $q->where('status', 'completed')->orWhere('is_completed', true);
+            })->count(),
+            'overdue' => (clone $baseQuery)->where('is_completed', false)->whereNotNull('deadline')->where('deadline', '<', $today)->count(),
+            'unassigned' => (clone $baseQuery)->where('is_completed', false)->whereNull('assignee_id')->count(),
+        ];
+
+        return response()->json([
+            'summary' => $summary,
+        ]);
+    }
+
+    /**
+     * Tampilkan daftar tugas operasional dengan filter, relasi proyek, dan progres checklist.
      */
     public function index(Request $request)
     {
@@ -23,7 +58,9 @@ class TaskController extends Controller
         $query = Task::with([
             'project:id,code,name,client,status,pic_id',
             'milestone:id,project_id,title,phase_order,status',
-            'assignee:id,name,email,role'
+            'assignee:id,name,email,role',
+            'creator:id,name,email',
+            'checklists'
         ]);
 
         // Scoping otorisasi: Project Manager hanya melihat tugas pada proyek miliknya
@@ -43,6 +80,15 @@ class TaskController extends Controller
             $query->where('milestone_id', $request->milestone_id);
         }
 
+        // Filter berdasarkan Member / Assignee
+        if ($request->filled('assignee_id') && $request->assignee_id !== 'all') {
+            if ($request->assignee_id === 'unassigned') {
+                $query->whereNull('assignee_id');
+            } else {
+                $query->where('assignee_id', $request->assignee_id);
+            }
+        }
+
         // Filter prioritas
         if ($request->filled('priority') && $request->priority !== 'all') {
             $query->where('priority', $request->priority);
@@ -56,15 +102,38 @@ class TaskController extends Controller
 
         // Filter status operasional
         if ($request->filled('status') && $request->status !== 'all') {
-            $query->where('status', $request->status);
+            if ($request->status === 'todo') {
+                $query->whereIn('status', ['todo', 'pending'])->where('is_completed', false);
+            } elseif ($request->status === 'done' || $request->status === 'completed') {
+                $query->where(function ($q) {
+                    $q->where('status', 'completed')->orWhere('is_completed', true);
+                });
+            } else {
+                $query->where('status', $request->status);
+            }
         }
 
+        $today = Carbon::now()->toDateString();
+
         // Filter overdue (terlewat deadline)
-        if ($request->boolean('overdue')) {
-            $today = Carbon::now()->toDateString();
+        if ($request->boolean('overdue') || $request->filter === 'overdue') {
             $query->where('is_completed', false)
                   ->whereNotNull('deadline')
                   ->where('deadline', '<', $today);
+        }
+
+        // Filter deadline rentang waktu
+        if ($request->filled('deadline_filter')) {
+            if ($request->deadline_filter === 'today') {
+                $query->whereDate('deadline', $today);
+            } elseif ($request->deadline_filter === 'this_week') {
+                $endOfWeek = Carbon::now()->endOfWeek()->toDateString();
+                $query->whereBetween('deadline', [$today, $endOfWeek]);
+            } elseif ($request->deadline_filter === 'overdue') {
+                $query->where('is_completed', false)
+                      ->whereNotNull('deadline')
+                      ->where('deadline', '<', $today);
+            }
         }
 
         // Pencarian (judul, nama PIC, nama proyek)
@@ -83,11 +152,11 @@ class TaskController extends Controller
             });
         }
 
-        // Sorting: belum selesai terlebih dahulu, prioritas high -> medium -> low, deadline terdekat
+        // Sorting: belum selesai terlebih dahulu, prioritas urgent -> high -> medium -> low, deadline terdekat
         $driver = \Illuminate\Support\Facades\DB::connection()->getDriverName();
         $priorityOrder = $driver === 'mysql'
-            ? "FIELD(priority, 'high', 'medium', 'low')"
-            : "CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END";
+            ? "FIELD(priority, 'urgent', 'high', 'medium', 'low')"
+            : "CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 WHEN 'low' THEN 4 ELSE 5 END";
 
         $tasks = $query->orderBy('is_completed', 'asc')
                        ->orderByRaw($priorityOrder)
@@ -95,14 +164,48 @@ class TaskController extends Controller
                        ->orderBy('created_at', 'desc')
                        ->get();
 
+        // Map checklist summary metrics untuk setiap task
+        $tasks->transform(function ($task) {
+            $checklists = $task->checklists;
+            $chkTotal = $checklists->count();
+            $chkCompleted = $chkTotal > 0 ? $checklists->where('is_completed', true)->count() : 0;
+            $chkProgress = $chkTotal > 0 ? (int) round(($chkCompleted / $chkTotal) * 100) : 0;
+
+            $task->checklist_total = $chkTotal;
+            $task->checklist_completed = $chkCompleted;
+            $task->checklist_progress = $chkProgress;
+            return $task;
+        });
+
+        // Hitung ringkasan status operasional
+        $baseQuery = Task::query();
+        if ($user && $user->role === 'project_manager') {
+            $baseQuery->whereHas('project', function ($pq) use ($user) {
+                $pq->where('pic_id', $user->id);
+            });
+        }
+
+        $summary = [
+            'total' => (clone $baseQuery)->count(),
+            'todo' => (clone $baseQuery)->whereIn('status', ['pending', 'todo'])->where('is_completed', false)->count(),
+            'in_progress' => (clone $baseQuery)->where('status', 'in_progress')->where('is_completed', false)->count(),
+            'in_review' => (clone $baseQuery)->where('status', 'in_review')->where('is_completed', false)->count(),
+            'done' => (clone $baseQuery)->where(function ($q) {
+                $q->where('status', 'completed')->orWhere('is_completed', true);
+            })->count(),
+            'overdue' => (clone $baseQuery)->where('is_completed', false)->whereNotNull('deadline')->where('deadline', '<', $today)->count(),
+            'unassigned' => (clone $baseQuery)->where('is_completed', false)->whereNull('assignee_id')->count(),
+        ];
+
         return response()->json([
             'tasks' => $tasks,
             'total' => $tasks->count(),
+            'summary' => $summary,
         ]);
     }
 
     /**
-     * Buat tugas baru di database.
+     * Buat tugas baru di database dengan validasi PM dan checklist wajib.
      */
     public function store(Request $request)
     {
@@ -115,25 +218,69 @@ class TaskController extends Controller
             ], 403);
         }
 
-        $validated = $request->validate([
+        // PERIKSA OTORISASI PROYEK TERLEBIH DAHULU: jika project_id milik PM lain, return 403 Forbidden
+        if ($request->filled('project_id') && $user->role === 'project_manager') {
+            $project = Project::find($request->project_id);
+            if ($project && (int) $project->pic_id !== (int) $user->id) {
+                return response()->json([
+                    'message' => 'Anda hanya dapat menambahkan tugas pada proyek yang Anda pimpin.',
+                ], 403);
+            }
+        }
+
+        $isPm = $user->role === 'project_manager';
+
+        // Validasi struktur input
+        $rules = [
             'project_id' => ['required', 'exists:projects,id'],
             'milestone_id' => ['nullable', 'exists:milestones,id'],
             'title' => ['required', 'string', 'max:255'],
-            'priority' => ['required', Rule::in(['low', 'medium', 'high'])],
-            'status' => ['nullable', Rule::in(['pending', 'in_progress', 'completed'])],
-            'deadline' => ['nullable', 'date'],
-            'assignee_id' => ['nullable', 'exists:users,id'],
+            'description' => [$isPm ? 'required' : 'nullable', 'string'],
+            'priority' => ['required', Rule::in(['low', 'medium', 'high', 'urgent'])],
+            'status' => ['nullable', Rule::in(['pending', 'todo', 'in_progress', 'in_review', 'completed'])],
+            'deadline' => [$isPm ? 'required' : 'nullable', 'date'],
+            'start_date' => ['nullable', 'date'],
+            'assignee_id' => [$isPm ? 'required' : 'nullable', 'exists:users,id'],
             'assignee_name' => ['nullable', 'string', 'max:255'],
             'is_completed' => ['nullable', 'boolean'],
-        ], [
+            'checklists' => [$isPm ? 'required' : 'nullable', 'array', $isPm ? 'min:1' : 'min:0'],
+            'checklists.*.title' => ['sometimes', 'required', 'string', 'max:255'],
+        ];
+
+        $messages = [
             'project_id.required' => 'Proyek wajib dipilih.',
             'project_id.exists' => 'Proyek yang dipilih tidak valid.',
             'milestone_id.exists' => 'Sprint/Milestone yang dipilih tidak valid.',
             'title.required' => 'Judul tugas wajib diisi.',
+            'description.required' => 'Deskripsi tugas wajib diisi.',
             'priority.required' => 'Prioritas tugas wajib dipilih.',
-            'priority.in' => 'Prioritas harus low, medium, atau high.',
+            'priority.in' => 'Prioritas harus low, medium, high, atau urgent.',
+            'deadline.required' => 'Batas waktu (due date) tugas wajib ditentukan.',
+            'assignee_id.required' => 'Penanggung jawab (Member) wajib dipilih.',
             'assignee_id.exists' => 'Personel PIC yang dipilih tidak terdaftar di sistem.',
-        ]);
+            'checklists.required' => 'Minimal satu item checklist wajib dibuat sebelum tugas disimpan.',
+            'checklists.min' => 'Minimal satu item checklist wajib dibuat sebelum tugas disimpan.',
+            'checklists.*.title.required' => 'Judul item checklist tidak boleh kosong.',
+        ];
+
+        $validated = $request->validate($rules, $messages);
+
+        // Validasi checklist: pastikan minimal ada 1 checklist dengan judul tidak kosong untuk PM
+        if ($isPm) {
+            $validChecklists = array_filter($validated['checklists'] ?? [], function ($item) {
+                $t = is_array($item) ? ($item['title'] ?? '') : (string) $item;
+                return trim($t) !== '';
+            });
+
+            if (empty($validChecklists)) {
+                return response()->json([
+                    'message' => 'Minimal satu item checklist wajib dibuat sebelum tugas disimpan.',
+                    'errors' => [
+                        'checklists' => ['Minimal satu item checklist wajib dibuat sebelum tugas disimpan.'],
+                    ],
+                ], 422);
+            }
+        }
 
         // Validasi lintas relasi: jika milestone_id disediakan, harus berasal dari project_id yang sama
         if (!empty($validated['milestone_id'])) {
@@ -148,24 +295,16 @@ class TaskController extends Controller
             }
         }
 
-        // Otorisasi proyek: PM hanya boleh membuat task pada proyek yang dipimpinnya
-        $project = Project::findOrFail($validated['project_id']);
-        if ($user->role === 'project_manager' && (int) $project->pic_id !== (int) $user->id) {
-            return response()->json([
-                'message' => 'Anda hanya dapat menambahkan tugas pada proyek yang Anda pimpin.',
-            ], 403);
+        // Validasi Assignee: PM tidak boleh menugaskan admin atau pimpinan sebagai member pelaksana
+        $candidateUser = null;
+        if (!empty($validated['assignee_id'])) {
+            $candidateUser = User::find($validated['assignee_id']);
+        } elseif (!empty($validated['assignee_name'])) {
+            $candidateUser = User::where('name', trim($validated['assignee_name']))->first();
         }
 
-        // Validasi Assignee: PM tidak boleh menugaskan admin atau pimpinan sebagai member pelaksana
-        if ($user->role === 'project_manager') {
-            $candidateUser = null;
-            if (!empty($validated['assignee_id'])) {
-                $candidateUser = \App\Models\User::find($validated['assignee_id']);
-            } elseif (!empty($validated['assignee_name'])) {
-                $candidateUser = \App\Models\User::where('name', trim($validated['assignee_name']))->first();
-            }
-
-            if ($candidateUser && in_array($candidateUser->role, ['admin', 'pimpinan'])) {
+        if ($candidateUser) {
+            if (in_array($candidateUser->role, ['admin', 'pimpinan'])) {
                 return response()->json([
                     'message' => 'Admin atau Pimpinan tidak dapat ditugaskan sebagai pelaksana tugas proyek.',
                     'errors' => [
@@ -173,20 +312,27 @@ class TaskController extends Controller
                     ],
                 ], 422);
             }
+            if ($isPm && $candidateUser->role !== 'member') {
+                return response()->json([
+                    'message' => 'Tugas hanya dapat dibagikan kepada pengguna dengan role Member.',
+                    'errors' => [
+                        'assignee_id' => ['Penanggung jawab tugas harus memiliki role member.'],
+                    ],
+                ], 422);
+            }
         }
 
         $task = DB::transaction(function () use ($validated, $user) {
-            $isCompleted = !empty($validated['is_completed']) || ($validated['status'] ?? '') === 'completed';
+            $isCompleted = !empty($validated['is_completed']) || in_array($validated['status'] ?? '', ['completed', 'done']);
             $status = $isCompleted ? 'completed' : ($validated['status'] ?? 'pending');
 
-            // Resolusi nama PIC dari assignee_id jika ada
             $assigneeId = $validated['assignee_id'] ?? null;
             $assigneeName = $validated['assignee_name'] ?? null;
             if (!empty($assigneeId) && empty($assigneeName)) {
-                $u = \App\Models\User::find($assigneeId);
+                $u = User::find($assigneeId);
                 if ($u) $assigneeName = $u->name;
             } elseif (empty($assigneeId) && !empty($assigneeName)) {
-                $u = \App\Models\User::where('name', trim($assigneeName))->first();
+                $u = User::where('name', trim($assigneeName))->first();
                 if ($u) $assigneeId = $u->id;
             }
 
@@ -194,20 +340,38 @@ class TaskController extends Controller
                 'project_id' => $validated['project_id'],
                 'milestone_id' => $validated['milestone_id'] ?? null,
                 'title' => trim($validated['title']),
+                'description' => isset($validated['description']) ? trim($validated['description']) : null,
                 'priority' => $validated['priority'],
                 'status' => $status,
                 'is_completed' => $isCompleted,
+                'start_date' => $validated['start_date'] ?? null,
                 'deadline' => $validated['deadline'] ?? null,
                 'assignee_id' => $assigneeId,
                 'assignee_name' => !empty($assigneeName) ? trim($assigneeName) : null,
+                'created_by' => $user ? $user->id : null,
             ]);
 
-            // Muat relasi proyek dan milestone untuk log aktivitas
-            $t->load(['project', 'milestone', 'assignee']);
+            // Buat checklist awal
+            if (!empty($validated['checklists'])) {
+                $pos = 1;
+                foreach ($validated['checklists'] as $chk) {
+                    $chkTitle = is_array($chk) ? ($chk['title'] ?? '') : (string) $chk;
+                    if (trim($chkTitle) !== '') {
+                        TaskChecklist::create([
+                            'task_id' => $t->id,
+                            'title' => trim($chkTitle),
+                            'is_completed' => false,
+                            'position' => $pos++,
+                        ]);
+                    }
+                }
+            }
+
+            $t->load(['project', 'milestone', 'assignee', 'creator', 'checklists']);
 
             Activity::create([
                 'user_name' => $user ? $user->name : 'Sistem PKM',
-                'action' => 'menambahkan tugas baru "' . $t->title . '"',
+                'action' => 'mendistribusikan tugas baru "' . $t->title . '"',
                 'target_name' => $t->title,
                 'project_name' => $t->project ? $t->project->name : null,
                 'avatar_color' => 'yellow',
@@ -216,14 +380,19 @@ class TaskController extends Controller
             return $t;
         });
 
+        $chkStats = $task->getChecklistStats();
+        $task->checklist_total = $chkStats['total'];
+        $task->checklist_completed = $chkStats['completed'];
+        $task->checklist_progress = $chkStats['progress'];
+
         return response()->json([
-            'message' => 'Tugas baru berhasil ditambahkan.',
+            'message' => 'Tugas baru berhasil ditambahkan dan didistribusikan.',
             'task' => $task,
         ], 201);
     }
 
     /**
-     * Tampilkan detail tugas tunggal.
+     * Tampilkan detail tugas tunggal beserta relasi dan checklist.
      */
     public function show(Request $request, $id)
     {
@@ -231,7 +400,9 @@ class TaskController extends Controller
         $task = Task::with([
             'project:id,code,name,client,status,pic_id',
             'milestone:id,project_id,title,phase_order,status',
-            'assignee:id,name,email,role'
+            'assignee:id,name,email,role',
+            'creator:id,name,email',
+            'checklists.completedBy:id,name'
         ])->findOrFail($id);
 
         // Scoping otorisasi: PM hanya boleh melihat tugas pada proyek miliknya atau yang ditugaskan kepadanya
@@ -245,13 +416,18 @@ class TaskController extends Controller
             }
         }
 
+        $chkStats = $task->getChecklistStats();
+        $task->checklist_total = $chkStats['total'];
+        $task->checklist_completed = $chkStats['completed'];
+        $task->checklist_progress = $chkStats['progress'];
+
         return response()->json([
             'task' => $task,
         ]);
     }
 
     /**
-     * Perbarui data tugas yang sudah ada.
+     * Perbarui data tugas yang sudah ada beserta checklist.
      */
     public function update(Request $request, $id)
     {
@@ -277,12 +453,15 @@ class TaskController extends Controller
             'project_id' => ['required', 'exists:projects,id'],
             'milestone_id' => ['nullable', 'exists:milestones,id'],
             'title' => ['required', 'string', 'max:255'],
-            'priority' => ['required', Rule::in(['low', 'medium', 'high'])],
-            'status' => ['nullable', Rule::in(['pending', 'in_progress', 'completed'])],
+            'description' => ['nullable', 'string'],
+            'priority' => ['required', Rule::in(['low', 'medium', 'high', 'urgent'])],
+            'status' => ['nullable', Rule::in(['pending', 'todo', 'in_progress', 'in_review', 'completed'])],
             'deadline' => ['nullable', 'date'],
+            'start_date' => ['nullable', 'date'],
             'assignee_id' => ['nullable', 'exists:users,id'],
             'assignee_name' => ['nullable', 'string', 'max:255'],
             'is_completed' => ['nullable', 'boolean'],
+            'checklists' => ['nullable', 'array'],
         ], [
             'project_id.required' => 'Proyek wajib dipilih.',
             'project_id.exists' => 'Proyek yang dipilih tidak valid.',
@@ -319,9 +498,9 @@ class TaskController extends Controller
         if ($user->role === 'project_manager') {
             $candidateUser = null;
             if (!empty($validated['assignee_id'])) {
-                $candidateUser = \App\Models\User::find($validated['assignee_id']);
+                $candidateUser = User::find($validated['assignee_id']);
             } elseif (!empty($validated['assignee_name'])) {
-                $candidateUser = \App\Models\User::where('name', trim($validated['assignee_name']))->first();
+                $candidateUser = User::where('name', trim($validated['assignee_name']))->first();
             }
 
             if ($candidateUser && in_array($candidateUser->role, ['admin', 'pimpinan'])) {
@@ -334,10 +513,10 @@ class TaskController extends Controller
             }
         }
 
-        $task = DB::transaction(function () use ($task, $validated, $user) {
+        $task = DB::transaction(function () use ($task, $validated, $user, $request) {
             $isCompleted = isset($validated['is_completed'])
                 ? (bool) $validated['is_completed']
-                : (($validated['status'] ?? '') === 'completed');
+                : in_array($validated['status'] ?? '', ['completed', 'done']);
 
             $status = isset($validated['status'])
                 ? $validated['status']
@@ -347,7 +526,7 @@ class TaskController extends Controller
             $assigneeId = array_key_exists('assignee_id', $validated) ? $validated['assignee_id'] : $task->assignee_id;
             if (array_key_exists('assignee_id', $validated)) {
                 if (!empty($assigneeId)) {
-                    $u = \App\Models\User::find($assigneeId);
+                    $u = User::find($assigneeId);
                     $assigneeName = $u ? $u->name : ($validated['assignee_name'] ?? null);
                 } else {
                     $assigneeName = null;
@@ -356,7 +535,7 @@ class TaskController extends Controller
                 $assigneeName = array_key_exists('assignee_name', $validated) ? trim($validated['assignee_name']) : $task->assignee_name;
             }
 
-            $task->update([
+            $updateData = [
                 'project_id' => $validated['project_id'],
                 'milestone_id' => array_key_exists('milestone_id', $validated) ? $validated['milestone_id'] : $task->milestone_id,
                 'title' => trim($validated['title']),
@@ -366,9 +545,53 @@ class TaskController extends Controller
                 'deadline' => $validated['deadline'] ?? $task->deadline,
                 'assignee_id' => $assigneeId,
                 'assignee_name' => $assigneeName,
-            ]);
+            ];
 
-            $task->load(['project', 'milestone', 'assignee']);
+            if (array_key_exists('description', $validated)) {
+                $updateData['description'] = $validated['description'] ? trim($validated['description']) : null;
+            }
+            if (array_key_exists('start_date', $validated)) {
+                $updateData['start_date'] = $validated['start_date'];
+            }
+
+            $task->update($updateData);
+
+            // Sinkronisasi checklist jika dikirim dalam request update
+            if ($request->has('checklists') && is_array($request->checklists)) {
+                $keptIds = [];
+                foreach ($request->checklists as $idx => $chkData) {
+                    $chkTitle = is_array($chkData) ? ($chkData['title'] ?? '') : (string) $chkData;
+                    if (trim($chkTitle) === '') continue;
+
+                    $chkId = is_array($chkData) && !empty($chkData['id']) ? $chkData['id'] : null;
+                    if ($chkId) {
+                        $existing = TaskChecklist::where('task_id', $task->id)->find($chkId);
+                        if ($existing) {
+                            $existing->update([
+                                'title' => trim($chkTitle),
+                                'position' => $idx + 1,
+                            ]);
+                            $keptIds[] = $existing->id;
+                            continue;
+                        }
+                    }
+
+                    $newChk = TaskChecklist::create([
+                        'task_id' => $task->id,
+                        'title' => trim($chkTitle),
+                        'is_completed' => false,
+                        'position' => $idx + 1,
+                    ]);
+                    $keptIds[] = $newChk->id;
+                }
+
+                // Hapus checklist yang dihilangkan
+                TaskChecklist::where('task_id', $task->id)
+                    ->whereNotIn('id', $keptIds)
+                    ->delete();
+            }
+
+            $task->load(['project', 'milestone', 'assignee', 'creator', 'checklists']);
 
             Activity::create([
                 'user_name' => $user ? $user->name : 'Sistem PKM',
@@ -381,8 +604,85 @@ class TaskController extends Controller
             return $task;
         });
 
+        $chkStats = $task->getChecklistStats();
+        $task->checklist_total = $chkStats['total'];
+        $task->checklist_completed = $chkStats['completed'];
+        $task->checklist_progress = $chkStats['progress'];
+
         return response()->json([
             'message' => 'Tugas berhasil diperbarui.',
+            'task' => $task,
+        ]);
+    }
+
+    /**
+     * Quick Assign: Membagikan atau mengganti Member penanggung jawab secara instan.
+     */
+    public function assign(Request $request, $id)
+    {
+        $user = $request->user();
+
+        if (!$user || !in_array($user->role, ['admin', 'project_manager'])) {
+            return response()->json([
+                'message' => 'Hanya Super Admin dan Project Manager yang memiliki izin menugaskan pekerjaan.',
+            ], 403);
+        }
+
+        $task = Task::with('project')->findOrFail($id);
+
+        if ($user->role === 'project_manager' && (int) $task->project->pic_id !== (int) $user->id) {
+            return response()->json([
+                'message' => 'Anda hanya dapat menugaskan pekerjaan pada proyek yang Anda pimpin.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'assignee_id' => ['required', 'exists:users,id'],
+        ], [
+            'assignee_id.required' => 'Penanggung jawab (Member) wajib dipilih.',
+            'assignee_id.exists' => 'Member yang dipilih tidak terdaftar di sistem.',
+        ]);
+
+        $candidate = User::findOrFail($validated['assignee_id']);
+
+        if (in_array($candidate->role, ['admin', 'pimpinan'])) {
+            return response()->json([
+                'message' => 'Admin atau Pimpinan tidak dapat ditugaskan sebagai pelaksana tugas proyek.',
+                'errors' => [
+                    'assignee_id' => ['Pengguna dengan role admin atau pimpinan tidak dapat ditugaskan sebagai pelaksana tugas.'],
+                ],
+            ], 422);
+        }
+
+        if ($user->role === 'project_manager' && $candidate->role !== 'member') {
+            return response()->json([
+                'message' => 'Tugas hanya dapat dibagikan kepada pengguna dengan role Member.',
+                'errors' => [
+                    'assignee_id' => ['Penanggung jawab tugas harus memiliki role member.'],
+                ],
+            ], 422);
+        }
+
+        $task->assignee_id = $candidate->id;
+        $task->assignee_name = $candidate->name;
+        $task->save();
+
+        Activity::create([
+            'user_name' => $user ? $user->name : 'Sistem PKM',
+            'action' => 'menugaskan "' . $task->title . '" kepada ' . $candidate->name,
+            'target_name' => $task->title,
+            'project_name' => $task->project ? $task->project->name : null,
+            'avatar_color' => 'yellow',
+        ]);
+
+        $task->load(['project', 'milestone', 'assignee', 'creator', 'checklists']);
+        $chkStats = $task->getChecklistStats();
+        $task->checklist_total = $chkStats['total'];
+        $task->checklist_completed = $chkStats['completed'];
+        $task->checklist_progress = $chkStats['progress'];
+
+        return response()->json([
+            'message' => 'Penanggung jawab tugas berhasil diperbarui.',
             'task' => $task,
         ]);
     }

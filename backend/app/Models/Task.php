@@ -13,12 +13,15 @@ class Task extends Model
         'project_id',
         'milestone_id',
         'title',
+        'description',
         'priority',
         'status',
         'is_completed',
+        'start_date',
         'deadline',
         'assignee_id',
         'assignee_name',
+        'created_by',
     ];
 
     protected function casts(): array
@@ -27,7 +30,9 @@ class Task extends Model
             'project_id' => 'integer',
             'milestone_id' => 'integer',
             'assignee_id' => 'integer',
+            'created_by' => 'integer',
             'is_completed' => 'boolean',
+            'start_date' => 'date:Y-m-d',
             'deadline' => 'date:Y-m-d',
         ];
     }
@@ -45,6 +50,46 @@ class Task extends Model
     public function assignee()
     {
         return $this->belongsTo(User::class, 'assignee_id');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function checklists()
+    {
+        return $this->hasMany(TaskChecklist::class)->orderBy('position', 'asc');
+    }
+
+    /**
+     * Hitung persentase progres checklist secara otomatis.
+     * Progress = (Checklist selesai / Total checklist) * 100%
+     */
+    public function calculateChecklistProgress(): int
+    {
+        $total = $this->checklists()->count();
+        if ($total === 0) {
+            return 0;
+        }
+        $completed = $this->checklists()->where('is_completed', true)->count();
+        return (int) round(($completed / $total) * 100);
+    }
+
+    /**
+     * Ambil statistik checklist ringkas.
+     */
+    public function getChecklistStats(): array
+    {
+        $total = $this->checklists()->count();
+        $completed = $total > 0 ? $this->checklists()->where('is_completed', true)->count() : 0;
+        $progress = $total > 0 ? (int) round(($completed / $total) * 100) : 0;
+
+        return [
+            'total' => $total,
+            'completed' => $completed,
+            'progress' => $progress,
+        ];
     }
 
     /**

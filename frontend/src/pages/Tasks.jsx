@@ -4,6 +4,7 @@ import api from '../services/api'
 import { Check, Clock, AlertTriangle, Search, Loader2, RotateCcw, CheckSquare, Filter, Plus, Calendar, Edit3, Trash2, X } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
 import { useAuth } from '../contexts/AuthContext'
+import PmTaskDistributionBoard from './pm/PmTaskDistributionBoard'
 
 const PRIORITY_CONFIG = {
   high:   { label: 'High',   bg: 'bg-[#FF2F92] text-white border-[#171717]' },
@@ -11,7 +12,7 @@ const PRIORITY_CONFIG = {
   low:    { label: 'Low',    bg: 'bg-[#B8A0F0] text-[#171717] border-[#171717]' },
 }
 
-export default function Tasks() {
+function AdminMemberTasksList() {
   const { user } = useAuth()
   const canManage = user?.role === 'admin' || user?.role === 'project_manager'
 
@@ -926,4 +927,12 @@ export default function Tasks() {
       )}
     </div>
   )
+}
+
+export default function Tasks() {
+  const { user } = useAuth()
+  if (user?.role === 'project_manager') {
+    return <PmTaskDistributionBoard />
+  }
+  return <AdminMemberTasksList />
 }

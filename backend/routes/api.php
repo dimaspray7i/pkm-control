@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\PmWorkspaceController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SettingsController;
+use App\Http\Controllers\Api\TaskChecklistController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
 use App\Models\Activity;
@@ -51,13 +52,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/projects/{id}', [ProjectController::class, 'update']);
     Route::delete('/projects/{id}', [ProjectController::class, 'destroy']);
 
-    // Task Management (Full CRUD + Toggle)
+    // Task Management (Full CRUD + Toggle + Quick Assign + Summary)
+    Route::get('/tasks/summary', [TaskController::class, 'summary']);
     Route::get('/tasks', [TaskController::class, 'index']);
     Route::post('/tasks', [TaskController::class, 'store']);
     Route::get('/tasks/{id}', [TaskController::class, 'show']);
     Route::put('/tasks/{id}', [TaskController::class, 'update']);
     Route::delete('/tasks/{id}', [TaskController::class, 'destroy']);
     Route::post('/tasks/{id}/toggle', [TaskController::class, 'toggle']);
+    Route::match(['patch', 'post'], '/tasks/{id}/assign', [TaskController::class, 'assign']);
+
+    // Task Checklist Management
+    Route::get('/tasks/{taskId}/checklists', [TaskChecklistController::class, 'index']);
+    Route::post('/tasks/{taskId}/checklists', [TaskChecklistController::class, 'store']);
+    Route::put('/checklists/{id}', [TaskChecklistController::class, 'update']);
+    Route::post('/checklists/{id}/toggle', [TaskChecklistController::class, 'toggle']);
+    Route::delete('/checklists/{id}', [TaskChecklistController::class, 'destroy']);
 
     // Milestone / Sprint Tracker (CRUD synced with project progress)
     Route::get('/milestones', [MilestoneController::class, 'all']);
