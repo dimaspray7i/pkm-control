@@ -35,8 +35,9 @@ import {
   CartesianGrid
 } from 'recharts'
 import PageHeader from '../components/ui/PageHeader'
+import PmWorkspaceDashboard from './pm/PmWorkspaceDashboard'
 
-export default function Dashboard() {
+function AdminPimpinanDashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [data, setData] = useState(null)
@@ -921,4 +922,12 @@ export default function Dashboard() {
       </div>
     </div>
   )
+}
+
+export default function Dashboard() {
+  const { user } = useAuth()
+  if (user?.role === 'project_manager') {
+    return <PmWorkspaceDashboard />
+  }
+  return <AdminPimpinanDashboard />
 }

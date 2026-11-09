@@ -26,6 +26,7 @@ const CategoryIcon = ({ cat }) => {
 
 export default function Projects() {
   const { user } = useAuth()
+  const isPm = user?.role === 'project_manager'
   const canManage = user?.role === 'admin' || user?.role === 'project_manager'
   const navigate = useNavigate()
   const location = useLocation()
@@ -139,7 +140,10 @@ export default function Projects() {
   // Open Add Modal
   const handleOpenAdd = () => {
     setFormErrors({})
-    setFormData(initialForm)
+    setFormData({
+      ...initialForm,
+      pic_id: isPm && user?.id ? String(user.id) : '',
+    })
     setShowAddModal(true)
   }
 
@@ -152,11 +156,13 @@ export default function Projects() {
     setSubmitting(true)
 
     try {
-      const selectedPic = teamMembers.find(m => String(m.id) === String(formData.pic_id))
+      const selectedPic = isPm
+        ? { id: user?.id, name: user?.name }
+        : teamMembers.find(m => String(m.id) === String(formData.pic_id))
       const payload = {
         ...formData,
         code: formData.code.trim().toUpperCase(),
-        pic_id: formData.pic_id ? Number(formData.pic_id) : null,
+        pic_id: isPm ? (user?.id ? Number(user.id) : null) : (formData.pic_id ? Number(formData.pic_id) : null),
         pic_name: selectedPic ? selectedPic.name : null,
         target_progress: Number(formData.target_progress || 0),
       }
@@ -186,11 +192,13 @@ export default function Projects() {
     setSubmitting(true)
 
     try {
-      const selectedPic = teamMembers.find(m => String(m.id) === String(formData.pic_id))
+      const selectedPic = isPm
+        ? { id: editProject.pic_id, name: editProject.pic_name }
+        : teamMembers.find(m => String(m.id) === String(formData.pic_id))
       const payload = {
         ...formData,
         code: formData.code.trim().toUpperCase(),
-        pic_id: formData.pic_id ? Number(formData.pic_id) : null,
+        pic_id: isPm ? (editProject.pic_id ? Number(editProject.pic_id) : null) : (formData.pic_id ? Number(formData.pic_id) : null),
         pic_name: selectedPic ? selectedPic.name : null,
         target_progress: Number(formData.target_progress || 0),
       }
@@ -265,9 +273,13 @@ export default function Projects() {
     <div className="space-y-4 pb-6">
       {/* Header */}
       <PageHeader
-        title="MANAJEMEN PROYEK"
-        subtitle={`Total ${projects.length} proyek aktif dan terdaftar di sistem PKM Business Control Center.`}
-        tag="PROYEK BISNIS"
+        title={isPm ? "PROYEK SAYA" : "MANAJEMEN PROYEK"}
+        subtitle={
+          isPm
+            ? `Total ${projects.length} proyek aktif yang berada di bawah tanggung jawab Anda sebagai Project Manager.`
+            : `Total ${projects.length} proyek aktif dan terdaftar di sistem PKM Business Control Center.`
+        }
+        tag={isPm ? "MY PROJECTS" : "PROYEK BISNIS"}
         actions={
           <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
             <div className="bg-white px-3 py-1.5 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center gap-2 min-h-[36px]">
@@ -594,18 +606,25 @@ export default function Projects() {
                   <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">
                     Penanggung Jawab (PIC Proyek)
                   </label>
-                  <select
-                    value={formData.pic_id}
-                    onChange={(e) => setFormData({ ...formData, pic_id: e.target.value })}
-                    className="w-full pkm-input"
-                  >
-                    <option value="">Pilih Anggota Tim / PIC...</option>
-                    {teamMembers.map(m => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} ({m.role})
-                      </option>
-                    ))}
-                  </select>
+                  {isPm ? (
+                    <div className="pkm-input bg-[#FAF7F2] text-[#171717] font-bold text-xs flex items-center justify-between min-h-[38px]">
+                      <span>{user?.name || 'Project Manager'} (Anda)</span>
+                      <span className="text-[9px] font-black uppercase px-1.5 py-0.5 bg-[#FFD83D] border border-[#171717] rounded">PIC PM</span>
+                    </div>
+                  ) : (
+                    <select
+                      value={formData.pic_id}
+                      onChange={(e) => setFormData({ ...formData, pic_id: e.target.value })}
+                      className="w-full pkm-input"
+                    >
+                      <option value="">Pilih Anggota Tim / PIC...</option>
+                      {teamMembers.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.role})
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 
@@ -795,18 +814,25 @@ export default function Projects() {
                   <label className="block text-[10.5px] font-black uppercase text-[#171717] mb-1">
                     Penanggung Jawab (PIC Proyek)
                   </label>
-                  <select
-                    value={formData.pic_id}
-                    onChange={(e) => setFormData({ ...formData, pic_id: e.target.value })}
-                    className="w-full pkm-input"
-                  >
-                    <option value="">Pilih Anggota Tim / PIC...</option>
-                    {teamMembers.map(m => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} ({m.role})
-                      </option>
-                    ))}
-                  </select>
+                  {isPm ? (
+                    <div className="pkm-input bg-[#FAF7F2] text-[#171717] font-bold text-xs flex items-center justify-between min-h-[38px]">
+                      <span>{editProject?.pic_name || user?.name || 'Project Manager'} (Terkunci)</span>
+                      <span className="text-[9px] font-black uppercase px-1.5 py-0.5 bg-neutral-200 border border-[#171717] rounded">Tetap</span>
+                    </div>
+                  ) : (
+                    <select
+                      value={formData.pic_id}
+                      onChange={(e) => setFormData({ ...formData, pic_id: e.target.value })}
+                      className="w-full pkm-input"
+                    >
+                      <option value="">Pilih Anggota Tim / PIC...</option>
+                      {teamMembers.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} ({m.role})
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AiAnalystController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\MilestoneController;
+use App\Http\Controllers\Api\PmWorkspaceController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SettingsController;
@@ -26,6 +27,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Dashboard & Business Analytics
     Route::get('/dashboard', [DashboardController::class, 'index']);
     Route::get('/search', [DashboardController::class, 'search']);
+
+    // Project Manager Workspace (Scoped to PM's projects)
+    Route::middleware('role:admin,pimpinan,project_manager')->group(function () {
+        Route::get('/pm/workspace', [PmWorkspaceController::class, 'index']);
+    });
 
     // AI Analyst (Live LLM + Rule-Based fallback on DB context)
     Route::post('/ai/ask', [AiAnalystController::class, 'ask']);
