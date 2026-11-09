@@ -23,11 +23,13 @@ class TaskController extends Controller
         $user = $request->user();
         $baseQuery = Task::query();
 
-        // Scoping otorisasi: PM hanya menghitung tugas proyek miliknya
+        // Scoping otorisasi: PM hanya menghitung tugas proyek miliknya, Member hanya menghitung tugas miliknya
         if ($user && $user->role === 'project_manager') {
             $baseQuery->whereHas('project', function ($pq) use ($user) {
                 $pq->where('pic_id', $user->id);
             });
+        } elseif ($user && $user->role === 'member') {
+            $baseQuery->where('assignee_id', $user->id);
         }
 
         $today = Carbon::now()->toDateString();
@@ -63,11 +65,15 @@ class TaskController extends Controller
             'checklists'
         ]);
 
-        // Scoping otorisasi: Project Manager hanya melihat tugas pada proyek miliknya
+        // Scoping otorisasi:
+        // Project Manager hanya melihat tugas pada proyek miliknya
+        // Member hanya melihat tugas yang ditugaskan kepada dirinya
         if ($user && $user->role === 'project_manager') {
             $query->whereHas('project', function ($pq) use ($user) {
                 $pq->where('pic_id', $user->id);
             });
+        } elseif ($user && $user->role === 'member') {
+            $query->where('assignee_id', $user->id);
         }
 
         // Filter berdasarkan proyek
@@ -183,6 +189,8 @@ class TaskController extends Controller
             $baseQuery->whereHas('project', function ($pq) use ($user) {
                 $pq->where('pic_id', $user->id);
             });
+        } elseif ($user && $user->role === 'member') {
+            $baseQuery->where('assignee_id', $user->id);
         }
 
         $summary = [
@@ -410,6 +418,15 @@ class TaskController extends Controller
             $isPic = $task->project && (int) $task->project->pic_id === (int) $user->id;
             $isAssignee = (int) $task->assignee_id === (int) $user->id;
             if (!$isPic && !$isAssignee) {
+                return response()->json([
+                    'message' => 'Anda tidak memiliki hak akses untuk melihat tugas ini.',
+                ], 403);
+            }
+        }
+
+        // Scoping otorisasi: Member hanya boleh melihat tugas yang ditugaskan kepadanya
+        if ($user && $user->role === 'member') {
+            if ((int) $task->assignee_id !== (int) $user->id) {
                 return response()->json([
                     'message' => 'Anda tidak memiliki hak akses untuk melihat tugas ini.',
                 ], 403);

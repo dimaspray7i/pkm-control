@@ -29,6 +29,15 @@ class TaskChecklistController extends Controller
             }
         }
 
+        // Otorisasi Member: hanya dapat melihat checklist pada tugas miliknya
+        if ($user && $user->role === 'member') {
+            if ((int) $task->assignee_id !== (int) $user->id) {
+                return response()->json([
+                    'message' => 'Anda tidak memiliki hak akses ke checklist tugas ini.',
+                ], 403);
+            }
+        }
+
         $checklists = $task->checklists()->with('completedBy:id,name')->get();
 
         return response()->json([
@@ -156,6 +165,14 @@ class TaskChecklistController extends Controller
             if (!$isPic && !$isAssignee) {
                 return response()->json([
                     'message' => 'Anda hanya dapat memperbarui checklist pada proyek yang Anda pimpin.',
+                ], 403);
+            }
+        }
+
+        if ($user && $user->role === 'member') {
+            if ((int) $task->assignee_id !== (int) $user->id) {
+                return response()->json([
+                    'message' => 'Anda hanya dapat memperbarui checklist pada tugas yang ditugaskan kepada Anda.',
                 ], 403);
             }
         }

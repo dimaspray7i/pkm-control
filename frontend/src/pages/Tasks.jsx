@@ -5,6 +5,7 @@ import { Check, Clock, AlertTriangle, Search, Loader2, RotateCcw, CheckSquare, F
 import PageHeader from '../components/ui/PageHeader'
 import { useAuth } from '../contexts/AuthContext'
 import PmTaskDistributionBoard from './pm/PmTaskDistributionBoard'
+import MemberTodoList from './member/MemberTodoList'
 
 const PRIORITY_CONFIG = {
   high:   { label: 'High',   bg: 'bg-[#FF2F92] text-white border-[#171717]' },
@@ -933,6 +934,9 @@ export default function Tasks() {
   const { user } = useAuth()
   if (user?.role === 'project_manager') {
     return <PmTaskDistributionBoard />
+  }
+  if (user?.role === 'member') {
+    return <MemberTodoList />
   }
   return <AdminMemberTasksList />
 }
