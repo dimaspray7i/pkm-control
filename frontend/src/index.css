@@ -24,6 +24,29 @@
    Shared across all PKM Control Center views
    ========================================== */
 
+/* Print optimization for Project Reports */
+@media print {
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+  header, nav, aside, .print\:hidden {
+    display: none !important;
+  }
+  #printable-report-area {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+}
+
 * {
   box-sizing: border-box;
 }

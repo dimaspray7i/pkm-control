@@ -109,6 +109,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/workload/members/{id}', [\App\Http\Controllers\Api\PmTeamWorkloadController::class, 'memberDetail']);
     Route::get('/workload/distribution', [\App\Http\Controllers\Api\PmTeamWorkloadController::class, 'distribution']);
 
+    // PM-J: Project Reports & Weekly Progress Reporting
+    Route::get('/project-reports/stats/overview', [\App\Http\Controllers\Api\PmProjectReportController::class, 'overview']);
+    Route::get('/project-reports', [\App\Http\Controllers\Api\PmProjectReportController::class, 'index']);
+    Route::get('/project-reports/{id}', [\App\Http\Controllers\Api\PmProjectReportController::class, 'show']);
+    Route::put('/project-reports/{id}', [\App\Http\Controllers\Api\PmProjectReportController::class, 'update']);
+    Route::delete('/project-reports/{id}', [\App\Http\Controllers\Api\PmProjectReportController::class, 'destroy']);
+    Route::post('/project-reports/{id}/publish', [\App\Http\Controllers\Api\PmProjectReportController::class, 'publish']);
+    Route::get('/projects/{projectId}/reports/preview', [\App\Http\Controllers\Api\PmProjectReportController::class, 'previewSnapshot']);
+    Route::post('/projects/{projectId}/reports', [\App\Http\Controllers\Api\PmProjectReportController::class, 'store']);
+
     // Settings & Notification Preferences
     Route::get('/settings/preferences', [SettingsController::class, 'getPreferences']);
     Route::put('/settings/preferences', [SettingsController::class, 'updatePreferences']);

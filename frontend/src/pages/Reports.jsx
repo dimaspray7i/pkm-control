@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
+import { useAuth } from '../contexts/AuthContext'
 import {
   FolderKanban, CheckCircle2, AlertTriangle, Clock, FileBarChart,
   TrendingUp, Loader2, RotateCcw, Activity, Download, Printer,
@@ -13,6 +14,8 @@ import {
   CartesianGrid, Tooltip, PieChart, Pie, Cell, Legend
 } from 'recharts'
 import PageHeader from '../components/ui/PageHeader'
+import PmProjectReports from './pm/PmProjectReports'
+import LeadershipProjectReports from './reports/LeadershipProjectReports'
 
 const PERIOD_OPTIONS = [
   { value: 'this_month', label: 'Bulan Ini' },
@@ -31,7 +34,7 @@ const STATUS_OPTIONS = [
   { value: 'completed', label: 'Completed' },
 ]
 
-export default function Reports() {
+function BusinessReportsDirectory() {
   const navigate = useNavigate()
 
   // Filter States
@@ -1108,6 +1111,67 @@ export default function Reports() {
               </table>
             </div>
           </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default function Reports() {
+  const { user } = useAuth()
+  const [activeTab, setActiveTab] = useState('project_reports')
+
+  // Project Manager gets their dedicated PM Project Reports Workspace
+  if (user?.role === 'project_manager') {
+    return <PmProjectReports />
+  }
+
+  // Pimpinan & Admin get toggle between Weekly Project Reports and Business Intelligence Reports
+  return (
+    <div className="min-h-screen bg-[#F5F1E9]">
+      <PageHeader
+        tag="MONITORING & REPORTING"
+        title="Reports & Analytics"
+        subtitle="Pantau laporan kemajuan operasional mingguan dan inteligensi performa bisnis"
+      />
+
+      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 pt-4">
+        {/* Navigation Tabs for Leadership & Admin */}
+        <div className="flex border-b-2 border-[#171717] bg-white rounded-t-lg overflow-hidden shadow-[2px_2px_0px_#171717]">
+          <button
+            type="button"
+            onClick={() => setActiveTab('project_reports')}
+            className={`flex items-center gap-2 px-5 py-3 text-xs font-black uppercase transition-colors cursor-pointer border-r-1.5 border-[#171717] ${
+              activeTab === 'project_reports'
+                ? 'bg-[#FFD83D] text-[#171717]'
+                : 'bg-white text-[#171717]/60 hover:bg-[#F5F1E9]'
+            }`}
+          >
+            <FolderKanban size={15} />
+            Laporan Mingguan Proyek
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('business_reports')}
+            className={`flex items-center gap-2 px-5 py-3 text-xs font-black uppercase transition-colors cursor-pointer ${
+              activeTab === 'business_reports'
+                ? 'bg-[#FFD83D] text-[#171717]'
+                : 'bg-white text-[#171717]/60 hover:bg-[#F5F1E9]'
+            }`}
+          >
+            <TrendingUp size={15} />
+            Business Intelligence & KPI Portofolio
+          </button>
+        </div>
+      </div>
+
+      <div className="pb-8">
+        {activeTab === 'project_reports' ? (
+          <div className="max-w-screen-xl mx-auto px-4 sm:px-6 pt-4">
+            <LeadershipProjectReports />
+          </div>
+        ) : (
+          <BusinessReportsDirectory />
         )}
       </div>
     </div>

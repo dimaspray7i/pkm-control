@@ -60,6 +60,11 @@ class User extends Authenticatable
         return $this->hasMany(TaskReview::class);
     }
 
+    public function projectReports()
+    {
+        return $this->hasMany(ProjectReport::class, 'created_by');
+    }
+
     // Helper untuk cek role
     public function isAdmin(): bool
     {

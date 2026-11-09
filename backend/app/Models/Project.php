@@ -51,6 +51,11 @@ class Project extends Model
         return $this->hasMany(Milestone::class)->orderBy('phase_order', 'asc');
     }
 
+    public function reports()
+    {
+        return $this->hasMany(ProjectReport::class);
+    }
+
     /**
      * Hitung progres aktual proyek berdasarkan penyelesaian tugas (tasks).
      * Rumus: (jumlah tugas selesai / total tugas) * 100%
