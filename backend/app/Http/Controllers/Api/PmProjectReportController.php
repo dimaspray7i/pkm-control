@@ -461,20 +461,21 @@ class PmProjectReportController extends Controller
             'period_end.after_or_equal' => 'Tanggal akhir periode tidak boleh sebelum tanggal awal.',
         ]);
 
-        // Prevent accidental duplicates for exact same project and period
-        $existing = ProjectReport::where('project_id', $project->id)
-            ->where('period_start', $validated['period_start'])
-            ->where('period_end', $validated['period_end'])
-            ->first();
-
-        if ($existing) {
-            return response()->json([
-                'message' => 'Laporan untuk proyek dan rentang periode ini sudah terdaftar (' . strtoupper($existing->status) . ').',
-                'report_id' => $existing->id,
-            ], 422);
-        }
-
         return DB::transaction(function () use ($project, $user, $validated) {
+            // Prevent race condition duplicates for exact same project and period
+            $existing = ProjectReport::where('project_id', $project->id)
+                ->where('period_start', $validated['period_start'])
+                ->where('period_end', $validated['period_end'])
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                return response()->json([
+                    'message' => 'Laporan untuk proyek dan rentang periode ini sudah terdaftar (' . strtoupper($existing->status) . ').',
+                    'report_id' => $existing->id,
+                ], 422);
+            }
+
             // Generate snapshot at creation time
             $snapshot = $this->generateSnapshot($project, $validated['period_start'], $validated['period_end']);
             $reportNumber = ProjectReport::generateReportNumber();
@@ -548,19 +549,20 @@ class PmProjectReportController extends Controller
         $periodStart = $validated['period_start'] ?? $report->period_start;
         $periodEnd = $validated['period_end'] ?? $report->period_end;
 
-        $duplicate = ProjectReport::where('project_id', $report->project_id)
-            ->where('id', '!=', $report->id)
-            ->where('period_start', $periodStart)
-            ->where('period_end', $periodEnd)
-            ->exists();
-
-        if ($duplicate) {
-            return response()->json([
-                'message' => 'Sudah ada laporan lain untuk proyek dan periode ini.',
-            ], 422);
-        }
-
         return DB::transaction(function () use ($report, $validated, $periodStart, $periodEnd) {
+            $duplicate = ProjectReport::where('project_id', $report->project_id)
+                ->where('id', '!=', $report->id)
+                ->where('period_start', $periodStart)
+                ->where('period_end', $periodEnd)
+                ->lockForUpdate()
+                ->exists();
+
+            if ($duplicate) {
+                return response()->json([
+                    'message' => 'Sudah ada laporan lain untuk proyek dan periode ini.',
+                ], 422);
+            }
+
             $updates = [
                 'period_start' => $periodStart,
                 'period_end' => $periodEnd,

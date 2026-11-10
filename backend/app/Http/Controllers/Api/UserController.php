@@ -262,6 +262,14 @@ class UserController extends Controller
         $user = User::findOrFail($id);
         $name = $user->name;
 
+        // Audit Retensi PM-K: Cegah penghapusan user yang telah menyusun laporan terpublikasi
+        if ($user->projectReports()->where('status', 'published')->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pengguna tidak dapat dihapus karena tercatat sebagai penyusun laporan mingguan yang telah terpublikasi. Nonaktifkan status akun pengguna alih-alih menghapusnya demi integritas riwayat pelaporan.',
+            ], 422);
+        }
+
         DB::transaction(function () use ($user, $name, $currentUser) {
             // Defensif: pastikan referensi PIC dan Assignee dilepas ke NULL (tanpa menghapus proyek/tugas)
             Project::where('pic_id', $user->id)->update(['pic_id' => null]);

@@ -353,6 +353,13 @@ class ProjectController extends Controller
             ], 403);
         }
 
+        // Audit Retensi PM-K: Cegah penghapusan proyek yang telah memiliki laporan terpublikasi
+        if ($project->reports()->where('status', 'published')->exists()) {
+            return response()->json([
+                'message' => 'Proyek tidak dapat dihapus karena telah memiliki laporan mingguan yang terpublikasi. Arsipkan proyek alih-alih menghapusnya demi kepatuhan audit.',
+            ], 422);
+        }
+
         $projectName = $project->name;
         $projectCode = $project->code;
         $tasksCount = $project->tasks_count;

@@ -82,6 +82,19 @@ class TaskUpdateController extends Controller
             ], 403);
         }
 
+        // Kunci penambahan laporan progres jika tugas sedang ditinjau atau sudah selesai
+        if ($task->status === 'in_review') {
+            return response()->json([
+                'message' => 'Laporan progres tidak dapat dibuat karena tugas sedang dalam tahap peninjauan (in_review).',
+            ], 422);
+        }
+
+        if (in_array($task->status, ['completed', 'done']) || $task->is_completed) {
+            return response()->json([
+                'message' => 'Laporan progres tidak dapat dibuat karena tugas sudah selesai (done). Buka kembali tugas (reopen) untuk menambahkan laporan.',
+            ], 422);
+        }
+
         $validated = $request->validate([
             'work_description' => ['required', 'string', 'min:3', 'max:2000'],
             'blocker' => ['nullable', 'string', 'max:1000'],
