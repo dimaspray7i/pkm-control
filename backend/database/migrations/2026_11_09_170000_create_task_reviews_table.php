@@ -11,19 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('task_reviews', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('task_id')->constrained('tasks')->onDelete('cascade');
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->string('action'); // submitted, approved, revision_requested, reopened
-            $table->string('from_status');
-            $table->string('to_status');
-            $table->text('notes')->nullable();
-            $table->integer('review_cycle')->default(1);
-            $table->timestamps();
+        if (!Schema::hasTable('task_reviews')) {
+            Schema::create('task_reviews', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('task_id')->constrained('tasks')->onDelete('cascade');
+                $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+                $table->string('action'); // submitted, approved, revision_requested, reopened
+                $table->string('from_status');
+                $table->string('to_status');
+                $table->text('notes')->nullable();
+                $table->integer('review_cycle')->default(1);
+                $table->timestamps();
 
-            $table->index(['task_id', 'created_at']);
-        });
+                $table->index(['task_id', 'created_at']);
+            });
+        }
     }
 
     /**

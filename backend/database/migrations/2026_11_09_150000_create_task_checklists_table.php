@@ -11,16 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('task_checklists', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('task_id')->constrained('tasks')->onDelete('cascade');
-            $table->string('title');
-            $table->boolean('is_completed')->default(false);
-            $table->foreignId('completed_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->timestamp('completed_at')->nullable();
-            $table->integer('position')->default(0);
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('task_checklists')) {
+            Schema::create('task_checklists', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('task_id')->constrained('tasks')->onDelete('cascade');
+                $table->string('title');
+                $table->boolean('is_completed')->default(false);
+                $table->foreignId('completed_by')->nullable()->constrained('users')->nullOnDelete();
+                $table->timestamp('completed_at')->nullable();
+                $table->integer('position')->default(0);
+                $table->timestamps();
+            });
+        }
     }
 
     /**

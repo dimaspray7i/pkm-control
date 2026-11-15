@@ -13,9 +13,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tasks', function (Blueprint $table) {
-            $table->text('description')->nullable()->after('title');
-            $table->date('start_date')->nullable()->after('deadline');
-            $table->foreignId('created_by')->nullable()->after('assignee_id')->constrained('users')->nullOnDelete();
+            if (!Schema::hasColumn('tasks', 'description')) {
+                $table->text('description')->nullable()->after('title');
+            }
+            if (!Schema::hasColumn('tasks', 'start_date')) {
+                $table->date('start_date')->nullable()->after('deadline');
+            }
+            if (!Schema::hasColumn('tasks', 'created_by')) {
+                $table->foreignId('created_by')->nullable()->after('assignee_id')->constrained('users')->nullOnDelete();
+            }
         });
 
         // Pada MySQL, ubah tipe kolom enum agar mendukung prioritas 'urgent' dan status baru jika diperlukan
@@ -30,9 +36,19 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('tasks', function (Blueprint $table) {
-            $table->dropForeign(['created_by']);
-            $table->dropColumn(['description', 'start_date', 'created_by']);
-        });
+        if (Schema::hasTable('tasks')) {
+            Schema::table('tasks', function (Blueprint $table) {
+                if (Schema::hasColumn('tasks', 'created_by')) {
+                    $table->dropForeign(['created_by']);
+                    $table->dropColumn(['created_by']);
+                }
+                if (Schema::hasColumn('tasks', 'description')) {
+                    $table->dropColumn(['description']);
+                }
+                if (Schema::hasColumn('tasks', 'start_date')) {
+                    $table->dropColumn(['start_date']);
+                }
+            });
+        }
     }
 };

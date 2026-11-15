@@ -198,7 +198,7 @@ class PmTeamWorkloadController extends Controller
             $memberQuery->where('name', 'like', '%' . $request->search . '%');
         }
 
-        $members = $memberQuery->get(['id', 'name', 'email', 'avatar', 'position', 'department']);
+        $members = $memberQuery->get(['id', 'name', 'email', 'phone', 'role', 'is_active']);
 
         $result = [];
 
@@ -258,9 +258,9 @@ class PmTeamWorkloadController extends Controller
                 'id'              => $member->id,
                 'name'            => $member->name,
                 'email'           => $member->email,
-                'avatar'          => $member->avatar,
-                'position'        => $member->position,
-                'department'      => $member->department,
+                'avatar'          => null,
+                'position'        => null,
+                'department'      => null,
                 'active_tasks'    => $activeCount,
                 'in_review_tasks' => $inReviewCount,
                 'overdue_tasks'   => $overdueCount,
@@ -298,7 +298,7 @@ class PmTeamWorkloadController extends Controller
             return response()->json(['message' => 'Member not found in your projects.'], 404);
         }
 
-        $member = User::find($memberId, ['id', 'name', 'email', 'avatar', 'position', 'department', 'phone']);
+        $member = User::find($memberId, ['id', 'name', 'email', 'phone', 'role', 'is_active']);
 
         if (!$member) {
             return response()->json(['message' => 'User not found.'], 404);
@@ -422,9 +422,9 @@ class PmTeamWorkloadController extends Controller
                 'id'         => $member->id,
                 'name'       => $member->name,
                 'email'      => $member->email,
-                'avatar'     => $member->avatar,
-                'position'   => $member->position,
-                'department' => $member->department,
+                'avatar'     => null,
+                'position'   => null,
+                'department' => null,
                 'phone'      => $member->phone,
             ],
             'summary'          => $summary,

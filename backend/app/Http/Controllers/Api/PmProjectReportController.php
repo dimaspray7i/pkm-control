@@ -141,7 +141,7 @@ class PmProjectReportController extends Controller
         $membersData = [];
 
         if ($assigneeIds->isNotEmpty()) {
-            $users = User::whereIn('id', $assigneeIds)->get(['id', 'name', 'email', 'position', 'avatar']);
+            $users = User::whereIn('id', $assigneeIds)->get(['id', 'name', 'email', 'phone', 'role']);
             foreach ($users as $u) {
                 $mTasks = $tasks->where('assignee_id', $u->id);
                 $mActive = $mTasks->filter(fn ($t) => !$t->is_completed && !in_array($t->status, ['done', 'completed']))->count();
@@ -153,7 +153,7 @@ class PmProjectReportController extends Controller
                     'id' => $u->id,
                     'name' => $u->name,
                     'email' => $u->email,
-                    'position' => $u->position,
+                    'position' => null,
                     'total_tasks' => $mTasks->count(),
                     'active_tasks' => $mActive,
                     'overdue_tasks' => $mOverdue,

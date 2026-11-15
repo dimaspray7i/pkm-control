@@ -11,17 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('milestones', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('project_id')->constrained('projects')->onDelete('cascade');
-            $table->string('title');
-            $table->text('description')->nullable();
-            $table->integer('phase_order')->default(1);
-            $table->integer('progress')->default(0);
-            $table->enum('status', ['pending', 'in_progress', 'completed'])->default('pending');
-            $table->date('due_date')->nullable();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('milestones')) {
+            Schema::create('milestones', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('project_id')->constrained('projects')->onDelete('cascade');
+                $table->string('title');
+                $table->text('description')->nullable();
+                $table->integer('phase_order')->default(1);
+                $table->integer('progress')->default(0);
+                $table->enum('status', ['pending', 'in_progress', 'completed'])->default('pending');
+                $table->date('due_date')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 
     /**
