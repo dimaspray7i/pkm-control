@@ -32,9 +32,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index']);
     Route::get('/search', [DashboardController::class, 'search']);
 
-    // Executive Command Center (Restricted to pimpinan and admin)
+    // Executive Command Center & Strategic Portfolio (Restricted to pimpinan and admin)
     Route::middleware('role:admin,pimpinan')->group(function () {
         Route::get('/leadership/command-center', [LeadershipController::class, 'commandCenter']);
+        Route::get('/leadership/portfolio', [LeadershipController::class, 'portfolio']);
+        Route::get('/leadership/portfolio/{id}', [LeadershipController::class, 'portfolioDetail']);
     });
 
     // Project Manager Workspace (Scoped to PM's projects)

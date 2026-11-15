@@ -10,6 +10,8 @@ import {
   Users,
   FileBarChart,
   ShieldCheck,
+  ShieldAlert,
+  Activity,
   Settings,
   ChevronsLeft,
   ChevronsRight,
@@ -54,22 +56,16 @@ const ROLE_NAV_CONFIG = {
       category: 'EKSEKUTIF',
       items: [
         { path: '/', label: 'Executive Command Center', icon: LayoutDashboard },
+        { path: '/portfolio', label: 'Strategic Portfolio', icon: FolderKanban },
       ]
     },
     {
-      category: 'MONITORING PROYEK',
+      category: 'STRATEGI & ANALITIK',
       items: [
-        { path: '/projects', label: 'Project Monitoring', icon: FolderKanban },
-        { path: '/tasks', label: 'Task Monitoring', icon: CheckSquare },
-        { path: '/development', label: 'Sprint Monitoring', icon: Terminal },
-      ]
-    },
-    {
-      category: 'TIM & LAPORAN',
-      items: [
-        { path: '/team', label: 'Team Overview', icon: Users },
-        { path: '/reports', label: 'Business Reports', icon: FileBarChart },
-        { path: '/ai-analyst', label: 'AI Business Analyst', icon: Sparkles, badge: 'AI' },
+        { path: '/performance', label: 'Business Performance & KPI', icon: Activity, badge: 'P-D' },
+        { path: '/risk-center', label: 'Risk & Decision Center', icon: ShieldAlert, badge: 'P-E' },
+        { path: '/reports', label: 'Executive Reports', icon: FileBarChart },
+        { path: '/ai-analyst', label: 'AI Executive Advisor', icon: Sparkles, badge: 'AI' },
       ]
     },
     {

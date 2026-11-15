@@ -18,7 +18,7 @@ return new class extends Migration
                 $table->string('name');
                 $table->string('client');
                 $table->integer('progress')->default(0);
-                $table->integer('target_progress')->default(0);
+                $table->integer('target_progress')->nullable()->default(0);
                 $table->enum('status', ['on_track', 'at_risk', 'delayed', 'completed'])->default('on_track');
                 $table->enum('risk_level', ['none', 'low', 'medium', 'high'])->default('low');
                 $table->text('risk_factor')->nullable();
