@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AiAnalystController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\LeadershipController;
+use App\Http\Controllers\Api\LeadershipRiskController;
 use App\Http\Controllers\Api\MilestoneController;
 use App\Http\Controllers\Api\PmWorkspaceController;
 use App\Http\Controllers\Api\ProjectController;
@@ -38,6 +39,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/leadership/portfolio', [LeadershipController::class, 'portfolio']);
         Route::get('/leadership/portfolio/{id}', [LeadershipController::class, 'portfolioDetail']);
         Route::get('/leadership/performance', [LeadershipController::class, 'performance']);
+
+        // Tahap P-E: Risk & Decision Center
+        Route::get('/leadership/risk-overview', [LeadershipRiskController::class, 'overview']);
+        Route::get('/leadership/risks', [LeadershipRiskController::class, 'risksIndex']);
+        Route::post('/leadership/risks', [LeadershipRiskController::class, 'risksStore']);
+        Route::get('/leadership/risks/{id}', [LeadershipRiskController::class, 'risksShow']);
+        Route::put('/leadership/risks/{id}', [LeadershipRiskController::class, 'risksUpdate']);
+        Route::get('/leadership/automatic-risks', [LeadershipRiskController::class, 'automaticRisks']);
+        Route::get('/leadership/blockers', [LeadershipRiskController::class, 'blockersIndex']);
+        Route::put('/leadership/blockers/{id}/status', [LeadershipRiskController::class, 'blockersUpdateStatus']);
+        Route::get('/leadership/decisions', [LeadershipRiskController::class, 'decisionsIndex']);
+        Route::post('/leadership/decisions', [LeadershipRiskController::class, 'decisionsStore']);
+        Route::get('/leadership/decisions/{id}', [LeadershipRiskController::class, 'decisionsShow']);
+        Route::put('/leadership/decisions/{id}', [LeadershipRiskController::class, 'decisionsUpdate']);
+        Route::get('/leadership/escalations', [LeadershipRiskController::class, 'escalationsIndex']);
     });
 
     // Project Manager Workspace (Scoped to PM's projects)
