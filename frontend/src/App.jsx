@@ -14,6 +14,7 @@ import Reports from './pages/Reports'
 import Team from './pages/Team'
 import Settings from './pages/Settings'
 import StrategicProjectPortfolio from './pages/leadership/StrategicProjectPortfolio'
+import BusinessPerformance from './pages/leadership/BusinessPerformance'
 
 function DashboardRoute() {
   const { user } = useAuth()
@@ -45,6 +46,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={['admin', 'pimpinan']}>
               <StrategicProjectPortfolio />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="performance"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'pimpinan']}>
+              <BusinessPerformance />
             </ProtectedRoute>
           }
         />

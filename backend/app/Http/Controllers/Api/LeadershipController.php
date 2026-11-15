@@ -8,6 +8,7 @@ use App\Models\Milestone;
 use App\Models\Project;
 use App\Models\ProjectReport;
 use App\Models\Task;
+use App\Models\TaskReview;
 use App\Models\TaskUpdate;
 use App\Models\User;
 use Carbon\Carbon;
@@ -1165,6 +1166,467 @@ class LeadershipController extends Controller
             'active_blockers' => $activeBlockers,
             'milestones' => $formattedMilestones,
             'reports' => $formattedReports,
+        ]);
+    }
+
+    /**
+     * Business Performance & KPI Endpoint
+     * Accessible by: pimpinan, admin
+     */
+    public function performance(Request $request)
+    {
+        $user = $request->user();
+
+        // Defense-in-depth role check
+        if (!$user || !in_array($user->role, ['admin', 'pimpinan'], true)) {
+            return response()->json([
+                'message' => 'Akses ditolak. Fitur Business Performance & KPI hanya dapat diakses oleh Pimpinan dan Administrator.',
+            ], 403);
+        }
+
+        $period = $request->query('period', 'all_time'); // 'all_time', 'this_month', 'last_month'
+        $today = Carbon::today()->toDateString();
+        $now = Carbon::now();
+
+        // Period definitions
+        $periodStart = null;
+        $periodEnd = null;
+        $prevPeriodStart = null;
+        $prevPeriodEnd = null;
+        $periodLabel = 'Semua Waktu (All-Time Cumulative)';
+        $comparisonLabel = 'Dibandingkan baseline awal';
+
+        if ($period === 'this_month') {
+            $periodStart = Carbon::now()->startOfMonth();
+            $periodEnd = Carbon::now()->endOfMonth();
+            $prevPeriodStart = Carbon::now()->subMonth()->startOfMonth();
+            $prevPeriodEnd = Carbon::now()->subMonth()->endOfMonth();
+            $periodLabel = Carbon::now()->translatedFormat('F Y');
+            $comparisonLabel = 'vs Bulan Lalu (' . Carbon::now()->subMonth()->translatedFormat('M Y') . ')';
+        } elseif ($period === 'last_month') {
+            $periodStart = Carbon::now()->subMonth()->startOfMonth();
+            $periodEnd = Carbon::now()->subMonth()->endOfMonth();
+            $prevPeriodStart = Carbon::now()->subMonths(2)->startOfMonth();
+            $prevPeriodEnd = Carbon::now()->subMonths(2)->endOfMonth();
+            $periodLabel = Carbon::now()->subMonth()->translatedFormat('F Y');
+            $comparisonLabel = 'vs 2 Bulan Lalu (' . Carbon::now()->subMonths(2)->translatedFormat('M Y') . ')';
+        }
+
+        // =========================================================================
+        // 1. QUERY CORE DATA
+        // =========================================================================
+        $projectsQuery = Project::with(['pic:id,name,email,role']);
+        $tasksQuery = Task::with(['assignee:id,name,email,role,department', 'project:id,name,code,pic_id']);
+        $milestonesQuery = Milestone::with('project:id,name,code');
+
+        if ($periodStart && $periodEnd) {
+            $projectsQuery->whereBetween('created_at', [$periodStart, $periodEnd]);
+            $tasksQuery->whereBetween('created_at', [$periodStart, $periodEnd]);
+            $milestonesQuery->whereBetween('created_at', [$periodStart, $periodEnd]);
+        }
+
+        $projects = $projectsQuery->get();
+        $tasks = $tasksQuery->get();
+        $milestones = $milestonesQuery->get();
+
+        // Fallback for overview if filtered period has 0 projects: provide all-time projects count context
+        $allProjects = Project::all();
+        $allTasks = Task::all();
+        $allMilestones = Milestone::all();
+
+        // =========================================================================
+        // 2. CORE KPI 1: PROJECT COMPLETION RATE
+        // Formula: (Completed Projects / Total Projects) * 100%
+        // =========================================================================
+        $targetProjectsSet = ($periodStart && $periodEnd && $projects->count() > 0) ? $projects : $allProjects;
+        $totalProjectsCount = $targetProjectsSet->count();
+        $completedProjectsCount = $targetProjectsSet->where('status', 'completed')->count();
+        $activeProjectsCount = $targetProjectsSet->where('status', '!=', 'completed')->count();
+
+        $projectCompletionRate = $totalProjectsCount > 0
+            ? round(($completedProjectsCount / $totalProjectsCount) * 100, 1)
+            : 0.0;
+
+        $completedDurations = $targetProjectsSet->where('status', 'completed')->map(function ($p) {
+            return $p->created_at->diffInDays($p->updated_at);
+        });
+        $avgCompletionDurationDays = $completedDurations->count() > 0 ? round($completedDurations->avg(), 1) : null;
+
+        // =========================================================================
+        // 3. CORE KPI 2: ON-TIME DELIVERY RATE
+        // Formula: (Completed items finished <= deadline) / (Completed items with valid deadline) * 100%
+        // =========================================================================
+        $completedProjectsWithDeadline = $targetProjectsSet->where('status', 'completed')
+            ->filter(fn($p) => !empty($p->deadline));
+
+        $onTimeCompletedProjectsCount = $completedProjectsWithDeadline->filter(function ($p) {
+            $completionDate = $p->updated_at ? $p->updated_at->toDateString() : $p->created_at->toDateString();
+            return $completionDate <= Carbon::parse($p->deadline)->toDateString();
+        })->count();
+
+        $completedTasksWithDeadline = $tasks->filter(function ($t) {
+            return ($t->is_completed || in_array($t->status, ['completed', 'done'], true)) && !empty($t->deadline);
+        });
+
+        $onTimeTasksCount = $completedTasksWithDeadline->filter(function ($t) {
+            $compDate = $t->updated_at ? $t->updated_at->toDateString() : $t->created_at->toDateString();
+            return $compDate <= Carbon::parse($t->deadline)->toDateString();
+        })->count();
+
+        // Composite On-Time Delivery Rate
+        $totalEvaluatedItems = $completedProjectsWithDeadline->count() + $completedTasksWithDeadline->count();
+        $totalOnTimeItems = $onTimeCompletedProjectsCount + $onTimeTasksCount;
+
+        $onTimeDeliveryRate = $totalEvaluatedItems > 0
+            ? round(($totalOnTimeItems / $totalEvaluatedItems) * 100, 1)
+            : 100.0;
+
+        // =========================================================================
+        // 4. CORE KPI 3: TASK COMPLETION RATE
+        // Formula: (Completed Tasks / Total Tasks) * 100%
+        // =========================================================================
+        $targetTasksSet = ($periodStart && $periodEnd && $tasks->count() > 0) ? $tasks : $allTasks;
+        $totalTasksCount = $targetTasksSet->count();
+        $completedTasksCount = $targetTasksSet->filter(fn($t) => $t->is_completed || in_array($t->status, ['completed', 'done'], true))->count();
+        $inReviewTasksCount = $targetTasksSet->where('status', 'in_review')->count();
+        $inProgressTasksCount = $targetTasksSet->where('status', 'in_progress')->count();
+        $pendingTasksCount = $targetTasksSet->where('status', 'pending')->count();
+        $overdueTasksCount = $targetTasksSet->filter(function ($t) use ($today) {
+            return !$t->is_completed
+                && !in_array($t->status, ['completed', 'done'], true)
+                && !empty($t->deadline)
+                && $t->deadline < $today;
+        })->count();
+
+        $taskCompletionRate = $totalTasksCount > 0
+            ? round(($completedTasksCount / $totalTasksCount) * 100, 1)
+            : 0.0;
+
+        // Revisions from task_reviews
+        $taskRevisionCount = TaskReview::where('action', 'revision_requested')->distinct('task_id')->count('task_id');
+
+        $completedTaskDurations = $targetTasksSet->filter(fn($t) => $t->is_completed || in_array($t->status, ['completed', 'done'], true))->map(function ($t) {
+            return $t->created_at->diffInDays($t->updated_at);
+        });
+        $avgTaskDurationDays = $completedTaskDurations->count() > 0 ? round($completedTaskDurations->avg(), 1) : null;
+
+        // =========================================================================
+        // 5. CORE KPI 4: MILESTONE COMPLETION RATE
+        // Formula: (Completed Milestones / Total Milestones) * 100%
+        // =========================================================================
+        $targetMilestonesSet = ($periodStart && $periodEnd && $milestones->count() > 0) ? $milestones : $allMilestones;
+        $totalMilestonesCount = $targetMilestonesSet->count();
+        $completedMilestonesCount = $targetMilestonesSet->where('status', 'completed')->count();
+        $overdueMilestonesCount = $targetMilestonesSet->filter(function ($m) use ($today) {
+            return $m->status !== 'completed' && !empty($m->due_date) && $m->due_date < $today;
+        })->count();
+
+        $milestoneCompletionRate = $totalMilestonesCount > 0
+            ? round(($completedMilestonesCount / $totalMilestonesCount) * 100, 1)
+            : 0.0;
+
+        // =========================================================================
+        // 6. CORE KPI 5: PROJECT TARGET ACHIEVEMENT
+        // Formula: Avg(min(100, (actual_progress / target_progress) * 100)) for target_progress > 0
+        // =========================================================================
+        $activeProjectsWithTarget = $targetProjectsSet->where('status', '!=', 'completed')
+            ->filter(fn($p) => !is_null($p->target_progress) && (int) $p->target_progress > 0);
+
+        $hasTargetProgressData = $activeProjectsWithTarget->count() > 0;
+        $targetAchievementRate = null;
+        if ($hasTargetProgressData) {
+            $achievements = $activeProjectsWithTarget->map(function ($p) {
+                return min(100.0, ((int) $p->progress / (int) $p->target_progress) * 100);
+            });
+            $targetAchievementRate = round($achievements->avg(), 1);
+        }
+
+        // =========================================================================
+        // 7. CORE KPI 6: TEAM WORKLOAD BALANCE & CAPACITY
+        // Evaluates balance of active workload among active members
+        // =========================================================================
+        $activeMembers = User::where('role', 'member')->where('is_active', true)->get();
+        $teamWorkloadDistribution = [];
+        $optimalCapacityCount = 0;
+        $overloadedCount = 0;
+        $underutilizedCount = 0;
+
+        foreach ($activeMembers as $mem) {
+            $memberTasks = $allTasks->where('assignee_id', $mem->id);
+            $mTotal = $memberTasks->count();
+            $mCompleted = $memberTasks->filter(fn($t) => $t->is_completed || in_array($t->status, ['completed', 'done'], true))->count();
+            $mActive = $memberTasks->filter(fn($t) => !$t->is_completed && !in_array($t->status, ['completed', 'done'], true))->count();
+            $mInReview = $memberTasks->where('status', 'in_review')->count();
+            $mOverdue = $memberTasks->filter(function ($t) use ($today) {
+                return !$t->is_completed
+                    && !in_array($t->status, ['completed', 'done'], true)
+                    && !empty($t->deadline)
+                    && $t->deadline < $today;
+            })->count();
+
+            // Capacity indicator: 1-4 active tasks = ideal, > 4 = overloaded, 0 = underutilized
+            $capacityStatus = 'ideal';
+            if ($mActive > 4) {
+                $capacityStatus = 'overloaded';
+                $overloadedCount++;
+            } elseif ($mActive === 0) {
+                $capacityStatus = 'underutilized';
+                $underutilizedCount++;
+            } else {
+                $optimalCapacityCount++;
+            }
+
+            $teamWorkloadDistribution[] = [
+                'member_id' => $mem->id,
+                'name' => $mem->name,
+                'email' => $mem->email,
+                'department' => $mem->department ?? 'Engineering',
+                'total_tasks' => $mTotal,
+                'completed_tasks' => $mCompleted,
+                'active_tasks' => $mActive,
+                'in_review_tasks' => $mInReview,
+                'overdue_tasks' => $mOverdue,
+                'capacity_status' => $capacityStatus,
+            ];
+        }
+
+        $totalActiveMembers = $activeMembers->count();
+        $teamWorkloadBalanceIndex = $totalActiveMembers > 0
+            ? round(($optimalCapacityCount / $totalActiveMembers) * 100, 1)
+            : 100.0;
+
+        // =========================================================================
+        // 8. PROJECT MANAGER OPERATIONAL EVALUATION (Single PM Model: Siti PM)
+        // =========================================================================
+        $operationalPm = User::where('role', 'project_manager')->orderBy('id', 'asc')->first();
+        $pmManagerialMetrics = null;
+
+        if ($operationalPm) {
+            $pmProjects = $allProjects->where('pic_id', $operationalPm->id);
+            $pmTotalProjs = $pmProjects->count();
+            $pmOnTrack = $pmProjects->where('status', 'on_track')->count();
+            $pmDelayed = $pmProjects->where('status', 'delayed')->count();
+            $pmAtRisk = $pmProjects->where('status', 'at_risk')->count();
+            $pmCompleted = $pmProjects->where('status', 'completed')->count();
+            $pmAvgProgress = $pmTotalProjs > 0 ? round($pmProjects->avg('progress'), 1) : 0.0;
+
+            $pmReports = ProjectReport::where('created_by', $operationalPm->id)->get();
+
+            $pmManagerialMetrics = [
+                'pm_id' => $operationalPm->id,
+                'pm_name' => $operationalPm->name,
+                'pm_email' => $operationalPm->email,
+                'total_projects_managed' => $pmTotalProjs,
+                'on_track_projects' => $pmOnTrack,
+                'delayed_projects' => $pmDelayed,
+                'at_risk_projects' => $pmAtRisk,
+                'completed_projects' => $pmCompleted,
+                'average_project_progress' => $pmAvgProgress,
+                'published_reports_count' => $pmReports->where('status', 'published')->count(),
+                'latest_report_published_at' => $pmReports->where('status', 'published')->max('published_at'),
+            ];
+        }
+
+        // =========================================================================
+        // 9. DELIVERY TREND (From authentic Project Reports snapshots)
+        // =========================================================================
+        $publishedReports = ProjectReport::where('status', 'published')
+            ->orderBy('period_end', 'asc')
+            ->get();
+
+        $trendPoints = [];
+        foreach ($publishedReports as $rep) {
+            $snap = is_array($rep->snapshot_data) ? $rep->snapshot_data : json_decode($rep->snapshot_data, true);
+            $periodKey = Carbon::parse($rep->period_start)->format('d M') . ' - ' . Carbon::parse($rep->period_end)->format('d M Y');
+
+            $trendPoints[] = [
+                'period_label' => $periodKey,
+                'report_number' => $rep->report_number,
+                'project_id' => $rep->project_id,
+                'published_at' => $rep->published_at ? Carbon::parse($rep->published_at)->format('d M Y') : null,
+                'actual_progress' => isset($snap['progress']) ? (int) $snap['progress'] : null,
+                'total_tasks' => isset($snap['tasks_summary']['total']) ? (int) $snap['tasks_summary']['total'] : null,
+                'completed_tasks' => isset($snap['tasks_summary']['completed']) ? (int) $snap['tasks_summary']['completed'] : null,
+                'overdue_tasks' => isset($snap['tasks_summary']['overdue']) ? (int) $snap['tasks_summary']['overdue'] : null,
+            ];
+        }
+
+        $hasSufficientTrendData = count($trendPoints) >= 2;
+
+        // =========================================================================
+        // 10. PERFORMANCE COMPARISON & DIRECTION
+        // Direction rule:
+        // - Improved: when positive metrics increase OR negative metrics decrease.
+        // - Declined: when positive metrics decrease OR negative metrics increase.
+        // =========================================================================
+        $comparison = [
+            'period_label' => $periodLabel,
+            'comparison_context' => $comparisonLabel,
+            'metrics' => [
+                'project_completion_rate' => [
+                    'label' => 'Project Completion Rate',
+                    'current' => $projectCompletionRate,
+                    'unit' => '%',
+                    'status' => $projectCompletionRate >= 50 ? 'excellent' : ($projectCompletionRate >= 25 ? 'good' : 'fair'),
+                    'direction' => 'neutral',
+                    'note' => 'Persentase total proyek yang telah tuntas diserahkan.',
+                ],
+                'on_time_delivery_rate' => [
+                    'label' => 'On-Time Delivery Rate',
+                    'current' => $onTimeDeliveryRate,
+                    'unit' => '%',
+                    'status' => $onTimeDeliveryRate >= 85 ? 'excellent' : ($onTimeDeliveryRate >= 70 ? 'good' : 'critical'),
+                    'direction' => 'neutral',
+                    'note' => 'Kepatuhan penyelesaian tugas dan proyek terhadap tenggat waktu deadline.',
+                ],
+                'task_completion_rate' => [
+                    'label' => 'Task Completion Rate',
+                    'current' => $taskCompletionRate,
+                    'unit' => '%',
+                    'status' => $taskCompletionRate >= 60 ? 'excellent' : ($taskCompletionRate >= 30 ? 'good' : 'fair'),
+                    'direction' => 'neutral',
+                    'note' => 'Rasio penyelesaian tugas aktif operasional tim.',
+                ],
+                'milestone_completion_rate' => [
+                    'label' => 'Milestone Completion Rate',
+                    'current' => $milestoneCompletionRate,
+                    'unit' => '%',
+                    'status' => $milestoneCompletionRate >= 50 ? 'excellent' : ($milestoneCompletionRate >= 25 ? 'good' : 'fair'),
+                    'direction' => 'neutral',
+                    'note' => 'Ketuntasan fase dan sprint milestone di seluruh portofolio.',
+                ],
+                'target_achievement_rate' => [
+                    'label' => 'Project Target Achievement',
+                    'current' => $targetAchievementRate,
+                    'unit' => $targetAchievementRate !== null ? '%' : 'N/A',
+                    'status' => $targetAchievementRate === null ? 'no_target' : ($targetAchievementRate >= 85 ? 'excellent' : ($targetAchievementRate >= 60 ? 'good' : 'critical')),
+                    'direction' => 'neutral',
+                    'note' => $hasTargetProgressData ? 'Tingkat pencapaian progres riil terhadap target baseline proyek.' : 'Belum ada target progress yang ditetapkan.',
+                ],
+                'team_workload_balance' => [
+                    'label' => 'Team Workload Balance',
+                    'current' => $teamWorkloadBalanceIndex,
+                    'unit' => '%',
+                    'status' => $teamWorkloadBalanceIndex >= 70 ? 'excellent' : ($teamWorkloadBalanceIndex >= 50 ? 'good' : 'fair'),
+                    'direction' => 'neutral',
+                    'note' => 'Proporsi anggota tim yang berada pada kapasitas beban kerja ideal (1-4 tugas aktif).',
+                ],
+            ]
+        ];
+
+        // =========================================================================
+        // 11. RULE-BASED PERFORMANCE INSIGHTS
+        // Separate facts from recommendations
+        // =========================================================================
+        $insights = [];
+
+        // Rule A: Overdue Tasks Alert
+        if ($overdueTasksCount > 0) {
+            $overduePct = $totalTasksCount > 0 ? round(($overdueTasksCount / $totalTasksCount) * 100, 1) : 0;
+            $insights[] = [
+                'type' => 'warning',
+                'category' => 'Ketepatan Waktu Pengerjaan',
+                'factual_data' => "Sebanyak {$overdueTasksCount} tugas ({$overduePct}% dari total tugas) tercatat melewati batas waktu deadline.",
+                'period' => $periodLabel,
+                'business_impact' => 'Dapat menghambat pencapaian fase milestone berikutnya dan menurunkan skor on-time delivery.',
+                'recommendation' => 'Project Manager perlu memprioritaskan penyelesaian tugas overdue dan melakukan asistensi hambatan teknis.',
+            ];
+        }
+
+        // Rule B: Team Workload Imbalance
+        if ($underutilizedCount > 0 && ($optimalCapacityCount > 0 || $overloadedCount > 0)) {
+            $insights[] = [
+                'type' => 'info',
+                'category' => 'Keseimbangan Beban Kerja',
+                'factual_data' => "Terdapat {$underutilizedCount} anggota tim aktif yang saat ini belum memiliki alokasi tugas (idle), sementara anggota lain mengelola hingga 4 tugas.",
+                'period' => $periodLabel,
+                'business_impact' => 'Kapasitas produksi tim belum dimanfaatkan secara optimal untuk mempercepat delivery proyek.',
+                'recommendation' => 'Distribusikan sebagian tugas baru atau backlog fase berikutnya kepada anggota tim yang memiliki kapasitas luang.',
+            ];
+        }
+
+        // Rule C: Tasks In Review
+        if ($inReviewTasksCount > 0) {
+            $insights[] = [
+                'type' => 'action_needed',
+                'category' => 'Antrean Review Teknis',
+                'factual_data' => "Terdapat {$inReviewTasksCount} tugas selesai yang saat ini menunggu review dan persetujuan dari Project Manager.",
+                'period' => $periodLabel,
+                'business_impact' => 'Penyelesaian formal tugas dan perhitungan progres milestone tertahan sampai review disetujui.',
+                'recommendation' => 'Instruksikan Project Manager untuk segera memeriksa dan memvalidasi pekerjaan anggota tim pada PM Workspace.',
+            ];
+        }
+
+        // Rule D: Target Baseline Presence
+        if (!$hasTargetProgressData) {
+            $insights[] = [
+                'type' => 'notice',
+                'category' => 'Target Baseline Proyek',
+                'factual_data' => 'Proyek-proyek aktif belum memiliki target progress tersimpan di sistem.',
+                'period' => $periodLabel,
+                'business_impact' => 'Analisis variansi target vs aktual belum dapat diukur secara kuantitatif.',
+                'recommendation' => 'Tetapkan target progress berkala pada masing-masing proyek aktif untuk mengaktifkan pemantauan deviasi.',
+            ];
+        }
+
+        // =========================================================================
+        // 12. RETURN COMPREHENSIVE BUSINESS PERFORMANCE RESPONSE
+        // =========================================================================
+        return response()->json([
+            'success' => true,
+            'meta' => [
+                'as_of_date' => Carbon::now()->translatedFormat('l, d F Y'),
+                'as_of_time' => Carbon::now()->format('H:i') . ' WIB',
+                'selected_period' => $period,
+                'period_label' => $periodLabel,
+                'refreshed_at' => Carbon::now()->toIso8601String(),
+            ],
+            'performance_overview' => $comparison['metrics'],
+            'project_delivery' => [
+                'total_projects' => $totalProjectsCount,
+                'completed_projects' => $completedProjectsCount,
+                'active_projects' => $activeProjectsCount,
+                'on_time_completed_count' => $onTimeCompletedProjectsCount,
+                'on_time_delivery_rate' => $onTimeDeliveryRate,
+                'project_completion_rate' => $projectCompletionRate,
+                'average_duration_days' => $avgCompletionDurationDays,
+            ],
+            'task_productivity' => [
+                'total_tasks' => $totalTasksCount,
+                'completed_tasks' => $completedTasksCount,
+                'in_progress_tasks' => $inProgressTasksCount,
+                'in_review_tasks' => $inReviewTasksCount,
+                'pending_tasks' => $pendingTasksCount,
+                'overdue_tasks' => $overdueTasksCount,
+                'tasks_with_revisions' => $taskRevisionCount,
+                'task_completion_rate' => $taskCompletionRate,
+                'average_duration_days' => $avgTaskDurationDays,
+            ],
+            'milestone_performance' => [
+                'total_milestones' => $totalMilestonesCount,
+                'completed_milestones' => $completedMilestonesCount,
+                'overdue_milestones' => $overdueMilestonesCount,
+                'milestone_completion_rate' => $milestoneCompletionRate,
+            ],
+            'team_workload' => [
+                'total_active_members' => $totalActiveMembers,
+                'optimal_capacity_count' => $optimalCapacityCount,
+                'overloaded_count' => $overloadedCount,
+                'underutilized_count' => $underutilizedCount,
+                'balance_index' => $teamWorkloadBalanceIndex,
+                'members_distribution' => $teamWorkloadDistribution,
+            ],
+            'pm_evaluation' => $pmManagerialMetrics,
+            'delivery_trend' => [
+                'has_sufficient_data' => $hasSufficientTrendData,
+                'total_periods' => count($trendPoints),
+                'note' => $hasSufficientTrendData
+                    ? 'Tren historis berdasarkan data snapshot laporan mingguan terverifikasi.'
+                    : 'Data tren historis saat ini bersumber dari ' . count($trendPoints) . ' laporan mingguan terbit. Grafik tren multi-periode akan berakumulasi seiring siklus mingguan proyek.',
+                'points' => $trendPoints,
+            ],
+            'performance_comparison' => $comparison,
+            'performance_insights' => $insights,
         ]);
     }
 }

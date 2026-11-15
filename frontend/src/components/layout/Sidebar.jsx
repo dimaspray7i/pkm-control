@@ -62,7 +62,7 @@ const ROLE_NAV_CONFIG = {
     {
       category: 'STRATEGI & ANALITIK',
       items: [
-        { path: '/performance', label: 'Business Performance & KPI', icon: Activity, badge: 'P-D' },
+        { path: '/performance', label: 'Business Performance & KPI', icon: Activity },
         { path: '/risk-center', label: 'Risk & Decision Center', icon: ShieldAlert, badge: 'P-E' },
         { path: '/reports', label: 'Executive Reports', icon: FileBarChart },
         { path: '/ai-analyst', label: 'AI Executive Advisor', icon: Sparkles, badge: 'AI' },

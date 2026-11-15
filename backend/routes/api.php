@@ -37,6 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/leadership/command-center', [LeadershipController::class, 'commandCenter']);
         Route::get('/leadership/portfolio', [LeadershipController::class, 'portfolio']);
         Route::get('/leadership/portfolio/{id}', [LeadershipController::class, 'portfolioDetail']);
+        Route::get('/leadership/performance', [LeadershipController::class, 'performance']);
     });
 
     // Project Manager Workspace (Scoped to PM's projects)
