@@ -36,6 +36,7 @@ import {
 } from 'recharts'
 import PageHeader from '../components/ui/PageHeader'
 import PmWorkspaceDashboard from './pm/PmWorkspaceDashboard'
+import ExecutiveCommandCenter from './leadership/ExecutiveCommandCenter'
 
 function AdminPimpinanDashboard() {
   const { user } = useAuth()
@@ -928,6 +929,9 @@ export default function Dashboard() {
   const { user } = useAuth()
   if (user?.role === 'project_manager') {
     return <PmWorkspaceDashboard />
+  }
+  if (user?.role === 'pimpinan') {
+    return <ExecutiveCommandCenter />
   }
   return <AdminPimpinanDashboard />
 }

@@ -34,8 +34,8 @@ return new class extends Migration
                 $table->id();
                 $table->foreignId('project_id')->constrained('projects')->onDelete('cascade');
                 $table->string('title');
-                $table->enum('priority', ['low', 'medium', 'high'])->default('medium');
-                $table->enum('status', ['pending', 'in_progress', 'completed'])->default('pending');
+                $table->string('priority', 20)->default('medium');
+                $table->string('status', 30)->default('pending');
                 $table->boolean('is_completed')->default(false);
                 $table->date('deadline')->nullable();
                 $table->string('assignee_name')->nullable();

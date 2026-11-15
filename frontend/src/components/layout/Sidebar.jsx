@@ -53,7 +53,7 @@ const ROLE_NAV_CONFIG = {
     {
       category: 'EKSEKUTIF',
       items: [
-        { path: '/', label: 'Executive Overview', icon: LayoutDashboard },
+        { path: '/', label: 'Executive Command Center', icon: LayoutDashboard },
       ]
     },
     {
