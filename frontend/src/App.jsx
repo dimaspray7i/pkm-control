@@ -16,6 +16,7 @@ import Settings from './pages/Settings'
 import StrategicProjectPortfolio from './pages/leadership/StrategicProjectPortfolio'
 import BusinessPerformance from './pages/leadership/BusinessPerformance'
 import RiskDecisionCenter from './pages/leadership/RiskDecisionCenter'
+import AIExecutiveAdvisor from './pages/leadership/AIExecutiveAdvisor'
 
 function DashboardRoute() {
   const { user } = useAuth()
@@ -63,6 +64,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={['admin', 'pimpinan']}>
               <RiskDecisionCenter />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="ai-advisor"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'pimpinan']}>
+              <AIExecutiveAdvisor />
             </ProtectedRoute>
           }
         />

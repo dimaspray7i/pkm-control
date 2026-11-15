@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AiAnalystController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\LeadershipAIController;
 use App\Http\Controllers\Api\LeadershipController;
 use App\Http\Controllers\Api\LeadershipRiskController;
 use App\Http\Controllers\Api\MilestoneController;
@@ -54,6 +55,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/leadership/decisions/{id}', [LeadershipRiskController::class, 'decisionsShow']);
         Route::put('/leadership/decisions/{id}', [LeadershipRiskController::class, 'decisionsUpdate']);
         Route::get('/leadership/escalations', [LeadershipRiskController::class, 'escalationsIndex']);
+
+        // Tahap P-F: AI Executive Advisor
+        Route::get('/leadership/ai/context', [LeadershipAIController::class, 'context']);
+        Route::get('/leadership/ai/insights', [LeadershipAIController::class, 'insights']);
+        Route::post('/leadership/ai/chat', [LeadershipAIController::class, 'chat']);
+        Route::post('/leadership/ai/analyze-project/{id}', [LeadershipAIController::class, 'analyzeProject']);
+        Route::get('/leadership/ai/conversations', [LeadershipAIController::class, 'conversationsIndex']);
+        Route::post('/leadership/ai/conversations', [LeadershipAIController::class, 'conversationsStore']);
+        Route::get('/leadership/ai/conversations/{id}', [LeadershipAIController::class, 'conversationsShow']);
+        Route::delete('/leadership/ai/conversations/{id}', [LeadershipAIController::class, 'conversationsDestroy']);
     });
 
     // Project Manager Workspace (Scoped to PM's projects)

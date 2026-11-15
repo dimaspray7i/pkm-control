@@ -46,7 +46,8 @@ const ROLE_NAV_CONFIG = {
       category: 'ANALITIK & SISTEM',
       items: [
         { path: '/reports', label: 'Reports', icon: FileBarChart },
-        { path: '/ai-analyst', label: 'AI Business Analyst', icon: Sparkles, badge: 'AI' },
+        { path: '/ai-advisor', label: 'AI Executive Advisor', icon: Sparkles, badge: 'AI' },
+        { path: '/ai-analyst', label: 'AI Business Analyst', icon: Sparkles },
         { path: '/settings', label: 'Settings', icon: Settings },
       ]
     }
@@ -65,7 +66,7 @@ const ROLE_NAV_CONFIG = {
         { path: '/performance', label: 'Business Performance & KPI', icon: Activity },
         { path: '/risk-center', label: 'Risk & Decision Center', icon: ShieldAlert },
         { path: '/reports', label: 'Executive Reports', icon: FileBarChart },
-        { path: '/ai-analyst', label: 'AI Executive Advisor', icon: Sparkles, badge: 'AI' },
+        { path: '/ai-advisor', label: 'AI Executive Advisor', icon: Sparkles, badge: 'AI' },
       ]
     },
     {
