@@ -161,6 +161,7 @@ class LeadershipReportController extends Controller
                 'risks' => $context['risks'] ?? [],
                 'blockers' => $context['blockers'] ?? [],
                 'decisions' => $context['decisions'] ?? [],
+                'financial' => $context['financial'] ?? [],
             ];
 
             $report = ExecutiveReport::create([

@@ -3,14 +3,23 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\FinancialAlert;
 use App\Models\FinancialBudget;
 use App\Models\FinancialTransaction;
+use App\Services\FinancialIntelligenceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class FinancialController extends Controller
 {
+    protected FinancialIntelligenceService $intelligenceService;
+
+    public function __construct(FinancialIntelligenceService $intelligenceService)
+    {
+        $this->intelligenceService = $intelligenceService;
+    }
+
     /**
      * Financial Dashboard — Ringkasan kondisi keuangan & anggaran.
      * Accessible by: admin, pimpinan
@@ -18,6 +27,11 @@ class FinancialController extends Controller
     public function dashboard(Request $request)
     {
         $period = $request->query('period', 'all');
+
+        // Automatically detect new anomalies
+        $this->intelligenceService->detectAndSyncAlerts();
+
+        $intelligence = $this->intelligenceService->getIntelligenceSummary($period);
 
         $txnQuery    = FinancialTransaction::query();
         $budgetQuery = FinancialBudget::query();
@@ -110,22 +124,33 @@ class FinancialController extends Controller
             ->sortKeys()
             ->values();
 
+        $recentAlerts = FinancialAlert::where('status', 'open')
+            ->orderByRaw("CASE WHEN severity = 'critical' THEN 1 WHEN severity = 'warning' THEN 2 ELSE 3 END")
+            ->orderBy('detected_date', 'desc')
+            ->limit(5)
+            ->get();
+
         return response()->json([
             'has_data'          => $hasData,
             'data_completeness' => $dataCompleteness,
             'period'            => $period,
+            'health'            => $intelligence['health'],
             'summary'           => [
-                'total_income'       => $totalIncome,
-                'total_expense'      => $totalExpense,
-                'net_result'         => $netResult,
-                'revenue_target'     => $totalRevTarget,
-                'expense_budget'     => $totalExpBudget,
-                'budget_utilization' => $budgetUtilization,
-                'budget_variance'    => $budgetVariance,
-                'variance_status'    => $varianceStatus,
-                'total_budgets'      => $totalBudgets,
-                'total_transactions' => FinancialTransaction::count(),
+                'total_income'        => $totalIncome,
+                'total_expense'       => $totalExpense,
+                'net_result'          => $netResult,
+                'revenue_target'      => $totalRevTarget,
+                'expense_budget'      => $totalExpBudget,
+                'budget_utilization'  => $budgetUtilization,
+                'budget_variance'     => $budgetVariance,
+                'revenue_achievement' => $intelligence['kpis']['revenue_achievement'],
+                'variance_status'     => $varianceStatus,
+                'total_budgets'       => $totalBudgets,
+                'total_transactions'  => FinancialTransaction::count(),
+                'active_alerts'       => $intelligence['kpis']['active_alerts'],
+                'critical_alerts'     => $intelligence['kpis']['critical_alerts'],
             ],
+            'alerts'         => $recentAlerts,
             'trend'          => $trend,
             'by_project'     => $byProject,
             'by_initiative'  => $byInitiative,
@@ -280,5 +305,105 @@ class FinancialController extends Controller
         $txn->delete();
         return response()->json(['message' => 'Transaksi berhasil dihapus.']);
     }
-}
 
+    /**
+     * Financial Alert Center — Daftar seluruh anomali dan peringatan.
+     * Accessible by: admin, pimpinan
+     */
+    public function alertIndex(Request $request)
+    {
+        // Detect latest anomalies on view
+        $this->intelligenceService->detectAndSyncAlerts();
+
+        $query = FinancialAlert::with(['budget:id,label', 'project:id,name,code', 'initiative:id,title,code', 'acknowledgedBy:id,name', 'resolvedBy:id,name'])
+            ->orderByRaw("CASE WHEN status = 'open' THEN 1 WHEN status = 'acknowledged' THEN 2 ELSE 3 END")
+            ->orderByRaw("CASE WHEN severity = 'critical' THEN 1 WHEN severity = 'warning' THEN 2 ELSE 3 END")
+            ->orderByDesc('detected_date');
+
+        if ($request->filled('severity') && $request->severity !== 'all') {
+            $query->where('severity', $request->severity);
+        }
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('source') && $request->source !== 'all') {
+            $query->where('source', $request->source);
+        }
+
+        $alerts = $query->paginate(15);
+
+        $summary = [
+            'total' => FinancialAlert::count(),
+            'open' => FinancialAlert::where('status', 'open')->count(),
+            'critical' => FinancialAlert::where('status', 'open')->where('severity', 'critical')->count(),
+            'warning' => FinancialAlert::where('status', 'open')->where('severity', 'warning')->count(),
+            'acknowledged' => FinancialAlert::where('status', 'acknowledged')->count(),
+            'resolved' => FinancialAlert::where('status', 'resolved')->count(),
+        ];
+
+        return response()->json([
+            'alerts' => $alerts,
+            'summary' => $summary,
+        ]);
+    }
+
+    /**
+     * Update alert status (open -> acknowledged / resolved).
+     * Accessible by: admin, pimpinan
+     */
+    public function alertUpdateStatus(Request $request, $id)
+    {
+        $alert = FinancialAlert::findOrFail($id);
+        $validated = $request->validate([
+            'status' => 'required|in:open,acknowledged,resolved',
+            'resolution_notes' => 'nullable|string|max:1000',
+        ]);
+
+        $userId = auth()->id();
+        $now = Carbon::now();
+
+        if ($validated['status'] === 'acknowledged') {
+            $alert->acknowledged_by = $userId;
+            $alert->acknowledged_at = $now;
+        } elseif ($validated['status'] === 'resolved') {
+            $alert->resolved_by = $userId;
+            $alert->resolved_at = $now;
+        }
+
+        if (isset($validated['resolution_notes'])) {
+            $alert->resolution_notes = $validated['resolution_notes'];
+        }
+        $alert->status = $validated['status'];
+        $alert->save();
+
+        return response()->json([
+            'message' => 'Status alert berhasil diperbarui.',
+            'alert' => $alert->fresh()->load(['budget:id,label', 'project:id,name', 'initiative:id,title', 'acknowledgedBy:id,name', 'resolvedBy:id,name']),
+        ]);
+    }
+
+    /**
+     * Escalate critical financial alert to StrategicRisk in Risk & Decision Center.
+     * Accessible by: admin, pimpinan
+     */
+    public function alertEscalate(Request $request, $id)
+    {
+        $risk = $this->intelligenceService->escalateAlertToRisk((int) $id, auth()->id());
+
+        return response()->json([
+            'message' => 'Peringatan finansial berhasil dieskalasikan ke Risk & Decision Center.',
+            'risk' => $risk,
+        ]);
+    }
+
+    /**
+     * Get financial reconciliation for a specific strategic initiative.
+     * Accessible by: admin, pimpinan
+     */
+    public function initiativeReconciliation($id)
+    {
+        $reconciliation = $this->intelligenceService->getInitiativeFinancialReconciliation((int) $id);
+
+        return response()->json($reconciliation);
+    }
+}

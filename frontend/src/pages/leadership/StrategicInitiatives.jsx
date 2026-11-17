@@ -657,18 +657,24 @@ export default function StrategicInitiatives() {
                         </div>
                       </div>
 
-                      {/* Budget Indicator */}
+                      {/* Budget Indicator (P-K Integration) */}
                       <div className="space-y-1 pt-1 border-t border-[#171717]/20 text-xs">
                         <div className="flex justify-between">
-                          <span className="text-[#171717]/60">Anggaran:</span>
+                          <span className="text-[#171717]/60">Pagu Anggaran:</span>
                           <span className="font-bold">{formatRupiah(init.allocated_budget)}</span>
                         </div>
                         <div className="flex justify-between text-[11px]">
-                          <span className="text-[#171717]/60">Realisasi:</span>
-                          <span className={budgetPct > 100 ? 'text-[#FF2F92] font-black' : 'text-[#3B82F6] font-bold'}>
-                            {formatRupiah(init.spent_budget)} ({budgetPct}%)
+                          <span className="text-[#171717]/60">Realisasi Tx Aktual:</span>
+                          <span className={init.is_tx_over_budget ? 'text-[#FF2F92] font-black' : 'text-[#10B981] font-bold'}>
+                            {formatRupiah(init.actual_tx_expense ?? 0)}
+                            {init.allocated_budget > 0 ? ` (${Math.round(((init.actual_tx_expense ?? 0) / init.allocated_budget) * 100)}%)` : ''}
                           </span>
                         </div>
+                        {init.is_tx_over_budget && (
+                          <div className="text-[10px] text-[#FF2F92] font-bold">
+                            ⚠️ Melebihi pagu alokasi
+                          </div>
+                        )}
                       </div>
 
                       {/* Resources & Projects Count */}

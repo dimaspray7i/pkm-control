@@ -40,6 +40,7 @@ import {
   TrendingDown,
   ArrowUpRight
 } from 'lucide-react'
+import PageLoading from '../../components/ui/PageLoading'
 
 // Severity Themes
 const SEVERITY_CONFIG = {
@@ -540,6 +541,10 @@ export default function RiskDecisionCenter() {
       due_date: '',
     })
     setShowCreateDecisionModal(true)
+  }
+
+  if (loading && !overview) {
+    return <PageLoading mode="page" text="Memuat Risk & Decision Center..." subtext="Mengagregasi matriks risiko strategis, blocker lapangan, dan keputusan eksekutif." />
   }
 
   return (

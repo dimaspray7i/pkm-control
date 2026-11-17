@@ -13,12 +13,19 @@ use App\Models\Task;
 use App\Models\TaskReview;
 use App\Models\TaskUpdate;
 use App\Models\User;
+use App\Services\FinancialIntelligenceService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class ExecutiveBusinessContextService
 {
+    protected FinancialIntelligenceService $financialIntelligence;
+
+    public function __construct(FinancialIntelligenceService $financialIntelligence)
+    {
+        $this->financialIntelligence = $financialIntelligence;
+    }
     /**
      * Build structured executive business context across all core modules.
      */
@@ -241,6 +248,7 @@ class ExecutiveBusinessContextService
                 'overdue_count' => $overdueDecisions->count(),
                 'recent_decisions' => $topDecisions,
             ],
+            'financial' => $this->financialIntelligence->getIntelligenceSummary('all'),
             'weekly_reports' => $latestReports,
         ];
     }
@@ -560,6 +568,8 @@ class ExecutiveBusinessContextService
             'critical_and_high_risks' => $context['risks']['top_active_risks'],
             'active_blockers' => $context['blockers']['active_blockers'],
             'overdue_decisions' => $context['decisions']['overdue_count'],
+            'financial_condition' => $context['financial']['health'] ?? [],
+            'financial_metrics' => $context['financial']['kpis'] ?? [],
         ];
 
         $contextJson = json_encode($compactContext, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
@@ -726,6 +736,35 @@ SYS;
                 . $bList
                 . "> **Rekomendasi Tindakan:** Berikan arahan tindak lanjut pada *Blocker Monitoring Board* untuk membuka akses atau disposisi bantuan teknis.";
             $sources[] = 'Task Updates & Blocker Resolutions';
+        }
+        // Pattern 6: Keuangan / Anggaran / Finansial (P-K Integration)
+        elseif (preg_match('/(keuangan|anggaran|finansial|budget|pendapatan|pengeluaran|arus kas|kas|laba|rugi|defisit|surplus|biaya)/i', $norm)) {
+            $fin = $context['financial'] ?? [];
+            $kpis = $fin['kpis'] ?? [];
+            $hlth = $fin['health'] ?? [];
+
+            $inc = number_format($kpis['total_income'] ?? 0, 0, ',', '.');
+            $exp = number_format($kpis['total_expense'] ?? 0, 0, ',', '.');
+            $net = number_format($kpis['net_result'] ?? 0, 0, ',', '.');
+            $tgt = number_format($kpis['revenue_target'] ?? 0, 0, ',', '.');
+            $pagu = number_format($kpis['expense_budget'] ?? 0, 0, ',', '.');
+            $util = $kpis['budget_utilization'] !== null ? $kpis['budget_utilization'] . '%' : 'Belum Ditentukan';
+            $ach = $kpis['revenue_achievement'] !== null ? $kpis['revenue_achievement'] . '%' : 'Belum Ditentukan';
+
+            $reply = "### Analisis Kondisi Keuangan & Anggaran Perusahaan\n\n"
+                . "**1. Status Kesehatan Keuangan:** `{$hlth['label']}`\n"
+                . "- " . ($hlth['description'] ?? 'Analisis penyerapan anggaran dan arus kas.') . "\n\n"
+                . "**2. Ringkasan Kinerja Keuangan Aktual:**\n"
+                . "- Total Pendapatan Aktual: **Rp {$inc}** (Target: Rp {$tgt} | Capaian: **{$ach}**)\n"
+                . "- Total Pengeluaran Aktual: **Rp {$exp}** (Pagu Anggaran: Rp {$pagu} | Utilisasi: **{$util}**)\n"
+                . "- Hasil Bersih Operasional (Net): **Rp {$net}** (" . (($kpis['net_result'] ?? 0) >= 0 ? 'Surplus' : 'Defisit Anggaran') . ")\n\n"
+                . "**3. Peringatan Finansial Aktif:**\n"
+                . "- Total Alert Terbuka: **{$kpis['active_alerts']} peringatan** ({$kpis['critical_alerts']} Kritis)\n\n"
+                . "> **Rekomendasi Tindak Lanjut:** Lakukan audit menyeluruh pada pos belanja operasional yang mendekati batas pagu dan pastikan seluruh transaksi tercatat teralokasi ke anggaran resmi.";
+
+            $sources[] = 'Financial Intelligence Center';
+            $sources[] = 'Financial Transactions & Budgets';
+            $sources[] = 'Financial Alert Center';
         }
         // Default General Consultation
         else {

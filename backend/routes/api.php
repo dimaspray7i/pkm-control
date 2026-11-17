@@ -107,7 +107,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/leadership/initiatives/{id}/projects', [LeadershipInitiativeController::class, 'linkProject']);
         Route::delete('/leadership/initiatives/{id}/projects/{projectId}', [LeadershipInitiativeController::class, 'unlinkProject']);
 
-        // Tahap P-J: Financial Performance & Budget Control
+        // Tahap P-J & P-K: Financial Performance, Intelligence & Alert Center
         Route::get('/financial/dashboard', [FinancialController::class, 'dashboard']);
         Route::get('/financial/budgets', [FinancialController::class, 'budgetIndex']);
         Route::post('/financial/budgets', [FinancialController::class, 'budgetStore']);
@@ -117,6 +117,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/financial/transactions', [FinancialController::class, 'transactionStore']);
         Route::put('/financial/transactions/{id}', [FinancialController::class, 'transactionUpdate']);
         Route::delete('/financial/transactions/{id}', [FinancialController::class, 'transactionDestroy']);
+        Route::get('/financial/alerts', [FinancialController::class, 'alertIndex']);
+        Route::put('/financial/alerts/{id}/status', [FinancialController::class, 'alertUpdateStatus']);
+        Route::post('/financial/alerts/{id}/escalate', [FinancialController::class, 'alertEscalate']);
+        Route::get('/financial/initiatives/{id}/reconciliation', [FinancialController::class, 'initiativeReconciliation']);
     });
 
     // Project Manager Workspace (Scoped to PM's projects)

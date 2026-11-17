@@ -68,10 +68,13 @@ export default function FinancialPerformance() {
     notes: ''
   })
 
-  // Budgets & Transactions pagination data
+  // Budgets, Transactions & Alerts pagination data
   const [budgets, setBudgets] = useState([])
   const [transactions, setTransactions] = useState([])
-  const [activeTab, setActiveTab] = useState('overview') // overview, budgets, transactions
+  const [alerts, setAlerts] = useState([])
+  const [alertsSummary, setAlertsSummary] = useState({})
+  const [alertFilter, setAlertFilter] = useState('all') // all, open, critical, warning
+  const [activeTab, setActiveTab] = useState('overview') // overview, alerts, budgets, transactions
 
   const fetchDashboard = async () => {
     try {
@@ -104,11 +107,44 @@ export default function FinancialPerformance() {
     }
   }
 
+  const fetchAlerts = async () => {
+    try {
+      const res = await api.get(`/financial/alerts?severity=${alertFilter}`)
+      setAlerts(res.data?.alerts?.data || [])
+      setAlertsSummary(res.data?.summary || {})
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   useEffect(() => {
     fetchDashboard()
     fetchBudgets()
     fetchTransactions()
-  }, [period])
+    fetchAlerts()
+  }, [period, alertFilter])
+
+  const handleUpdateAlertStatus = async (alertId, newStatus) => {
+    try {
+      await api.put(`/financial/alerts/${alertId}/status`, { status: newStatus })
+      fetchAlerts()
+      fetchDashboard()
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal memperbarui status alert.')
+    }
+  }
+
+  const handleEscalateAlert = async (alertId) => {
+    if (!confirm('Eskalasikan anomali finansial ini menjadi Risiko Strategis di Risk & Decision Center?')) return
+    try {
+      await api.post(`/financial/alerts/${alertId}/escalate`)
+      alert('Peringatan finansial berhasil dieskalasikan menjadi Risiko Strategis.')
+      fetchAlerts()
+      fetchDashboard()
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal mengekskalasikan alert.')
+    }
+  }
 
   const handleCreateBudget = async (e) => {
     e.preventDefault()
@@ -311,6 +347,21 @@ export default function FinancialPerformance() {
           Ikhtisar & Grafik
         </button>
         <button
+          onClick={() => setActiveTab('alerts')}
+          className={`px-4 py-2 font-bold text-xs uppercase tracking-wider border-2 border-b-0 border-[#171717] cursor-pointer transition-all flex items-center gap-1.5 ${
+            activeTab === 'alerts'
+              ? 'bg-[#FFD83D] shadow-[2px_-2px_0px_#171717]'
+              : 'bg-white hover:bg-[#F5F1E9]'
+          }`}
+        >
+          <span>Peringatan & Anomali</span>
+          {alertsSummary.open > 0 && (
+            <span className="px-1.5 py-0.2 bg-[#FF2F92] text-white rounded text-[10px] font-black">
+              {alertsSummary.open}
+            </span>
+          )}
+        </button>
+        <button
           onClick={() => setActiveTab('budgets')}
           className={`px-4 py-2 font-bold text-xs uppercase tracking-wider border-2 border-b-0 border-[#171717] cursor-pointer transition-all ${
             activeTab === 'budgets'
@@ -426,7 +477,113 @@ export default function FinancialPerformance() {
         </div>
       )}
 
-      {/* Tab 2: Budgets */}
+      {/* Tab 2: Financial Alerts & Anomalies (P-K Integration) */}
+      {activeTab === 'alerts' && (
+        <div className="space-y-4">
+          {/* Severity Filter Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-white border-2 border-[#171717] shadow-[3px_3px_0px_#171717]">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black uppercase text-[#171717]">Filter Tingkat Risiko:</span>
+              <div className="flex items-center gap-1.5">
+                {['all', 'critical', 'warning', 'info'].map((lvl) => (
+                  <button
+                    key={lvl}
+                    onClick={() => setAlertFilter(lvl)}
+                    className={`px-3 py-1 font-bold text-xs uppercase tracking-wider border border-[#171717] rounded cursor-pointer ${
+                      alertFilter === lvl ? 'bg-[#FFD83D] font-black' : 'bg-white hover:bg-[#F5F1E9]'
+                    }`}
+                  >
+                    {lvl === 'all' ? 'Semua' : lvl === 'critical' ? 'Kritis' : lvl === 'warning' ? 'Peringatan' : 'Informasi'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="text-xs font-semibold text-[#171717]/70">
+              Total {alerts.length} anomali keuangan terdeteksi
+            </div>
+          </div>
+
+          {/* Alert Cards List */}
+          <div className="space-y-3">
+            {alerts.length > 0 ? (
+              alerts.map((alt) => (
+                <div
+                  key={alt.id}
+                  className={`p-5 bg-white border-2 border-[#171717] shadow-[4px_4px_0px_#171717] rounded-lg space-y-3 ${
+                    alt.severity === 'critical' ? 'border-l-8 border-l-[#FF2F92]' : 'border-l-8 border-l-[#FFD83D]'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`px-2 py-0.5 text-[10px] font-black uppercase border border-[#171717] rounded ${
+                        alt.severity === 'critical' ? 'bg-[#FF2F92] text-white' : 'bg-[#FFD83D] text-[#171717]'
+                      }`}>
+                        {alt.severity === 'critical' ? 'KRITIS' : 'PERINGATAN'}
+                      </span>
+                      <span className="text-xs font-mono font-bold text-[#171717]/60">[{alt.alert_code}]</span>
+                      <h4 className="font-display text-base text-[#171717]">{alt.title}</h4>
+                    </div>
+                    <span className="text-[11px] font-semibold text-[#171717]/60">
+                      Terdeteksi: {alt.detected_date}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-[#171717]/80 leading-relaxed font-semibold">
+                    {alt.description}
+                  </p>
+
+                  {alt.recommendation && (
+                    <div className="p-3 bg-[#F5F1E9] border border-[#171717] rounded text-xs space-y-1">
+                      <span className="font-bold text-[#171717] uppercase text-[10px]">Rekomendasi Tindak Lanjut:</span>
+                      <p className="text-[#171717]/80 font-medium">{alt.recommendation}</p>
+                    </div>
+                  )}
+
+                  {/* Actions Bar */}
+                  <div className="flex flex-wrap items-center justify-between pt-2 border-t border-[#171717]/10 gap-2">
+                    <div className="text-[11px] text-[#171717]/60">
+                      Status: <span className="font-bold uppercase text-[#171717]">{alt.status}</span>
+                      {alt.acknowledged_by && ` • Ditinjau oleh: ${alt.acknowledged_by?.name || 'Pimpinan'}`}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {alt.status === 'open' && (
+                        <button
+                          onClick={() => handleUpdateAlertStatus(alt.id, 'acknowledged')}
+                          className="px-3 py-1 bg-white border border-[#171717] text-xs font-bold hover:bg-[#F5F1E9] cursor-pointer"
+                        >
+                          Tandai Ditinjau
+                        </button>
+                      )}
+                      {alt.status !== 'resolved' && (
+                        <button
+                          onClick={() => handleUpdateAlertStatus(alt.id, 'resolved')}
+                          className="px-3 py-1 bg-[#10B981] text-white border border-[#171717] text-xs font-bold hover:bg-[#059669] cursor-pointer"
+                        >
+                          Selesaikan
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleEscalateAlert(alt.id)}
+                        className="px-3 py-1 bg-[#B8A0F0] text-[#171717] border border-[#171717] text-xs font-black uppercase hover:bg-[#a688ed] cursor-pointer"
+                        title="Eskalasikan ke Risk & Decision Center"
+                      >
+                        Eskalasi ke Risiko
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="p-8 bg-white border-2 border-[#171717] text-center text-xs font-semibold text-[#171717]/60">
+                Tidak ada peringatan atau anomali keuangan aktif pada kategori filter ini.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab 3: Budgets */}
       {activeTab === 'budgets' && (
         <div className="bg-white border-2 border-[#171717] shadow-[4px_4px_0px_#171717] overflow-x-auto">
           <table className="w-full text-left text-xs">

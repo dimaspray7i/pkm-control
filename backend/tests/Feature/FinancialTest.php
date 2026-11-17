@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\FinancialAlert;
 use App\Models\FinancialBudget;
 use App\Models\FinancialTransaction;
+use App\Models\StrategicInitiative;
+use App\Models\StrategicRisk;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -211,6 +214,108 @@ class FinancialTest extends TestCase
             ->assertJsonPath('summary.total_expense', 30000000)
             ->assertJsonPath('summary.net_result', 70000000)
             ->assertJsonPath('has_data', true);
+    }
+
+    public function test_budget_overrun_generates_critical_alert(): void
+    {
+        $admin = $this->adminToken();
+        $budget = FinancialBudget::create([
+            'label' => 'Operasional 2026', 'fiscal_year' => 2026, 'fiscal_period' => 'annual',
+            'start_date' => '2026-01-01', 'end_date' => '2026-12-31',
+            'revenue_target' => 500000000, 'expense_budget' => 100000000,
+            'created_by' => $admin['user']->id,
+        ]);
+
+        FinancialTransaction::create([
+            'transaction_date' => '2026-02-01', 'type' => 'expense',
+            'category' => 'Operasional', 'description' => 'Biaya server & tools',
+            'amount' => 120000000, 'budget_id' => $budget->id,
+            'recorded_by' => $admin['user']->id,
+        ]);
+
+        $res = $this->withHeaders(['Authorization' => $admin['Authorization']])->getJson('/api/financial/alerts');
+        $res->assertStatus(200);
+
+        $this->assertDatabaseHas('financial_alerts', [
+            'severity' => 'critical',
+            'source' => 'budget_overrun',
+            'budget_id' => $budget->id,
+            'status' => 'open',
+        ]);
+    }
+
+    public function test_alert_escalation_creates_strategic_risk_without_duplication(): void
+    {
+        $admin = $this->adminToken();
+        $alert = FinancialAlert::create([
+            'alert_code' => 'ALT-TEST-001',
+            'title' => 'Uji Coba Anomali Finansial',
+            'description' => 'Deskripsi anomali pengeluaran',
+            'severity' => 'critical',
+            'source' => 'budget_overrun',
+            'detected_date' => '2026-06-01',
+            'status' => 'open',
+        ]);
+
+        // First escalation
+        $res = $this->withHeaders(['Authorization' => $admin['Authorization']])->postJson("/api/financial/alerts/{$alert->id}/escalate");
+        $res->assertStatus(200);
+
+        $this->assertDatabaseHas('strategic_risks', [
+            'source' => "financial_alert_{$alert->id}",
+            'category' => 'Financial',
+        ]);
+
+        // Check alert status is now acknowledged
+        $this->assertEquals('acknowledged', $alert->fresh()->status);
+
+        // Second escalation attempt should return existing risk (no duplicate created)
+        $res2 = $this->withHeaders(['Authorization' => $admin['Authorization']])->postJson("/api/financial/alerts/{$alert->id}/escalate");
+        $res2->assertStatus(200);
+        $this->assertEquals(1, StrategicRisk::where('source', "financial_alert_{$alert->id}")->count());
+    }
+
+    public function test_executive_command_center_contains_financial_health_and_summary(): void
+    {
+        $admin = $this->adminToken();
+        $res = $this->withHeaders(['Authorization' => $admin['Authorization']])->getJson('/api/leadership/command-center');
+        $res->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'company_health_index',
+                'financial_health' => ['status', 'label', 'color'],
+                'financial_summary' => ['total_income', 'total_expense', 'net_result', 'budget_utilization'],
+            ]);
+    }
+
+    public function test_strategic_initiative_reconciliation_endpoint(): void
+    {
+        $admin = $this->adminToken();
+        $init = StrategicInitiative::create([
+            'code' => 'SI-FIN-01',
+            'title' => 'Ekspansi Digital',
+            'category' => 'Technology',
+            'priority' => 'high',
+            'status' => 'active',
+            'progress' => 40,
+            'allocated_budget' => 50000000,
+            'spent_budget' => 10000000,
+            'created_by' => $admin['user']->id,
+        ]);
+
+        FinancialTransaction::create([
+            'transaction_date' => '2026-03-01', 'type' => 'expense',
+            'category' => 'Infrastruktur', 'description' => 'Server Cloud',
+            'amount' => 15000000, 'initiative_id' => $init->id,
+            'recorded_by' => $admin['user']->id,
+        ]);
+
+        $res = $this->withHeaders(['Authorization' => $admin['Authorization']])->getJson("/api/financial/initiatives/{$init->id}/reconciliation");
+        $res->assertStatus(200)
+            ->assertJsonPath('allocated_budget', 50000000)
+            ->assertJsonPath('actual_transaction_expense', 15000000)
+            ->assertJsonPath('remaining_budget', 35000000)
+            ->assertJsonPath('is_over_budget', false);
     }
 }
 

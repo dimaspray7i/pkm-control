@@ -24,7 +24,9 @@ import {
   UserCheck,
   Building2,
   FileBarChart,
-  Target
+  Target,
+  DollarSign,
+  PieChart as PieIcon
 } from 'lucide-react'
 import PageLoading from '../../components/ui/PageLoading'
 import {
@@ -144,6 +146,13 @@ export default function ExecutiveCommandCenter() {
   const reviewBacklog = data?.review_backlog || {}
   const feed = data?.executive_feed || []
   const trend = data?.historical_trend || {}
+  const finSummary = data?.financial_summary || {}
+  const finHealth = data?.financial_health || {}
+
+  const formatIDR = (val) => {
+    if (val === null || val === undefined) return 'Rp 0'
+    return 'Rp ' + Number(val).toLocaleString('id-ID')
+  }
 
   // CHI Dial Angle Calculation (0 - 100 maps to 0% - 100%)
   const chiScore = typeof chi.score === 'number' ? chi.score : 0
@@ -492,6 +501,88 @@ export default function ExecutiveCommandCenter() {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          C2. FINANCIAL INTELLIGENCE & BUDGET CONTROL (P-K Integration)
+      ========================================================================= */}
+      <div className="bg-white border-2 border-[#171717] rounded-xl p-5 sm:p-6 shadow-[3px_3px_0px_#171717]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#171717]/15 mb-4 gap-2">
+          <div className="flex items-center gap-2">
+            <DollarSign size={18} className="text-[#10B981]" />
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-display text-sm sm:text-base uppercase tracking-wide text-[#171717]">
+                  Ringkasan Kinerja Keuangan & Anggaran
+                </h2>
+                <span
+                  className="px-2 py-0.5 rounded text-[10px] font-black uppercase border border-[#171717]"
+                  style={{ backgroundColor: finHealth.color || '#EAE4D8', color: finHealth.status === 'critical' ? '#FFFFFF' : '#171717' }}
+                >
+                  {finHealth.label || 'Memuat...'}
+                </span>
+              </div>
+              <p className="text-[11px] font-semibold text-[#171717]/60">
+                {finHealth.description || 'Pemantauan realisasi pendapatan, beban belanja, dan deviasi anggaran operasional.'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/financial')}
+            className="text-xs font-bold text-[#171717] bg-[#FFD83D] px-3 py-1.5 border border-[#171717] rounded shadow-[2px_2px_0px_#171717] hover:bg-[#f5cd2f] flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+          >
+            <span>Buka Financial Center</span>
+            <ArrowRight size={13} />
+          </button>
+        </div>
+
+        {/* 4 Financial Metrics Strip */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="p-3.5 bg-[#F5F1E9] border border-[#171717] rounded-lg">
+            <span className="text-[10px] font-black uppercase text-[#171717]/70">Total Pendapatan Aktual</span>
+            <p className="font-display text-2xl text-[#10B981] mt-1 leading-none">
+              {formatIDR(finSummary.total_income)}
+            </p>
+            <p className="text-[10px] font-semibold text-[#171717]/60 mt-1">
+              Target: {formatIDR(finSummary.revenue_target)}
+            </p>
+          </div>
+
+          <div className="p-3.5 bg-[#F5F1E9] border border-[#171717] rounded-lg">
+            <span className="text-[10px] font-black uppercase text-[#171717]/70">Total Pengeluaran Aktual</span>
+            <p className="font-display text-2xl text-[#FF2F92] mt-1 leading-none">
+              {formatIDR(finSummary.total_expense)}
+            </p>
+            <p className="text-[10px] font-semibold text-[#171717]/60 mt-1">
+              Pagu: {formatIDR(finSummary.expense_budget)}
+            </p>
+          </div>
+
+          <div className="p-3.5 bg-[#F5F1E9] border border-[#171717] rounded-lg">
+            <span className="text-[10px] font-black uppercase text-[#171717]/70">Hasil Bersih Operasional</span>
+            <p className={`font-display text-2xl mt-1 leading-none ${(finSummary.net_result ?? 0) >= 0 ? 'text-[#171717]' : 'text-[#FF2F92]'}`}>
+              {formatIDR(finSummary.net_result)}
+            </p>
+            <p className="text-[10px] font-semibold text-[#171717]/60 mt-1">
+              {(finSummary.net_result ?? 0) >= 0 ? 'Surplus Operasional' : 'Defisit Anggaran'}
+            </p>
+          </div>
+
+          <div className="p-3.5 bg-[#FFD83D]/30 border border-[#171717] rounded-lg">
+            <span className="text-[10px] font-black uppercase text-[#171717]/70">Utilisasi Anggaran & Peringatan</span>
+            <div className="flex items-baseline justify-between mt-1">
+              <span className="font-display text-2xl text-[#171717] leading-none">
+                {finSummary.budget_utilization !== null && finSummary.budget_utilization !== undefined ? `${finSummary.budget_utilization}%` : '—'}
+              </span>
+              <span className="text-[10px] font-black px-1.5 py-0.5 bg-[#FF2F92] text-white rounded">
+                {finSummary.active_alerts ?? 0} Alert
+              </span>
+            </div>
+            <p className="text-[10px] font-bold text-[#171717]/70 uppercase mt-1">
+              Status: {finSummary.variance_status === 'under_budget' ? 'Di Bawah Anggaran' : finSummary.variance_status === 'on_budget' ? 'Tepat Anggaran' : finSummary.variance_status === 'over_budget' ? 'Melebihi Anggaran' : 'Belum Ditentukan'}
+            </p>
           </div>
         </div>
       </div>

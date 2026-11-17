@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\FinancialTransaction;
 use App\Models\Project;
 use App\Models\StrategicInitiative;
 use App\Models\StrategicObjective;
@@ -34,8 +35,18 @@ class LeadershipInitiativeController extends Controller
 
         $totalAllocatedBudget = (float) $allInitiatives->sum('allocated_budget');
         $totalSpentBudget = (float) $allInitiatives->sum('spent_budget');
+
+        // P-K Integration: Actual financial expenses recorded in financial_transactions
+        $totalActualTxExpense = (float) FinancialTransaction::whereNotNull('initiative_id')
+            ->where('type', 'expense')
+            ->sum('amount');
+
         $budgetUtilizationRate = $totalAllocatedBudget > 0
             ? round(($totalSpentBudget / $totalAllocatedBudget) * 100, 1)
+            : 0.0;
+
+        $actualTxUtilizationRate = $totalAllocatedBudget > 0
+            ? round(($totalActualTxExpense / $totalAllocatedBudget) * 100, 1)
             : 0.0;
 
         $averageProgress = $totalCount > 0
@@ -75,7 +86,9 @@ class LeadershipInitiativeController extends Controller
                 'average_progress' => $averageProgress,
                 'total_allocated_budget' => $totalAllocatedBudget,
                 'total_spent_budget' => $totalSpentBudget,
+                'total_actual_tx_expense' => $totalActualTxExpense,
                 'budget_utilization_rate' => $budgetUtilizationRate,
+                'actual_tx_utilization_rate' => $actualTxUtilizationRate,
                 'total_allocated_staff' => $totalAllocatedStaff,
                 'overloaded_staff_count' => $overloadedStaffCount,
                 'linked_projects_count' => $linkedProjectsCount,
@@ -124,6 +137,22 @@ class LeadershipInitiativeController extends Controller
         }
 
         $initiatives = $query->orderBy('created_at', 'desc')->get();
+
+        // P-K Integration: Attach actual transaction expense to each initiative
+        $initiativeIds = $initiatives->pluck('id')->filter();
+        $expensesByInit = FinancialTransaction::whereIn('initiative_id', $initiativeIds)
+            ->where('type', 'expense')
+            ->select('initiative_id', DB::raw('SUM(amount) as total'))
+            ->groupBy('initiative_id')
+            ->pluck('total', 'initiative_id');
+
+        $initiatives->transform(function ($init) use ($expensesByInit) {
+            $actualTx = (float) ($expensesByInit[$init->id] ?? 0);
+            $init->actual_tx_expense = $actualTx;
+            $init->remaining_allocated_budget = max(0, (float) $init->allocated_budget - $actualTx);
+            $init->is_tx_over_budget = (float) $init->allocated_budget > 0 && $actualTx > (float) $init->allocated_budget;
+            return $init;
+        });
 
         return response()->json([
             'success' => true,

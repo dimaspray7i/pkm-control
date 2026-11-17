@@ -11,11 +11,19 @@ use App\Models\Task;
 use App\Models\TaskReview;
 use App\Models\TaskUpdate;
 use App\Models\User;
+use App\Services\FinancialIntelligenceService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class LeadershipController extends Controller
 {
+    protected FinancialIntelligenceService $financialIntelligence;
+
+    public function __construct(FinancialIntelligenceService $financialIntelligence)
+    {
+        $this->financialIntelligence = $financialIntelligence;
+    }
+
     /**
      * Executive Command Center Dashboard Data
      * Accessible by: pimpinan, admin
@@ -494,7 +502,12 @@ class LeadershipController extends Controller
         ];
 
         // =========================================================================
-        // 9. RETURN UNIFIED EXECUTIVE COMMAND CENTER RESPONSE
+        // 9. FINANCIAL INTELLIGENCE SUMMARY & HEALTH (P-K Integration)
+        // =========================================================================
+        $financialSummary = $this->financialIntelligence->getIntelligenceSummary('all');
+
+        // =========================================================================
+        // 10. RETURN UNIFIED EXECUTIVE COMMAND CENTER RESPONSE
         // =========================================================================
         return response()->json([
             'success' => true,
@@ -509,6 +522,8 @@ class LeadershipController extends Controller
                 'refreshed_at' => Carbon::now()->toIso8601String(),
             ],
             'company_health_index' => $chiData,
+            'financial_health' => $financialSummary['health'],
+            'financial_summary' => $financialSummary['kpis'],
             'portfolio_snapshot' => $portfolioSnapshot,
             'progress_analysis' => $progressAnalysis,
             'attention_radar' => $radarProjects,
@@ -1625,6 +1640,7 @@ class LeadershipController extends Controller
                     : 'Data tren historis saat ini bersumber dari ' . count($trendPoints) . ' laporan mingguan terbit. Grafik tren multi-periode akan berakumulasi seiring siklus mingguan proyek.',
                 'points' => $trendPoints,
             ],
+            'financial_performance' => $this->financialIntelligence->getIntelligenceSummary('all'),
             'performance_comparison' => $comparison,
             'performance_insights' => $insights,
         ]);

@@ -6,7 +6,7 @@ import {
   Plus, Trash2, MessageSquare, Brain, AlertTriangle,
   ShieldAlert, CheckCircle2, Copy,
   X, Activity, Building2, Target, Zap,
-  Info, ChevronUp
+  Info, ChevronUp, DollarSign, TrendingUp
 } from 'lucide-react'
 
 function MarkdownContent({ text }) {
@@ -72,9 +72,11 @@ const PERIODS = [
 
 const SUGGESTED_PROMPTS = [
   { label: 'Kondisi Bisnis', prompt: 'Bagaimana kondisi kesehatan bisnis PKM hari ini?', icon: Building2 },
+  { label: 'Kondisi Finansial', prompt: 'Bagaimana kondisi keuangan dan realisasi anggaran perusahaan saat ini?', icon: DollarSign },
   { label: 'Proyek Bermasalah', prompt: 'Proyek mana yang terlambat dan membutuhkan intervensi segera?', icon: AlertTriangle },
   { label: 'Risiko Utama', prompt: 'Apa risiko terbesar yang mengancam perusahaan saat ini?', icon: ShieldAlert },
   { label: 'Beban Kerja Tim', prompt: 'Bagaimana kondisi beban kerja dan kapasitas anggota tim?', icon: Activity },
+  { label: 'Deviasi Anggaran', prompt: 'Apakah terdapat penyimpangan atau kelebihan pagu anggaran pada pos belanja?', icon: TrendingUp },
   { label: 'Blocker Aktif', prompt: 'Kendala operasional apa saja yang sedang menghambat tim?', icon: Zap },
   { label: 'Rekomendasi Prioritas', prompt: 'Apa 3 tindakan paling kritis yang harus diambil minggu ini?', icon: Target },
 ]

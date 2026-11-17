@@ -157,8 +157,14 @@ export default function BusinessPerformance() {
     team_workload = {},
     pm_evaluation = {},
     delivery_trend = [],
-    performance_insights = []
+    performance_insights = [],
+    financial_performance = {}
   } = data || {}
+
+  const formatIDR = (val) => {
+    if (val === null || val === undefined) return 'Rp 0'
+    return 'Rp ' + Number(val).toLocaleString('id-ID')
+  }
 
   return (
     <div className="space-y-6 md:space-y-8 pb-12">
@@ -238,6 +244,91 @@ export default function BusinessPerformance() {
           </div>
         </div>
       </div>
+
+      {/* =========================================================================
+          1B. FINANCIAL PERFORMANCE & BUDGET CONTROL KPI (P-K Integration)
+         ========================================================================= */}
+      {financial_performance?.kpis && (
+        <div className="bg-white border-2 border-[#171717] shadow-[6px_6px_0px_#171717] p-5 md:p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b-2 border-[#171717]/10 gap-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-[#10B981]" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-mono font-black text-sm md:text-base tracking-wider uppercase text-[#171717]">
+                    Kinerja Keuangan & Pengendalian Anggaran (Financial Control)
+                  </h2>
+                  <span
+                    className="px-2 py-0.5 text-[10px] font-mono font-black uppercase border border-[#171717] rounded"
+                    style={{
+                      backgroundColor: financial_performance.health?.color || '#FFD83D',
+                      color: financial_performance.health?.status === 'critical' ? '#FFFFFF' : '#171717'
+                    }}
+                  >
+                    {financial_performance.health?.label}
+                  </span>
+                </div>
+                <p className="text-[11px] font-mono text-[#171717]/60">
+                  {financial_performance.health?.description}
+                </p>
+              </div>
+            </div>
+            <a
+              href="/financial"
+              className="text-xs font-mono font-bold text-[#171717] bg-[#FFD83D] px-3 py-1.5 border-2 border-[#171717] shadow-[2px_2px_0px_#171717] hover:bg-[#f5cd2f] inline-flex items-center gap-1.5 self-start sm:self-auto"
+            >
+              <span>Detail Keuangan</span>
+              <ArrowRight className="w-3 h-3" />
+            </a>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
+            {/* Target vs Actual Revenue */}
+            <div className="p-4 bg-[#F5F1E9] border-2 border-[#171717] shadow-[3px_3px_0px_#171717] space-y-1">
+              <span className="text-[10px] font-black uppercase text-[#171717]/60">Realisasi Pendapatan</span>
+              <div className="text-xl font-black text-[#10B981]">
+                {formatIDR(financial_performance.kpis.total_income)}
+              </div>
+              <div className="text-[11px] text-[#171717]/70">
+                Target: {formatIDR(financial_performance.kpis.revenue_target)} ({financial_performance.kpis.revenue_achievement ?? 0}%)
+              </div>
+            </div>
+
+            {/* Budget vs Actual Expense */}
+            <div className="p-4 bg-[#F5F1E9] border-2 border-[#171717] shadow-[3px_3px_0px_#171717] space-y-1">
+              <span className="text-[10px] font-black uppercase text-[#171717]/60">Realisasi Beban / Belanja</span>
+              <div className="text-xl font-black text-[#FF2F92]">
+                {formatIDR(financial_performance.kpis.total_expense)}
+              </div>
+              <div className="text-[11px] text-[#171717]/70">
+                Pagu: {formatIDR(financial_performance.kpis.expense_budget)} ({financial_performance.kpis.budget_utilization ?? 0}%)
+              </div>
+            </div>
+
+            {/* Net Operational Result */}
+            <div className="p-4 bg-[#F5F1E9] border-2 border-[#171717] shadow-[3px_3px_0px_#171717] space-y-1">
+              <span className="text-[10px] font-black uppercase text-[#171717]/60">Hasil Bersih (Net Result)</span>
+              <div className={`text-xl font-black ${financial_performance.kpis.net_result >= 0 ? 'text-[#171717]' : 'text-[#FF2F92]'}`}>
+                {formatIDR(financial_performance.kpis.net_result)}
+              </div>
+              <div className="text-[11px] text-[#171717]/70">
+                {financial_performance.kpis.net_result >= 0 ? 'Surplus Operasional' : 'Defisit Anggaran'}
+              </div>
+            </div>
+
+            {/* Variance & Alerts */}
+            <div className="p-4 bg-[#FFD83D]/25 border-2 border-[#171717] shadow-[3px_3px_0px_#171717] space-y-1">
+              <span className="text-[10px] font-black uppercase text-[#171717]/60">Deviasi & Peringatan</span>
+              <div className="text-xl font-black text-[#171717]">
+                {financial_performance.kpis.active_alerts ?? 0} Alert Aktif
+              </div>
+              <div className="text-[11px] text-[#FF2F92] font-bold">
+                {financial_performance.kpis.critical_alerts ?? 0} Kritis Membutuhkan Tindakan
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =========================================================================
           2. CORE KPI SCORECARDS (6 Strategic Metrics)
