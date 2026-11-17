@@ -15,6 +15,7 @@ import Team from './pages/Team'
 import Settings from './pages/Settings'
 import StrategicProjectPortfolio from './pages/leadership/StrategicProjectPortfolio'
 import BusinessPerformance from './pages/leadership/BusinessPerformance'
+import FinancialPerformance from './pages/leadership/FinancialPerformance'
 import RiskDecisionCenter from './pages/leadership/RiskDecisionCenter'
 import AIExecutiveAdvisor from './pages/leadership/AIExecutiveAdvisor'
 import ExecutiveReports from './pages/leadership/ExecutiveReports'
@@ -60,6 +61,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={['admin', 'pimpinan']}>
               <BusinessPerformance />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="financial"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'pimpinan']}>
+              <FinancialPerformance />
             </ProtectedRoute>
           }
         />

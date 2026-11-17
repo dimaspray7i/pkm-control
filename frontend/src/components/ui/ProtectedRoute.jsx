@@ -1,21 +1,13 @@
 import { Navigate, Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { Loader2, ShieldAlert, ArrowLeft } from 'lucide-react'
+import { ShieldAlert, ArrowLeft } from 'lucide-react'
+import PageLoading from './PageLoading'
 
 export default function ProtectedRoute({ children, allowedRoles = null }) {
   const { user, loading } = useAuth()
 
   if (loading) {
-    return (
-      <div 
-        className="min-h-screen flex items-center justify-center bg-[#F5F1E9]"
-      >
-        <div className="text-center">
-          <Loader2 size={48} className="animate-spin mx-auto mb-4 text-[#FF2F92]" />
-          <p className="font-bold uppercase tracking-widest text-[#171717]">Memuat Sesi...</p>
-        </div>
-      </div>
-    )
+    return <PageLoading mode="full" text="Memuat Sesi..." />
   }
 
   if (!user) {

@@ -37,6 +37,7 @@ import {
   Award,
   HelpCircle as QuestionIcon
 } from 'lucide-react'
+import PageLoading from '../../components/ui/PageLoading'
 
 const KPI_STATUS_THEME = {
   excellent: { label: 'Sangat Baik', bg: 'bg-[#10B981]', text: 'text-white', border: 'border-[#171717]', badge: 'bg-[#10B981]/20 text-[#047857] border-[#10B981]' },
@@ -121,18 +122,7 @@ export default function BusinessPerformance() {
   }, [period])
 
   if (loading) {
-    return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4">
-        <div className="relative">
-          <Loader2 className="w-12 h-12 text-[#FF2F92] animate-spin" />
-          <Activity className="w-6 h-6 text-[#171717] absolute inset-0 m-auto" />
-        </div>
-        <div className="text-center">
-          <h3 className="font-mono font-bold text-lg text-[#171717]">MEMUAT KINERJA BISNIS & KPI...</h3>
-          <p className="text-xs text-[#171717]/60 font-mono mt-1">Mengagregasi metrik efisiensi proyek, penyelesaian tugas, dan kapasitas tim.</p>
-        </div>
-      </div>
-    )
+    return <PageLoading mode="page" text="Memuat Kinerja Bisnis & KPI..." subtext="Mengagregasi metrik efisiensi proyek, penyelesaian tugas, dan kapasitas tim." />
   }
 
   if (error) {
@@ -140,11 +130,11 @@ export default function BusinessPerformance() {
       <div className="p-4 md:p-6 max-w-4xl mx-auto">
         <div className="bg-[#FF2F92]/10 border-2 border-[#171717] shadow-[6px_6px_0px_#171717] p-6 text-center space-y-4">
           <AlertCircle className="w-12 h-12 text-[#FF2F92] mx-auto" />
-          <h2 className="font-mono font-black text-xl text-[#171717]">GAGAL MEMUAT DATA KPI</h2>
-          <p className="font-mono text-sm text-[#171717]/80 max-w-xl mx-auto">{error}</p>
+          <h2 className="font-body font-black text-xl text-[#171717]">GAGAL MEMUAT DATA KPI</h2>
+          <p className="font-body text-sm text-[#171717]/80 max-w-xl mx-auto">{error}</p>
           <button
             onClick={() => fetchPerformanceData(true)}
-            className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#FFD83D] border-2 border-[#171717] font-mono font-bold text-sm shadow-[3px_3px_0px_#171717] hover:translate-x-[1px] hover:translate-y-[1px] transition-all"
+            className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#FFD83D] border-2 border-[#171717] font-body font-bold text-sm shadow-[3px_3px_0px_#171717] hover:translate-x-[1px] hover:translate-y-[1px] transition-all"
           >
             <RotateCcw className="w-4 h-4" />
             Coba Lagi
@@ -155,12 +145,7 @@ export default function BusinessPerformance() {
   }
 
   if (!data) {
-    return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4">
-        <Loader2 className="w-12 h-12 text-[#FF2F92] animate-spin" />
-        <p className="font-mono text-sm text-[#171717]">Menyiapkan data kinerja bisnis & KPI...</p>
-      </div>
-    )
+    return <PageLoading mode="page" text="Menyiapkan data kinerja bisnis..." />
   }
 
   const {

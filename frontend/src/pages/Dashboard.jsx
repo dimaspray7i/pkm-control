@@ -22,6 +22,7 @@ import {
   RotateCcw,
   ExternalLink
 } from 'lucide-react'
+import PageLoading from '../components/ui/PageLoading'
 import {
   ResponsiveContainer,
   PieChart,
@@ -179,14 +180,7 @@ function AdminPimpinanDashboard() {
   }, [aiHistory])
 
   if (loading && !data) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-        <Loader2 size={32} className="animate-spin text-[#FF2F92]" />
-        <p className="font-display text-lg uppercase tracking-wider text-[#171717]">
-          MEMUAT DATA DASHBOARD DARI DATABASE...
-        </p>
-      </div>
-    )
+    return <PageLoading mode="page" text="Memuat Data Dashboard..." />
   }
 
   if (error && !data) {

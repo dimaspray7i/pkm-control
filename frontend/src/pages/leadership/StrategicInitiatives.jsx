@@ -31,6 +31,7 @@ import {
   Building2,
   Sparkles
 } from 'lucide-react'
+import PageLoading from '../../components/ui/PageLoading'
 
 const PRIORITY_BADGES = {
   critical: { label: 'Kritis', bg: 'bg-[#FF2F92]', text: 'text-white', border: 'border-[#171717]' },
@@ -354,18 +355,7 @@ export default function StrategicInitiatives() {
   }, [initiatives, searchQuery])
 
   if (loading) {
-    return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4">
-        <div className="relative">
-          <Loader2 className="w-12 h-12 text-[#FF2F92] animate-spin" />
-          <Compass className="w-6 h-6 text-[#171717] absolute inset-0 m-auto" />
-        </div>
-        <div className="text-center font-mono">
-          <h3 className="font-bold text-lg text-[#171717]">MEMUAT STRATEGIC INITIATIVES...</h3>
-          <p className="text-xs text-[#171717]/60 mt-1">Mengagregasi alokasi sumber daya, kapasitas tim, dan anggaran inisiatif.</p>
-        </div>
-      </div>
-    )
+    return <PageLoading mode="page" text="Memuat Inisiatif Strategis..." subtext="Mengagregasi alokasi sumber daya, kapasitas tim, dan anggaran inisiatif." />
   }
 
   return (

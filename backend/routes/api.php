@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AiAnalystController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\FinancialController;
 use App\Http\Controllers\Api\LeadershipAIController;
 use App\Http\Controllers\Api\LeadershipController;
 use App\Http\Controllers\Api\LeadershipInitiativeController;
@@ -105,6 +106,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/leadership/initiatives/{id}/resources/{userId}', [LeadershipInitiativeController::class, 'removeResource']);
         Route::post('/leadership/initiatives/{id}/projects', [LeadershipInitiativeController::class, 'linkProject']);
         Route::delete('/leadership/initiatives/{id}/projects/{projectId}', [LeadershipInitiativeController::class, 'unlinkProject']);
+
+        // Tahap P-J: Financial Performance & Budget Control
+        Route::get('/financial/dashboard', [FinancialController::class, 'dashboard']);
+        Route::get('/financial/budgets', [FinancialController::class, 'budgetIndex']);
+        Route::post('/financial/budgets', [FinancialController::class, 'budgetStore']);
+        Route::put('/financial/budgets/{id}', [FinancialController::class, 'budgetUpdate']);
+        Route::delete('/financial/budgets/{id}', [FinancialController::class, 'budgetDestroy']);
+        Route::get('/financial/transactions', [FinancialController::class, 'transactionIndex']);
+        Route::post('/financial/transactions', [FinancialController::class, 'transactionStore']);
+        Route::put('/financial/transactions/{id}', [FinancialController::class, 'transactionUpdate']);
+        Route::delete('/financial/transactions/{id}', [FinancialController::class, 'transactionDestroy']);
     });
 
     // Project Manager Workspace (Scoped to PM's projects)

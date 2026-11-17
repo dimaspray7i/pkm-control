@@ -26,6 +26,7 @@ import {
   FileBarChart,
   Target
 } from 'lucide-react'
+import PageLoading from '../../components/ui/PageLoading'
 import {
   ResponsiveContainer,
   BarChart,
@@ -115,20 +116,7 @@ export default function ExecutiveCommandCenter() {
   }
 
   if (loading && !data) {
-    return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-[#FFD83D] border-2 border-[#171717] shadow-[4px_4px_0px_#171717] flex items-center justify-center mb-4 animate-bounce">
-          <ShieldCheck size={32} className="text-[#171717]" />
-        </div>
-        <h2 className="font-display text-xl sm:text-2xl text-[#171717] uppercase tracking-wide">
-          Memuat Pusat Kendali Eksekutif...
-        </h2>
-        <p className="text-xs sm:text-sm font-semibold text-[#171717]/60 max-w-md mt-1">
-          Menghitung Company Health Index, status portofolio proyek, dan atensi strategis dari basis data riil.
-        </p>
-        <Loader2 size={24} className="animate-spin text-[#FF2F92] mt-4" />
-      </div>
-    )
+    return <PageLoading mode="page" text="Memuat Pusat Kendali Eksekutif..." subtext="Menghitung Company Health Index, status portofolio proyek, dan atensi strategis." />
   }
 
   if (error && !data) {
