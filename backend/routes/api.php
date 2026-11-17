@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\LeadershipAIController;
 use App\Http\Controllers\Api\LeadershipController;
+use App\Http\Controllers\Api\LeadershipInitiativeController;
 use App\Http\Controllers\Api\LeadershipOkrController;
 use App\Http\Controllers\Api\LeadershipReportController;
 use App\Http\Controllers\Api\LeadershipRiskController;
@@ -91,6 +92,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/leadership/okr/key-results/{id}', [LeadershipOkrController::class, 'updateKeyResult']);
         Route::delete('/leadership/okr/key-results/{id}', [LeadershipOkrController::class, 'destroyKeyResult']);
         Route::post('/leadership/okr/key-results/{id}/checkin', [LeadershipOkrController::class, 'checkinKeyResult']);
+
+        // Tahap P-I: Strategic Initiatives & Resource Allocation
+        Route::get('/leadership/initiatives/overview', [LeadershipInitiativeController::class, 'overview']);
+        Route::get('/leadership/initiatives', [LeadershipInitiativeController::class, 'index']);
+        Route::post('/leadership/initiatives', [LeadershipInitiativeController::class, 'store']);
+        Route::get('/leadership/initiatives/resource-capacity', [LeadershipInitiativeController::class, 'resourceCapacity']);
+        Route::get('/leadership/initiatives/{id}', [LeadershipInitiativeController::class, 'show']);
+        Route::put('/leadership/initiatives/{id}', [LeadershipInitiativeController::class, 'update']);
+        Route::delete('/leadership/initiatives/{id}', [LeadershipInitiativeController::class, 'destroy']);
+        Route::post('/leadership/initiatives/{id}/resources', [LeadershipInitiativeController::class, 'allocateResource']);
+        Route::delete('/leadership/initiatives/{id}/resources/{userId}', [LeadershipInitiativeController::class, 'removeResource']);
+        Route::post('/leadership/initiatives/{id}/projects', [LeadershipInitiativeController::class, 'linkProject']);
+        Route::delete('/leadership/initiatives/{id}/projects/{projectId}', [LeadershipInitiativeController::class, 'unlinkProject']);
     });
 
     // Project Manager Workspace (Scoped to PM's projects)

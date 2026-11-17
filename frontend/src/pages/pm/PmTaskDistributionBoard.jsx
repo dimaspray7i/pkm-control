@@ -38,19 +38,19 @@ import {
 import PageHeader from '../../components/ui/PageHeader'
 
 const PRIORITY_CONFIG = {
-  urgent: { label: 'Urgent', bg: 'bg-[#FF2F92] text-white border-[#171717]' },
-  high:   { label: 'High',   bg: 'bg-[#FF5722] text-white border-[#171717]' },
-  medium: { label: 'Medium', bg: 'bg-[#FFD83D] text-[#171717] border-[#171717]' },
-  low:    { label: 'Low',    bg: 'bg-[#B8A0F0] text-[#171717] border-[#171717]' },
+  urgent: { label: 'Mendesak', bg: 'bg-[#FF2F92] text-white border-[#171717]' },
+  high:   { label: 'Tinggi',   bg: 'bg-[#FF5722] text-white border-[#171717]' },
+  medium: { label: 'Sedang',   bg: 'bg-[#FFD83D] text-[#171717] border-[#171717]' },
+  low:    { label: 'Rendah',   bg: 'bg-[#B8A0F0] text-[#171717] border-[#171717]' },
 }
 
 const STATUS_CONFIG = {
-  todo:        { label: 'To-do',       bg: 'bg-[#FAF7F2] text-[#171717] border-[#171717]' },
-  pending:     { label: 'To-do',       bg: 'bg-[#FAF7F2] text-[#171717] border-[#171717]' },
-  in_progress: { label: 'In Progress', bg: 'bg-[#FFD83D] text-[#171717] border-[#171717]' },
-  in_review:   { label: 'In Review',   bg: 'bg-[#B8A0F0] text-[#171717] border-[#171717]' },
-  completed:   { label: 'Done',        bg: 'bg-[#10B981] text-white border-[#171717]' },
-  done:        { label: 'Done',        bg: 'bg-[#10B981] text-white border-[#171717]' },
+  todo:        { label: 'Daftar Tugas',       bg: 'bg-[#FAF7F2] text-[#171717] border-[#171717]' },
+  pending:     { label: 'Daftar Tugas',       bg: 'bg-[#FAF7F2] text-[#171717] border-[#171717]' },
+  in_progress: { label: 'Sedang Berjalan',    bg: 'bg-[#FFD83D] text-[#171717] border-[#171717]' },
+  in_review:   { label: 'Menunggu Peninjauan',bg: 'bg-[#B8A0F0] text-[#171717] border-[#171717]' },
+  completed:   { label: 'Selesai',            bg: 'bg-[#10B981] text-white border-[#171717]' },
+  done:        { label: 'Selesai',            bg: 'bg-[#10B981] text-white border-[#171717]' },
 }
 
 export default function PmTaskDistributionBoard() {
@@ -758,13 +758,13 @@ export default function PmTaskDistributionBoard() {
       )}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
         {[
-          { id: 'all',        label: 'Total Tasks',  value: summary.total,       bg: 'bg-white',       accent: 'text-[#171717]' },
-          { id: 'todo',       label: 'To-do',        value: summary.todo,        bg: 'bg-[#FAF7F2]',   accent: 'text-[#171717]' },
-          { id: 'in_progress',label: 'In Progress',  value: summary.in_progress, bg: 'bg-[#FFD83D]/30',accent: 'text-[#171717]' },
-          { id: 'in_review',  label: 'In Review',    value: summary.in_review,   bg: pendingReviewCount > 0 ? 'bg-[#B8A0F0]' : 'bg-[#B8A0F0]/30', accent: 'text-[#171717]' },
-          { id: 'done',       label: 'Done',         value: summary.done,        bg: 'bg-[#ECFDF5]',   accent: 'text-[#065F46]' },
-          { id: 'overdue',    label: 'Overdue',      value: summary.overdue,     bg: summary.overdue > 0 ? 'bg-[#FF2F92]' : 'bg-white', accent: summary.overdue > 0 ? 'text-white' : 'text-[#FF2F92]' },
-          { id: 'unassigned', label: 'Unassigned',   value: summary.unassigned,  bg: summary.unassigned > 0 ? 'bg-[#FFD83D]' : 'bg-white', accent: 'text-[#171717]' },
+          { id: 'all',        label: 'Total Tugas',      value: summary.total,       bg: 'bg-white',       accent: 'text-[#171717]' },
+          { id: 'todo',       label: 'Daftar Tugas',     value: summary.todo,        bg: 'bg-[#FAF7F2]',   accent: 'text-[#171717]' },
+          { id: 'in_progress',label: 'Sedang Berjalan',  value: summary.in_progress, bg: 'bg-[#FFD83D]/30',accent: 'text-[#171717]' },
+          { id: 'in_review',  label: 'Menunggu Review',  value: summary.in_review,   bg: pendingReviewCount > 0 ? 'bg-[#B8A0F0]' : 'bg-[#B8A0F0]/30', accent: 'text-[#171717]' },
+          { id: 'done',       label: 'Selesai',          value: summary.done,        bg: 'bg-[#ECFDF5]',   accent: 'text-[#065F46]' },
+          { id: 'overdue',    label: 'Terlambat',        value: summary.overdue,     bg: summary.overdue > 0 ? 'bg-[#FF2F92]' : 'bg-white', accent: summary.overdue > 0 ? 'text-white' : 'text-[#FF2F92]' },
+          { id: 'unassigned', label: 'Belum Ditugaskan', value: summary.unassigned,  bg: summary.unassigned > 0 ? 'bg-[#FFD83D]' : 'bg-white', accent: 'text-[#171717]' },
         ].map((item) => (
           <button
             key={item.id}

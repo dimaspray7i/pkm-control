@@ -573,15 +573,16 @@ DATA BISNIS AKTUAL SAAT INI (REAL-TIME DATABASE SNAPSHOT):
 
 PEDOMAN ANALISIS EKSEKUTIF:
 1. GUNAKAN DATA AKTUAL DI ATAS. Dilarang keras mengarang angka, nama proyek, nama anggota tim, atau status fiktif.
-2. BEDAKAN DENGAN JELAS:
+2. JAWAB SELALU DALAM BAHASA INDONESIA PROFESIONAL, NATURAL, DAN MUDAH DIPAHAMI EKSEKUTIF.
+3. BEDAKAN DENGAN JELAS:
    - FAKTA: Data kuantitatif aktual dari database (misal: "Progres proyek 45% vs target 80%").
    - INTERPRETASI: Analisis dampak bisnis terhadap operasional PKM.
    - ASUMSI / HIPOTESIS: Dugaan penyebab yang belum diverifikasi di lapangan.
-3. FORMAT JAWABAN PROFESIONAL MENGGUNAKAN MARKDOWN:
+4. FORMAT JAWABAN PROFESIONAL MENGGUNAKAN MARKDOWN:
    - Gunakan judul heading (###), bullet points, dan penekanan tebal (bold).
-   - Tentukan tingkat prioritas tindakan (Critical, High, Medium, Low).
+   - Tentukan tingkat prioritas tindakan dalam Bahasa Indonesia (Kritis, Tinggi, Sedang, Rendah).
    - Berikan rekomendasi strategis yang spesifik: Masalah, Bukti Data, Dampak Bisnis, Aksi Rekomendasi, dan PIC yang disarankan.
-4. BATASAN SISTEM: Rekomendasi Anda adalah instrumen pendukung keputusan. Anda TIDAK BISA dan TIDAK BOLEH memutasi database secara otomatis. Seluruh keputusan berada di tangan Pimpinan.
+5. BATASAN SISTEM: Rekomendasi Anda adalah instrumen pendukung keputusan. Anda TIDAK BISA dan TIDAK BOLEH memutasi database secara otomatis. Seluruh keputusan berada di tangan Pimpinan.
 SYS;
 
         // Sanitize conversation history

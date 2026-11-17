@@ -40,7 +40,12 @@ export default function ProtectedRoute({ children, allowedRoles = null }) {
             Anda tidak memiliki izin untuk mengakses halaman ini.
           </p>
           <div className="text-xs mt-3 font-mono bg-white p-2 border-2 border-[#171717]">
-            Role Aktif: <strong className="uppercase">{user.role}</strong>
+            Peran Aktif: <strong className="uppercase">{{
+              admin: 'Administrator Sistem',
+              pimpinan: 'Pimpinan Perusahaan',
+              project_manager: 'Manajer Proyek',
+              member: 'Anggota Tim'
+            }[user.role] || user.role}</strong>
           </div>
           <div className="mt-6">
             <Link
@@ -48,7 +53,7 @@ export default function ProtectedRoute({ children, allowedRoles = null }) {
               className="inline-flex items-center gap-2 px-4 py-2 bg-white text-[#171717] font-black text-xs uppercase tracking-wider border-2 border-[#171717] shadow-[3px_3px_0px_#171717] hover:bg-[#F5F1E9] active:translate-x-0.5 active:translate-y-0.5"
             >
               <ArrowLeft size={16} />
-              {user?.role === 'member' ? 'Kembali ke Daftar Tugas' : 'Kembali ke Dashboard'}
+              {user?.role === 'member' ? 'Kembali ke Daftar Tugas' : 'Kembali ke Pusat Kontrol'}
             </Link>
           </div>
         </div>

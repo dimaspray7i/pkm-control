@@ -39,10 +39,10 @@ import {
 import PageHeader from '../../components/ui/PageHeader'
 
 const STATUS_THEME = {
-  on_track:  { label: 'On Track',  bg: 'bg-[#10B981]', text: 'text-white', border: 'border-[#171717]', dot: '#10B981' },
-  at_risk:   { label: 'At Risk',   bg: 'bg-[#FFD83D]', text: 'text-[#171717]', border: 'border-[#171717]', dot: '#FBBF24' },
-  delayed:   { label: 'Delayed',   bg: 'bg-[#FF2F92]', text: 'text-white', border: 'border-[#171717]', dot: '#FF2F92' },
-  completed: { label: 'Completed', bg: 'bg-[#B8A0F0]', text: 'text-[#171717]', border: 'border-[#171717]', dot: '#B8A0F0' },
+  on_track:  { label: 'Tepat Waktu', bg: 'bg-[#10B981]', text: 'text-white', border: 'border-[#171717]', dot: '#10B981' },
+  at_risk:   { label: 'Berisiko',    bg: 'bg-[#FFD83D]', text: 'text-[#171717]', border: 'border-[#171717]', dot: '#FBBF24' },
+  delayed:   { label: 'Terlambat',   bg: 'bg-[#FF2F92]', text: 'text-white', border: 'border-[#171717]', dot: '#FF2F92' },
+  completed: { label: 'Selesai',     bg: 'bg-[#B8A0F0]', text: 'text-[#171717]', border: 'border-[#171717]', dot: '#B8A0F0' },
 }
 
 export default function ExecutiveCommandCenter() {
@@ -121,7 +121,7 @@ export default function ExecutiveCommandCenter() {
           <ShieldCheck size={32} className="text-[#171717]" />
         </div>
         <h2 className="font-display text-xl sm:text-2xl text-[#171717] uppercase tracking-wide">
-          Memuat Executive Command Center...
+          Memuat Pusat Kendali Eksekutif...
         </h2>
         <p className="text-xs sm:text-sm font-semibold text-[#171717]/60 max-w-md mt-1">
           Menghitung Company Health Index, status portofolio proyek, dan atensi strategis dari basis data riil.
@@ -397,7 +397,7 @@ export default function ExecutiveCommandCenter() {
                 className="bg-[#10B981]/15 p-3.5 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] hover:bg-[#10B981]/25 cursor-pointer transition-all group"
               >
                 <div className="flex items-center justify-between text-[#10B981] font-bold">
-                  <span className="text-[10px] font-black uppercase tracking-wider">On Track</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider">Tepat Waktu</span>
                   <ExternalLink size={12} />
                 </div>
                 <p className="font-display text-3xl text-[#171717] mt-1.5 leading-none">

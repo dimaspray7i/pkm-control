@@ -16,98 +16,103 @@ import {
   Settings,
   ChevronsLeft,
   ChevronsRight,
-  X
+  X,
+  Compass
 } from 'lucide-react'
 
-// Konfigurasi Navigasi Terpisah Berdasarkan Role (Tahap PM-C)
+// Konfigurasi Navigasi Terpisah Berdasarkan Role (Tahap P-I: Full Indonesian Localization)
 const ROLE_NAV_CONFIG = {
   admin: [
     {
-      category: 'UTAMA',
+      category: 'DASHBOARD UTAMA',
       items: [
-        { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+        { path: '/', label: 'Pusat Kontrol Utama', icon: LayoutDashboard },
       ]
     },
     {
       category: 'MANAJEMEN OPERASIONAL',
       items: [
-        { path: '/projects', label: 'Projects', icon: FolderKanban },
-        { path: '/tasks', label: 'Tasks', icon: CheckSquare },
-        { path: '/development', label: 'Sprint Tracker', icon: Terminal },
+        { path: '/projects', label: 'Daftar Proyek', icon: FolderKanban },
+        { path: '/tasks', label: 'Manajemen Tugas', icon: CheckSquare },
+        { path: '/development', label: 'Pelacak Sprint & Milestone', icon: Terminal },
       ]
     },
     {
       category: 'TIM & PENGGUNA',
       items: [
-        { path: '/team', label: 'Team Management', icon: Users },
-        { path: '/users', label: 'User Management', icon: ShieldCheck },
+        { path: '/team', label: 'Manajemen Tim', icon: Users },
+        { path: '/users', label: 'Manajemen Pengguna', icon: ShieldCheck },
       ]
     },
     {
-      category: 'ANALITIK & SISTEM',
+      category: 'EKSEKUTIF & ANALITIK',
       items: [
-        { path: '/strategic-objectives', label: 'Strategic Objectives (OKR)', icon: Target },
-        { path: '/executive-reports', label: 'Executive Reports', icon: FileBarChart },
-        { path: '/reports', label: 'Reports', icon: FileBarChart },
-        { path: '/ai-advisor', label: 'AI Executive Advisor', icon: Sparkles, badge: 'AI' },
-        { path: '/ai-analyst', label: 'AI Business Analyst', icon: Sparkles },
-        { path: '/settings', label: 'Settings', icon: Settings },
+        { path: '/portfolio', label: 'Portofolio Strategis', icon: FolderKanban },
+        { path: '/performance', label: 'Kinerja Bisnis & KPI', icon: Activity },
+        { path: '/strategic-objectives', label: 'Sasaran Strategis (OKR)', icon: Target },
+        { path: '/strategic-initiatives', label: 'Inisiatif & Alokasi Sumber Daya', icon: Compass },
+        { path: '/executive-reports', label: 'Laporan Eksekutif', icon: FileBarChart },
+        { path: '/reports', label: 'Laporan Operasional', icon: FileBarChart },
+        { path: '/ai-advisor', label: 'Penasihat Eksekutif AI', icon: Sparkles, badge: 'AI' },
+        { path: '/ai-analyst', label: 'Analis Bisnis AI', icon: Sparkles },
+        { path: '/settings', label: 'Pengaturan Sistem', icon: Settings },
       ]
     }
   ],
   pimpinan: [
     {
-      category: 'EKSEKUTIF',
+      category: 'PUSAT KENDALI EKSEKUTIF',
       items: [
-        { path: '/', label: 'Executive Command Center', icon: LayoutDashboard },
-        { path: '/portfolio', label: 'Strategic Portfolio', icon: FolderKanban },
-        { path: '/strategic-objectives', label: 'Strategic Objectives (OKR)', icon: Target },
+        { path: '/', label: 'Pusat Kendali Eksekutif', icon: LayoutDashboard },
+        { path: '/portfolio', label: 'Portofolio Strategis', icon: FolderKanban },
+        { path: '/strategic-objectives', label: 'Sasaran Strategis (OKR)', icon: Target },
+        { path: '/strategic-initiatives', label: 'Inisiatif & Alokasi Sumber Daya', icon: Compass },
       ]
     },
     {
-      category: 'STRATEGI & ANALITIK',
+      category: 'STRATEGI & ANALITIK BISNIS',
       items: [
-        { path: '/performance', label: 'Business Performance & KPI', icon: Activity },
-        { path: '/risk-center', label: 'Risk & Decision Center', icon: ShieldAlert },
-        { path: '/executive-reports', label: 'Executive Reports', icon: FileBarChart },
-        { path: '/reports', label: 'Operational Reports', icon: FileBarChart },
-        { path: '/ai-advisor', label: 'AI Executive Advisor', icon: Sparkles, badge: 'AI' },
+        { path: '/performance', label: 'Kinerja Bisnis & KPI', icon: Activity },
+        { path: '/risk-center', label: 'Pusat Risiko & Keputusan', icon: ShieldAlert },
+        { path: '/executive-reports', label: 'Laporan Eksekutif', icon: FileBarChart },
+        { path: '/reports', label: 'Laporan Operasional', icon: FileBarChart },
+        { path: '/ai-advisor', label: 'Penasihat Eksekutif AI', icon: Sparkles, badge: 'AI' },
       ]
     },
     {
       category: 'PENGATURAN',
       items: [
-        { path: '/settings', label: 'Settings', icon: Settings },
+        { path: '/settings', label: 'Pengaturan Sistem', icon: Settings },
       ]
     }
   ],
   project_manager: [
     {
-      category: 'WORKSPACE',
+      category: 'RUANG KERJA PM',
       items: [
-        { path: '/', label: 'PM Workspace', icon: LayoutDashboard },
+        { path: '/', label: 'Ruang Kerja Saya', icon: LayoutDashboard },
       ]
     },
     {
       category: 'EKSEKUSI PROYEK',
       items: [
-        { path: '/projects', label: 'My Projects', icon: FolderKanban },
-        { path: '/tasks', label: 'Task Distribution', icon: CheckSquare },
-        { path: '/development', label: 'Sprint & Milestones', icon: Terminal },
+        { path: '/projects', label: 'Proyek Saya', icon: FolderKanban },
+        { path: '/tasks', label: 'Distribusi Tugas', icon: CheckSquare },
+        { path: '/development', label: 'Sprint & Milestone', icon: Terminal },
       ]
     },
     {
       category: 'TIM & EVALUASI',
       items: [
-        { path: '/team', label: 'Team Workload', icon: Users },
-        { path: '/reports', label: 'Project Reports', icon: FileBarChart },
-        { path: '/ai-analyst', label: 'AI Project Assistant', icon: Sparkles, badge: 'AI' },
+        { path: '/team', label: 'Beban Kerja Tim', icon: Users },
+        { path: '/reports', label: 'Laporan Proyek', icon: FileBarChart },
+        { path: '/ai-analyst', label: 'Asisten Proyek AI', icon: Sparkles, badge: 'AI' },
       ]
     },
     {
       category: 'PENGATURAN',
       items: [
-        { path: '/settings', label: 'Settings', icon: Settings },
+        { path: '/settings', label: 'Pengaturan Sistem', icon: Settings },
       ]
     }
   ],
@@ -115,23 +120,23 @@ const ROLE_NAV_CONFIG = {
     {
       category: 'PEKERJAAN SAYA',
       items: [
-        { path: '/tasks', label: 'My Tasks', icon: CheckSquare },
+        { path: '/tasks', label: 'Tugas Saya', icon: CheckSquare },
       ]
     },
     {
       category: 'PENGATURAN',
       items: [
-        { path: '/settings', label: 'Settings', icon: Settings },
+        { path: '/settings', label: 'Pengaturan Akun', icon: Settings },
       ]
     }
   ]
 }
 
 const ROLE_DISPLAY_NAMES = {
-  admin: 'Super Admin',
-  pimpinan: 'Pimpinan',
-  project_manager: 'Project Manager',
-  member: 'Team Member'
+  admin: 'Administrator Sistem',
+  pimpinan: 'Pimpinan Perusahaan',
+  project_manager: 'Manajer Proyek',
+  member: 'Anggota Tim'
 }
 
 export default function Sidebar({ mobileOpen = false, setMobileOpen }) {

@@ -64,7 +64,7 @@ function parseInline(text) {
 }
 
 const PERIODS = [
-  { value: 'all_time', label: 'All Time' },
+  { value: 'all_time', label: 'Semua Waktu' },
   { value: 'this_month', label: 'Bulan Ini' },
   { value: 'this_week', label: 'Minggu Ini' },
   { value: 'today', label: 'Hari Ini' },

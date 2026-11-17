@@ -401,13 +401,13 @@ function AdminPimpinanDashboard() {
 
               <div className="flex flex-wrap items-center gap-2.5 sm:gap-3.5 text-[10px] sm:text-[10.5px] font-bold">
                 <span className="flex items-center gap-1 text-[#171717]">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#10B981]"></span> On Track {onTrackPct}% ({onTrackVal})
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#10B981]"></span> Tepat Waktu {onTrackPct}% ({onTrackVal})
                 </span>
                 <span className="flex items-center gap-1 text-[#171717]">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#FBBF24]"></span> At Risk {atRiskPct}% ({atRiskVal})
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#FBBF24]"></span> Berisiko {atRiskPct}% ({atRiskVal})
                 </span>
                 <span className="flex items-center gap-1 text-[#171717]">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#FF2F92]"></span> Delayed {delayedPct}% ({delayedVal})
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#FF2F92]"></span> Terlambat {delayedPct}% ({delayedVal})
                 </span>
               </div>
 
@@ -522,9 +522,9 @@ function AdminPimpinanDashboard() {
                         'bg-[#FF2F92] text-white'
 
                       const statusLabel =
-                        proj.status === 'on_track' ? 'On Track' :
-                        proj.status === 'at_risk' ? 'At Risk' :
-                        proj.status === 'completed' ? 'Selesai' : 'Delayed'
+                        proj.status === 'on_track' ? 'Tepat Waktu' :
+                        proj.status === 'at_risk' ? 'Berisiko' :
+                        proj.status === 'completed' ? 'Selesai' : 'Terlambat'
 
                       const IconComp =
                         proj.category === 'mobile' ? Smartphone :
@@ -713,7 +713,7 @@ function AdminPimpinanDashboard() {
                   AI
                 </span>
                 <h3 className="font-display text-sm uppercase tracking-tight text-[#171717]">
-                  AI BUSINESS ANALYST
+                  ANALIS BISNIS AI
                 </h3>
               </div>
               <div className="flex items-center gap-1.5">
@@ -721,7 +721,7 @@ function AdminPimpinanDashboard() {
                   <button
                     onClick={() => navigate('/ai-analyst')}
                     className="text-[10px] font-black text-[#FF2F92] hover:underline flex items-center gap-1 cursor-pointer mr-1"
-                    title="Buka halaman penuh AI Analyst"
+                    title="Buka halaman penuh Analis Bisnis AI"
                   >
                     <span>Penuh</span>
                     <ExternalLink size={11} />
@@ -910,7 +910,7 @@ function AdminPimpinanDashboard() {
                       </div>
 
                       <span className={`text-[8.5px] font-black uppercase px-2 py-0.5 border border-[#171717] rounded-sm shrink-0 ${badgeColor}`}>
-                        {proj.risk_level === 'high' ? 'High' : proj.risk_level === 'medium' ? 'Medium' : 'Low'}
+                        {proj.risk_level === 'high' ? 'Tinggi' : proj.risk_level === 'medium' ? 'Sedang' : 'Rendah'}
                       </span>
                     </div>
                   )

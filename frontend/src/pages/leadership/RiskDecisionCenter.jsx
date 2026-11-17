@@ -79,7 +79,7 @@ const SEVERITY_CONFIG = {
 
 // Decision Status Theme
 const DECISION_STATUS_THEME = {
-  draft:       { label: 'Draft',       badge: 'bg-[#EAE4D8] text-[#171717] border-[#171717]' },
+  draft:       { label: 'Draf',        badge: 'bg-[#EAE4D8] text-[#171717] border-[#171717]' },
   approved:    { label: 'Disetujui',   badge: 'bg-[#B8A0F0] text-[#171717] border-[#171717]' },
   in_progress: { label: 'Dikerjakan',  badge: 'bg-[#3B82F6] text-white border-[#171717]' },
   completed:   { label: 'Selesai',     badge: 'bg-[#10B981] text-white border-[#171717]' },

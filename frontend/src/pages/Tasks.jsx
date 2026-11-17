@@ -8,9 +8,9 @@ import PmTaskDistributionBoard from './pm/PmTaskDistributionBoard'
 import MemberTodoList from './member/MemberTodoList'
 
 const PRIORITY_CONFIG = {
-  high:   { label: 'High',   bg: 'bg-[#FF2F92] text-white border-[#171717]' },
-  medium: { label: 'Medium', bg: 'bg-[#FFD83D] text-[#171717] border-[#171717]' },
-  low:    { label: 'Low',    bg: 'bg-[#B8A0F0] text-[#171717] border-[#171717]' },
+  high:   { label: 'Tinggi', bg: 'bg-[#FF2F92] text-white border-[#171717]' },
+  medium: { label: 'Sedang', bg: 'bg-[#FFD83D] text-[#171717] border-[#171717]' },
+  low:    { label: 'Rendah', bg: 'bg-[#B8A0F0] text-[#171717] border-[#171717]' },
 }
 
 function AdminMemberTasksList() {
@@ -387,10 +387,10 @@ function AdminMemberTasksList() {
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {[
             { id: 'all',       label: 'Semua',     count: counts.all },
-            { id: 'high',      label: 'High',      count: counts.high },
-            { id: 'medium',    label: 'Medium',    count: counts.medium },
-            { id: 'low',       label: 'Low',       count: counts.low },
-            { id: 'overdue',   label: 'Overdue',   count: counts.overdue },
+            { id: 'high',      label: 'Tinggi',    count: counts.high },
+            { id: 'medium',    label: 'Sedang',    count: counts.medium },
+            { id: 'low',       label: 'Rendah',    count: counts.low },
+            { id: 'overdue',   label: 'Terlambat', count: counts.overdue },
             { id: 'completed', label: 'Selesai',   count: counts.completed },
           ].map((item) => (
             <button

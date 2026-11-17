@@ -19,6 +19,8 @@ import RiskDecisionCenter from './pages/leadership/RiskDecisionCenter'
 import AIExecutiveAdvisor from './pages/leadership/AIExecutiveAdvisor'
 import ExecutiveReports from './pages/leadership/ExecutiveReports'
 import StrategicObjectives from './pages/leadership/StrategicObjectives'
+import StrategicInitiatives from './pages/leadership/StrategicInitiatives'
+import NotFound from './pages/NotFound'
 
 function DashboardRoute() {
   const { user } = useAuth()
@@ -94,6 +96,14 @@ function AppRoutes() {
           }
         />
         <Route
+          path="strategic-initiatives"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'pimpinan']}>
+              <StrategicInitiatives />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="projects"
           element={
             <ProtectedRoute allowedRoles={['admin', 'pimpinan', 'project_manager']}>
@@ -153,8 +163,8 @@ function AppRoutes() {
         <Route path="settings" element={<Settings />} />
       </Route>
 
-      {/* Catch all */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* Catch all 404 */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   )
 }

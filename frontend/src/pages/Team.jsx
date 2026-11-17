@@ -579,7 +579,7 @@ function TeamDirectory() {
                           <span className="text-[10px] font-black uppercase text-[#171717]/60 mr-1">Filter:</span>
                           {[
                             { id: 'all', label: 'Semua', count: memberDetail.tasks.length },
-                            { id: 'pending', label: 'Pending', count: memberDetail.tasks.filter(t => !(t.is_completed || t.status === 'completed')).length },
+                            { id: 'pending', label: 'Menunggu', count: memberDetail.tasks.filter(t => !(t.is_completed || t.status === 'completed')).length },
                             { id: 'completed', label: 'Selesai', count: memberDetail.tasks.filter(t => t.is_completed || t.status === 'completed').length },
                           ].map((st) => (
                             <button

@@ -29,10 +29,10 @@ import {
 import PageHeader from '../components/ui/PageHeader'
 
 const STATUS_CONFIG = {
-  on_track:  { label: 'On Track',  bg: 'bg-[#10B981] text-white',     bar: 'bg-[#10B981]' },
-  at_risk:   { label: 'At Risk',   bg: 'bg-[#FFD83D] text-[#171717]', bar: 'bg-[#FBBF24]' },
-  delayed:   { label: 'Delayed',   bg: 'bg-[#FF2F92] text-white',     bar: 'bg-[#FF2F92]' },
-  completed: { label: 'Completed', bg: 'bg-[#B8A0F0] text-[#171717]', bar: 'bg-[#B8A0F0]' },
+  on_track:  { label: 'Tepat Waktu', bg: 'bg-[#10B981] text-white',     bar: 'bg-[#10B981]' },
+  at_risk:   { label: 'Berisiko',    bg: 'bg-[#FFD83D] text-[#171717]', bar: 'bg-[#FBBF24]' },
+  delayed:   { label: 'Terlambat',   bg: 'bg-[#FF2F92] text-white',     bar: 'bg-[#FF2F92]' },
+  completed: { label: 'Selesai',     bg: 'bg-[#B8A0F0] text-[#171717]', bar: 'bg-[#B8A0F0]' },
 }
 
 const CategoryIcon = ({ cat }) => {
@@ -841,10 +841,10 @@ export default function ProjectDetail() {
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                     className="w-full pkm-input"
                   >
-                    <option value="on_track">On Track</option>
-                    <option value="at_risk">At Risk</option>
-                    <option value="delayed">Delayed</option>
-                    <option value="completed">Completed</option>
+                    <option value="on_track">Tepat Waktu</option>
+                    <option value="at_risk">Berisiko</option>
+                    <option value="delayed">Terlambat</option>
+                    <option value="completed">Selesai</option>
                   </select>
                 </div>
                 <div>

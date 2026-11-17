@@ -1216,7 +1216,7 @@ class LeadershipController extends Controller
         // 1. QUERY CORE DATA
         // =========================================================================
         $projectsQuery = Project::with(['pic:id,name,email,role']);
-        $tasksQuery = Task::with(['assignee:id,name,email,role,department', 'project:id,name,code,pic_id']);
+        $tasksQuery = Task::with(['assignee:id,name,email,role', 'project:id,name,code,pic_id']);
         $milestonesQuery = Milestone::with('project:id,name,code');
 
         if ($periodStart && $periodEnd) {

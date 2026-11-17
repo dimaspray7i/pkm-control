@@ -275,13 +275,13 @@ export default function Topbar({ onToggleMobile }) {
   }
 
   const ROLE_LABELS = {
-    admin:           'Super Admin',
-    pimpinan:        'Pimpinan',
-    project_manager: 'Project Manager',
-    member:          'Team Member',
+    admin:           'Administrator Sistem',
+    pimpinan:        'Pimpinan Perusahaan',
+    project_manager: 'Manajer Proyek',
+    member:          'Anggota Tim',
   }
   const displayName = user?.name || 'Pengguna'
-  const displayRole = ROLE_LABELS[user?.role] || user?.role || 'Team Member'
+  const displayRole = ROLE_LABELS[user?.role] || user?.role || 'Anggota Tim'
 
   const initials = displayName
     .split(' ')
@@ -462,7 +462,7 @@ export default function Topbar({ onToggleMobile }) {
                   className="w-full text-left px-3 py-2 text-xs font-bold text-[#FF2F92] hover:bg-pink-50 rounded-md flex items-center gap-2 cursor-pointer transition-colors mt-1"
                 >
                   <LogOut size={14} />
-                  <span>Keluar (Logout)</span>
+                  <span>Keluar</span>
                 </button>
               </div>
             )}

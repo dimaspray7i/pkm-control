@@ -99,8 +99,10 @@ export default function BusinessPerformance() {
         'Terjadi kendala saat menghubungkan ke server analisis performa. Silakan coba lagi.'
       )
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      if (!controller.signal.aborted) {
+        setLoading(false)
+        setRefreshing(false)
+      }
     }
   }
 
@@ -126,7 +128,7 @@ export default function BusinessPerformance() {
           <Activity className="w-6 h-6 text-[#171717] absolute inset-0 m-auto" />
         </div>
         <div className="text-center">
-          <h3 className="font-mono font-bold text-lg text-[#171717]">MEMUAT BUSINESS PERFORMANCE & KPI...</h3>
+          <h3 className="font-mono font-bold text-lg text-[#171717]">MEMUAT KINERJA BISNIS & KPI...</h3>
           <p className="text-xs text-[#171717]/60 font-mono mt-1">Mengagregasi metrik efisiensi proyek, penyelesaian tugas, dan kapasitas tim.</p>
         </div>
       </div>
@@ -152,17 +154,26 @@ export default function BusinessPerformance() {
     )
   }
 
+  if (!data) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="w-12 h-12 text-[#FF2F92] animate-spin" />
+        <p className="font-mono text-sm text-[#171717]">Menyiapkan data kinerja bisnis & KPI...</p>
+      </div>
+    )
+  }
+
   const {
-    meta,
-    performance_overview,
-    project_delivery,
-    task_productivity,
-    milestone_performance,
-    team_workload,
-    pm_evaluation,
-    delivery_trend,
-    performance_insights
-  } = data
+    meta = {},
+    performance_overview = {},
+    project_delivery = {},
+    task_productivity = {},
+    milestone_performance = {},
+    team_workload = {},
+    pm_evaluation = {},
+    delivery_trend = [],
+    performance_insights = []
+  } = data || {}
 
   return (
     <div className="space-y-6 md:space-y-8 pb-12">
@@ -174,7 +185,7 @@ export default function BusinessPerformance() {
           <div className="space-y-1.5">
             <div className="flex items-center gap-2.5 flex-wrap">
               <span className="px-2.5 py-0.5 bg-[#FF2F92] text-white border-2 border-[#171717] font-mono font-black text-xs tracking-wider uppercase shadow-[2px_2px_0px_#171717]">
-                PIMPINAN &middot; PERFORMANCE & KPI
+                PIMPINAN &middot; KINERJA BISNIS & KPI
               </span>
               <span className="text-xs font-mono text-[#171717]/60 flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" />
@@ -182,7 +193,7 @@ export default function BusinessPerformance() {
               </span>
             </div>
             <h1 className="font-mono font-black text-2xl md:text-3xl lg:text-4xl text-[#171717] tracking-tight">
-              BUSINESS PERFORMANCE &amp; KPI
+              KINERJA BISNIS &amp; KPI
             </h1>
             <p className="text-xs md:text-sm font-mono text-[#171717]/70 max-w-2xl">
               Pusat analisis efektivitas operasional, kecepatan pengiriman proyek, produktivitas kerja tim, dan ketepatan pencapaian target PT Potensi Karya Mandiri.
@@ -227,7 +238,7 @@ export default function BusinessPerformance() {
                 title="Sinkronisasi data KPI"
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-                {refreshing ? '...' : 'Refresh'}
+                {refreshing ? '...' : 'Muat Ulang'}
               </button>
 
               <button
@@ -674,7 +685,7 @@ export default function BusinessPerformance() {
               <div className="text-[10px] uppercase font-bold text-[#171717]/60">Proyek Dikelola</div>
               <div className="text-2xl font-black text-[#171717] mt-0.5">{pm_evaluation.total_projects_managed}</div>
               <div className="text-[10px] text-[#171717]/60 mt-1">
-                {pm_evaluation.on_track_projects} On Track &bull; {pm_evaluation.delayed_projects} Delayed
+                {pm_evaluation.on_track_projects} Tepat Waktu &bull; {pm_evaluation.delayed_projects} Terlambat
               </div>
             </div>
 

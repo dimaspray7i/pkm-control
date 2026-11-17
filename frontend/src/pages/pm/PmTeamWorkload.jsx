@@ -54,19 +54,19 @@ const WORKLOAD_CONFIG = {
 }
 
 const PRIORITY_CONFIG = {
-  urgent: { label: 'Urgent', bg: 'bg-[#FF2F92] text-white' },
-  high:   { label: 'High',   bg: 'bg-[#FF5722] text-white' },
-  medium: { label: 'Medium', bg: 'bg-[#FFD83D] text-[#171717]' },
-  low:    { label: 'Low',    bg: 'bg-[#B8A0F0] text-[#171717]' },
+  urgent: { label: 'Mendesak', bg: 'bg-[#FF2F92] text-white' },
+  high:   { label: 'Tinggi',   bg: 'bg-[#FF5722] text-white' },
+  medium: { label: 'Sedang',   bg: 'bg-[#FFD83D] text-[#171717]' },
+  low:    { label: 'Rendah',   bg: 'bg-[#B8A0F0] text-[#171717]' },
 }
 
 const STATUS_CONFIG = {
-  todo:        { label: 'To-do',       bg: 'bg-[#F5F1E9] text-[#171717] border-[#171717]' },
-  pending:     { label: 'To-do',       bg: 'bg-[#F5F1E9] text-[#171717] border-[#171717]' },
-  in_progress: { label: 'In Progress', bg: 'bg-[#FFD83D] text-[#171717] border-[#171717]' },
-  in_review:   { label: 'In Review',   bg: 'bg-[#B8A0F0] text-[#171717] border-[#171717]' },
-  completed:   { label: 'Done',        bg: 'bg-[#10B981] text-white border-[#171717]' },
-  done:        { label: 'Done',        bg: 'bg-[#10B981] text-white border-[#171717]' },
+  todo:        { label: 'Daftar Tugas',        bg: 'bg-[#F5F1E9] text-[#171717] border-[#171717]' },
+  pending:     { label: 'Daftar Tugas',        bg: 'bg-[#F5F1E9] text-[#171717] border-[#171717]' },
+  in_progress: { label: 'Sedang Berjalan',     bg: 'bg-[#FFD83D] text-[#171717] border-[#171717]' },
+  in_review:   { label: 'Menunggu Peninjauan', bg: 'bg-[#B8A0F0] text-[#171717] border-[#171717]' },
+  completed:   { label: 'Selesai',             bg: 'bg-[#10B981] text-white border-[#171717]' },
+  done:        { label: 'Selesai',             bg: 'bg-[#10B981] text-white border-[#171717]' },
 }
 
 const PIE_COLORS = [YELLOW, PINK, PURPLE, '#10B981']

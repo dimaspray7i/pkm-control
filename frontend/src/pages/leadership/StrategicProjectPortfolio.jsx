@@ -38,10 +38,10 @@ import {
 } from 'lucide-react'
 
 const STATUS_THEME = {
-  on_track:  { label: 'On Track',  bg: 'bg-[#10B981]', text: 'text-white', border: 'border-[#171717]', dot: '#10B981' },
-  at_risk:   { label: 'At Risk',   bg: 'bg-[#FFD83D]', text: 'text-[#171717]', border: 'border-[#171717]', dot: '#FBBF24' },
-  delayed:   { label: 'Delayed',   bg: 'bg-[#FF2F92]', text: 'text-white', border: 'border-[#171717]', dot: '#FF2F92' },
-  completed: { label: 'Completed', bg: 'bg-[#B8A0F0]', text: 'text-[#171717]', border: 'border-[#171717]', dot: '#B8A0F0' },
+  on_track:  { label: 'Tepat Waktu', bg: 'bg-[#10B981]', text: 'text-white', border: 'border-[#171717]', dot: '#10B981' },
+  at_risk:   { label: 'Berisiko',    bg: 'bg-[#FFD83D]', text: 'text-[#171717]', border: 'border-[#171717]', dot: '#FBBF24' },
+  delayed:   { label: 'Terlambat',   bg: 'bg-[#FF2F92]', text: 'text-white', border: 'border-[#171717]', dot: '#FF2F92' },
+  completed: { label: 'Selesai',     bg: 'bg-[#B8A0F0]', text: 'text-[#171717]', border: 'border-[#171717]', dot: '#B8A0F0' },
 }
 
 const RISK_THEME = {
@@ -116,8 +116,10 @@ export default function StrategicProjectPortfolio() {
         'Terjadi kendala saat menghubungkan ke server portofolio. Silakan coba lagi.'
       )
     } finally {
-      setLoading(false)
-      setRefreshing(false)
+      if (!controller.signal.aborted) {
+        setLoading(false)
+        setRefreshing(false)
+      }
     }
   }
 
@@ -297,7 +299,20 @@ export default function StrategicProjectPortfolio() {
     )
   }
 
-  const { portfolio_overview, target_vs_actual_analysis, strategic_attention } = data
+  if (!data) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="w-12 h-12 text-[#FF2F92] animate-spin" />
+        <p className="font-mono text-sm text-[#171717]">Menyiapkan data portofolio strategis...</p>
+      </div>
+    )
+  }
+
+  const {
+    portfolio_overview = {},
+    target_vs_actual_analysis = {},
+    strategic_attention = []
+  } = data || {}
 
   return (
     <div className="space-y-6 md:space-y-8 pb-12">
@@ -309,7 +324,7 @@ export default function StrategicProjectPortfolio() {
           <div className="space-y-1.5">
             <div className="flex items-center gap-2.5 flex-wrap">
               <span className="px-2.5 py-0.5 bg-[#FF2F92] text-white border-2 border-[#171717] font-mono font-black text-xs tracking-wider uppercase shadow-[2px_2px_0px_#171717]">
-                PIMPINAN &middot; STRATEGIC PORTFOLIO
+                PIMPINAN &middot; PORTOFOLIO STRATEGIS
               </span>
               <span className="text-xs font-mono text-[#171717]/60 flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5" />
@@ -317,7 +332,7 @@ export default function StrategicProjectPortfolio() {
               </span>
             </div>
             <h1 className="font-mono font-black text-2xl md:text-3xl lg:text-4xl text-[#171717] tracking-tight">
-              STRATEGIC PROJECT PORTFOLIO
+              PORTOFOLIO STRATEGIS PROYEK
             </h1>
             <p className="text-xs md:text-sm font-mono text-[#171717]/70 max-w-2xl">
               Pusat kendali dan audit menyeluruh seluruh portofolio proyek PT Potensi Karya Mandiri. Berorientasi pada evaluasi target, mitigasi risiko, dan pengambilan keputusan eksekutif.
@@ -421,7 +436,7 @@ export default function StrategicProjectPortfolio() {
             }`}
           >
             <div className="text-[10px] font-mono font-bold uppercase tracking-wider opacity-70">
-              On Track
+              Tepat Waktu
             </div>
             <div className="text-2xl md:text-3xl font-mono font-black text-[#10B981] mt-1">
               {portfolio_overview?.on_track_projects || 0}
@@ -781,10 +796,10 @@ export default function StrategicProjectPortfolio() {
             >
               <option value="all">Semua Status Proyek</option>
               <option value="active">Proyek Aktif (Belum Selesai)</option>
-              <option value="on_track">On Track</option>
-              <option value="at_risk">At Risk</option>
-              <option value="delayed">Delayed</option>
-              <option value="completed">Completed</option>
+              <option value="on_track">Tepat Waktu</option>
+              <option value="at_risk">Berisiko</option>
+              <option value="delayed">Terlambat</option>
+              <option value="completed">Selesai</option>
             </select>
           </div>
 
@@ -1318,7 +1333,7 @@ export default function StrategicProjectPortfolio() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 font-mono">
                 {/* On Track Ratio */}
                 <div className="p-3 bg-[#EAE4D8] border border-[#171717]">
-                  <div className="text-[10px] uppercase font-bold text-[#171717]/60">Proyek On Track</div>
+                  <div className="text-[10px] uppercase font-bold text-[#171717]/60">Proyek Tepat Waktu</div>
                   <div className="text-xl font-black text-[#10B981] mt-1">
                     {activePmCard.on_track_projects} <span className="text-xs text-[#171717]/60 font-normal">/ {activePmCard.total_projects}</span>
                   </div>
@@ -1326,7 +1341,7 @@ export default function StrategicProjectPortfolio() {
 
                 {/* Delayed Projects */}
                 <div className="p-3 bg-[#EAE4D8] border border-[#171717]">
-                  <div className="text-[10px] uppercase font-bold text-[#171717]/60">Proyek Delayed</div>
+                  <div className="text-[10px] uppercase font-bold text-[#171717]/60">Proyek Terlambat</div>
                   <div className="text-xl font-black text-[#FF2F92] mt-1">
                     {activePmCard.delayed_projects}
                   </div>

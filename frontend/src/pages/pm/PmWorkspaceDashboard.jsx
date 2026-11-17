@@ -24,10 +24,10 @@ import {
 import PageHeader from '../../components/ui/PageHeader'
 
 const STATUS_CONFIG = {
-  on_track:  { label: 'On Track',  bg: 'bg-[#10B981] text-white',        bar: 'bg-[#10B981]' },
-  at_risk:   { label: 'At Risk',   bg: 'bg-[#FFD83D] text-[#171717]',    bar: 'bg-[#FBBF24]' },
-  delayed:   { label: 'Delayed',   bg: 'bg-[#FF2F92] text-white',        bar: 'bg-[#FF2F92]' },
-  completed: { label: 'Completed', bg: 'bg-[#B8A0F0] text-[#171717]',    bar: 'bg-[#B8A0F0]' },
+  on_track:  { label: 'Tepat Waktu', bg: 'bg-[#10B981] text-white',        bar: 'bg-[#10B981]' },
+  at_risk:   { label: 'Berisiko',    bg: 'bg-[#FFD83D] text-[#171717]',    bar: 'bg-[#FBBF24]' },
+  delayed:   { label: 'Terlambat',   bg: 'bg-[#FF2F92] text-white',        bar: 'bg-[#FF2F92]' },
+  completed: { label: 'Selesai',     bg: 'bg-[#B8A0F0] text-[#171717]',    bar: 'bg-[#B8A0F0]' },
 }
 
 export default function PmWorkspaceDashboard() {
@@ -126,9 +126,9 @@ export default function PmWorkspaceDashboard() {
     <div className="space-y-5 pb-8">
       {/* ================= 1. HEADER ================= */}
       <PageHeader
-        title={`WORKSPACE, ${displayName.toUpperCase()}`}
+        title={`RUANG KERJA, ${displayName.toUpperCase()}`}
         subtitle="Kelola proyek Anda, pantau distribusi tugas tim, dan mitigasi kendala operasional secara langsung."
-        tag="PROJECT MANAGER"
+        tag="MANAJER PROYEK"
         actions={
           <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
             <div className="bg-white px-3.5 py-2 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center gap-2.5 min-h-[40px]">

@@ -224,10 +224,10 @@ export default function AIAnalyst() {
     <div className="space-y-4 pb-6">
       {/* Page Header */}
       <PageHeader
-        title="AI BUSINESS ANALYST"
+        title="ANALIS BISNIS AI"
         subtitle="Analisis bisnis cerdas berbasis data proyek real-time PT Potensi Karya Mandiri."
-        tag="INTELLIGENCE ENGINE"
-        badge="AI POWERED"
+        tag="ANALITIK CERDAS PKM"
+        badge="DIDUKUNG AI"
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {location.state?.fromReports && (

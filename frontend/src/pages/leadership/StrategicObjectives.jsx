@@ -33,19 +33,19 @@ const CATEGORIES = [
 ]
 
 const STATUS_CONFIG = {
-  draft: { label: 'Draft', bg: 'bg-gray-100 text-gray-700 border-gray-300' },
-  active: { label: 'Active', bg: 'bg-blue-100 text-blue-700 border-blue-300' },
-  at_risk: { label: 'At Risk', bg: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  achieved: { label: 'Achieved', bg: 'bg-green-100 text-green-700 border-green-300' },
-  not_achieved: { label: 'Not Achieved', bg: 'bg-red-100 text-red-700 border-red-300' },
-  archived: { label: 'Archived', bg: 'bg-zinc-200 text-zinc-700 border-zinc-400' },
+  draft: { label: 'Draf', bg: 'bg-gray-100 text-gray-700 border-gray-300' },
+  active: { label: 'Aktif', bg: 'bg-blue-100 text-blue-700 border-blue-300' },
+  at_risk: { label: 'Berisiko', bg: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+  achieved: { label: 'Tercapai', bg: 'bg-green-100 text-green-700 border-green-300' },
+  not_achieved: { label: 'Tidak Tercapai', bg: 'bg-red-100 text-red-700 border-red-300' },
+  archived: { label: 'Diarsipkan', bg: 'bg-zinc-200 text-zinc-700 border-zinc-400' },
 }
 
 const KR_STATUS_CONFIG = {
-  on_track: { label: 'On Track', bg: 'bg-green-100 text-green-700 border-green-300' },
-  behind: { label: 'Behind', bg: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  at_risk: { label: 'At Risk', bg: 'bg-red-100 text-red-700 border-red-300' },
-  achieved: { label: 'Achieved', bg: 'bg-emerald-100 text-emerald-800 border-emerald-400' },
+  on_track: { label: 'Tepat Waktu', bg: 'bg-green-100 text-green-700 border-green-300' },
+  behind: { label: 'Tertinggal', bg: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+  at_risk: { label: 'Berisiko', bg: 'bg-red-100 text-red-700 border-red-300' },
+  achieved: { label: 'Tercapai', bg: 'bg-emerald-100 text-emerald-800 border-emerald-400' },
 }
 
 const METRIC_TYPE_LABELS = {
@@ -345,7 +345,7 @@ export default function StrategicObjectives() {
           <div className="border-[3px] border-[#171717] bg-white shadow-[4px_4px_0px_#171717] p-3 text-center">
             <div className="text-[11px] font-bold uppercase text-[#666]">Total Key Results</div>
             <div className="text-2xl font-black text-[#171717]">{summary.total_key_results}</div>
-            <div className="text-[10px] text-green-700 font-semibold">{summary.krs_on_track} On Track</div>
+            <div className="text-[10px] text-green-700 font-semibold">{summary.krs_on_track} Tepat Waktu</div>
           </div>
 
           <div className="border-[3px] border-[#171717] bg-[#FDF2F8] shadow-[4px_4px_0px_#171717] p-3 text-center">

@@ -46,11 +46,11 @@ const STATUS_BADGES = {
 }
 
 const DECISION_STATUS_BADGES = {
-  draft: { label: 'Draft', bg: 'bg-gray-100 text-gray-700 border-gray-300' },
-  approved: { label: 'Approved', bg: 'bg-blue-100 text-blue-700 border-blue-300' },
-  in_progress: { label: 'In Progress', bg: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  completed: { label: 'Completed', bg: 'bg-green-100 text-green-700 border-green-300' },
-  cancelled: { label: 'Cancelled', bg: 'bg-red-100 text-red-700 border-red-300' },
+  draft: { label: 'Draf', bg: 'bg-gray-100 text-gray-700 border-gray-300' },
+  approved: { label: 'Disetujui', bg: 'bg-blue-100 text-blue-700 border-blue-300' },
+  in_progress: { label: 'Sedang Berjalan', bg: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+  completed: { label: 'Selesai', bg: 'bg-green-100 text-green-700 border-green-300' },
+  cancelled: { label: 'Dibatalkan', bg: 'bg-red-100 text-red-700 border-red-300' },
 }
 
 export default function ExecutiveReports() {
@@ -1017,7 +1017,7 @@ export default function ExecutiveReports() {
                         {selectedReport.snapshot_data.company_health.total_projects}
                       </div>
                       <div className="text-[10px] text-[#555]">
-                        {selectedReport.snapshot_data.company_health.on_track_count} On Track
+                        {selectedReport.snapshot_data.company_health.on_track_count} Tepat Waktu
                       </div>
                     </div>
                     <div className="border-[2px] border-[#171717] p-3 text-center bg-[#F9F9F9]">

@@ -9,10 +9,10 @@ import PageHeader from '../components/ui/PageHeader'
 import { useAuth } from '../contexts/AuthContext'
 
 const STATUS_CONFIG = {
-  on_track:  { label: 'On Track',  bg: 'bg-[#10B981] text-white',       bar: 'bg-[#10B981]', accent: '#10B981' },
-  at_risk:   { label: 'At Risk',   bg: 'bg-[#FFD83D] text-[#171717]',   bar: 'bg-[#FBBF24]', accent: '#FBBF24' },
-  delayed:   { label: 'Delayed',   bg: 'bg-[#FF2F92] text-white',       bar: 'bg-[#FF2F92]', accent: '#FF2F92' },
-  completed: { label: 'Completed', bg: 'bg-[#B8A0F0] text-[#171717]',   bar: 'bg-[#B8A0F0]', accent: '#B8A0F0' },
+  on_track:  { label: 'Tepat Waktu', bg: 'bg-[#10B981] text-white',       bar: 'bg-[#10B981]', accent: '#10B981' },
+  at_risk:   { label: 'Berisiko',    bg: 'bg-[#FFD83D] text-[#171717]',   bar: 'bg-[#FBBF24]', accent: '#FBBF24' },
+  delayed:   { label: 'Terlambat',   bg: 'bg-[#FF2F92] text-white',       bar: 'bg-[#FF2F92]', accent: '#FF2F92' },
+  completed: { label: 'Selesai',     bg: 'bg-[#B8A0F0] text-[#171717]',   bar: 'bg-[#B8A0F0]', accent: '#B8A0F0' },
 }
 
 const CategoryIcon = ({ cat, size = 14 }) => {
@@ -330,7 +330,7 @@ export default function Development() {
 
       {/* Header */}
       <PageHeader
-        title="SPRINT TRACKER"
+        title="PELACAK SPRINT & MILESTONE"
         subtitle="Pelacakan progres teknis, sprint pengembangan, dan milestone real-time per proyek."
         tag="PENGEMBANGAN SISTEM"
         actions={
@@ -355,9 +355,9 @@ export default function Development() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'Total Proyek', value: stats.total, bg: 'bg-white', icon: <BarChart3 size={16} /> },
-          { label: 'On Track', value: stats.on_track, bg: 'bg-[#10B981] text-white', icon: <CheckCircle2 size={16} /> },
-          { label: 'At Risk', value: stats.at_risk, bg: 'bg-[#FFD83D] text-[#171717]', icon: <AlertCircle size={16} /> },
-          { label: 'Avg Progress', value: `${stats.avgProgress}%`, bg: 'bg-[#FF2F92] text-white', icon: <TrendingUp size={16} /> },
+          { label: 'Tepat Waktu', value: stats.on_track, bg: 'bg-[#10B981] text-white', icon: <CheckCircle2 size={16} /> },
+          { label: 'Berisiko', value: stats.at_risk, bg: 'bg-[#FFD83D] text-[#171717]', icon: <AlertCircle size={16} /> },
+          { label: 'Rata-rata Progres', value: `${stats.avgProgress}%`, bg: 'bg-[#FF2F92] text-white', icon: <TrendingUp size={16} /> },
         ].map((s, i) => (
           <div key={i} className={`p-3.5 border border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] ${s.bg}`}>
             <div className="flex items-center justify-between mb-1.5 opacity-70">
@@ -486,7 +486,7 @@ export default function Development() {
                                     <button
                                       onClick={() => openEditModal(ms)}
                                       className="p-1.5 min-w-[28px] min-h-[28px] flex items-center justify-center hover:bg-[#FFD83D] rounded border border-transparent hover:border-[#171717] text-[#171717] transition-all cursor-pointer"
-                                      title="Edit Sprint"
+                                      title="Ubah Sprint"
                                     >
                                       <Edit3 size={13} />
                                     </button>

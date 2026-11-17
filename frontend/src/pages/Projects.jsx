@@ -11,10 +11,10 @@ import {
 import PageHeader from '../components/ui/PageHeader'
 
 const STATUS_CONFIG = {
-  on_track:  { label: 'On Track',  bg: 'bg-[#10B981] text-white',        bar: 'bg-[#10B981]' },
-  at_risk:   { label: 'At Risk',   bg: 'bg-[#FFD83D] text-[#171717]',    bar: 'bg-[#FBBF24]' },
-  delayed:   { label: 'Delayed',   bg: 'bg-[#FF2F92] text-white',        bar: 'bg-[#FF2F92]' },
-  completed: { label: 'Completed', bg: 'bg-[#B8A0F0] text-[#171717]',    bar: 'bg-[#B8A0F0]' },
+  on_track:  { label: 'Tepat Waktu', bg: 'bg-[#10B981] text-white',        bar: 'bg-[#10B981]' },
+  at_risk:   { label: 'Berisiko',    bg: 'bg-[#FFD83D] text-[#171717]',    bar: 'bg-[#FBBF24]' },
+  delayed:   { label: 'Terlambat',   bg: 'bg-[#FF2F92] text-white',        bar: 'bg-[#FF2F92]' },
+  completed: { label: 'Selesai',     bg: 'bg-[#B8A0F0] text-[#171717]',    bar: 'bg-[#B8A0F0]' },
 }
 
 const CategoryIcon = ({ cat }) => {
@@ -279,12 +279,12 @@ export default function Projects() {
             ? `Total ${projects.length} proyek aktif yang berada di bawah tanggung jawab Anda sebagai Project Manager.`
             : `Total ${projects.length} proyek aktif dan terdaftar di sistem PKM Business Control Center.`
         }
-        tag={isPm ? "MY PROJECTS" : "PROYEK BISNIS"}
+        tag={isPm ? "PROYEK SAYA" : "PROYEK BISNIS"}
         actions={
           <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
             <div className="bg-white px-3 py-1.5 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center gap-2 min-h-[36px]">
               <FolderKanban size={15} className="text-[#FF2F92] shrink-0" />
-              <span className="font-black text-xs uppercase">{counts.on_track} On Track</span>
+              <span className="font-black text-xs uppercase">{counts.on_track} Tepat Waktu</span>
             </div>
             {canManage && (
               <button
@@ -319,7 +319,7 @@ export default function Projects() {
             className="p-1 hover:bg-[#171717]/10 rounded cursor-pointer shrink-0"
             title="Tutup Pesan"
           >
-            <X size={15} />
+            <X size={14} />
           </button>
         </div>
       )}
@@ -350,11 +350,11 @@ export default function Projects() {
         {/* Filter Badges & Quick Reset */}
         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {[
-            { id: 'all',       label: 'Semua',     count: counts.all },
-            { id: 'on_track',  label: 'On Track',  count: counts.on_track },
-            { id: 'at_risk',   label: 'At Risk',   count: counts.at_risk },
-            { id: 'delayed',   label: 'Delayed',   count: counts.delayed },
-            { id: 'completed', label: 'Selesai',   count: counts.completed },
+            { id: 'all',       label: 'Semua',       count: counts.all },
+            { id: 'on_track',  label: 'Tepat Waktu', count: counts.on_track },
+            { id: 'at_risk',   label: 'Berisiko',    count: counts.at_risk },
+            { id: 'delayed',   label: 'Terlambat',   count: counts.delayed },
+            { id: 'completed', label: 'Selesai',     count: counts.completed },
           ].map((item) => (
             <button
               key={item.id}
@@ -636,10 +636,10 @@ export default function Projects() {
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                     className="w-full pkm-input"
                   >
-                    <option value="on_track">On Track</option>
-                    <option value="at_risk">At Risk</option>
-                    <option value="delayed">Delayed</option>
-                    <option value="completed">Completed</option>
+                    <option value="on_track">Tepat Waktu</option>
+                    <option value="at_risk">Berisiko</option>
+                    <option value="delayed">Terlambat</option>
+                    <option value="completed">Selesai</option>
                   </select>
                 </div>
                 <div>
@@ -844,10 +844,10 @@ export default function Projects() {
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                     className="w-full pkm-input"
                   >
-                    <option value="on_track">On Track</option>
-                    <option value="at_risk">At Risk</option>
-                    <option value="delayed">Delayed</option>
-                    <option value="completed">Completed</option>
+                    <option value="on_track">Tepat Waktu</option>
+                    <option value="at_risk">Berisiko</option>
+                    <option value="delayed">Terlambat</option>
+                    <option value="completed">Selesai</option>
                   </select>
                 </div>
                 <div>

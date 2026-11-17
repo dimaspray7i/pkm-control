@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import GlobalAiAssistant from '../ai/GlobalAiAssistant'
+import ErrorBoundary from '../ui/ErrorBoundary'
 
 export default function MainLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -37,7 +38,9 @@ export default function MainLayout() {
         {/* Main scrollable body with standardized container constraint */}
         <main className="flex-1 overflow-y-auto min-h-0 px-3.5 sm:px-6 py-4 md:py-6">
           <div className="max-w-7xl mx-auto w-full">
-            <Outlet />
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
           </div>
         </main>
 

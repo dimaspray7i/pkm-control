@@ -36,19 +36,19 @@ import {
 import PageHeader from '../../components/ui/PageHeader'
 
 const PRIORITY_CONFIG = {
-  urgent: { label: 'Urgent', bg: 'bg-[#FF2F92] text-white border-[#171717]', sortWeight: 4 },
-  high:   { label: 'High',   bg: 'bg-[#FF5722] text-white border-[#171717]', sortWeight: 3 },
-  medium: { label: 'Medium', bg: 'bg-[#FFD83D] text-[#171717] border-[#171717]', sortWeight: 2 },
-  low:    { label: 'Low',    bg: 'bg-[#B8A0F0] text-[#171717] border-[#171717]', sortWeight: 1 },
+  urgent: { label: 'Mendesak', bg: 'bg-[#FF2F92] text-white border-[#171717]', sortWeight: 4 },
+  high:   { label: 'Tinggi',   bg: 'bg-[#FF5722] text-white border-[#171717]', sortWeight: 3 },
+  medium: { label: 'Sedang', bg: 'bg-[#FFD83D] text-[#171717] border-[#171717]', sortWeight: 2 },
+  low:    { label: 'Rendah',    bg: 'bg-[#B8A0F0] text-[#171717] border-[#171717]', sortWeight: 1 },
 }
 
 const STATUS_CONFIG = {
-  todo:        { label: 'To-do',       bg: 'bg-[#FAF7F2] text-[#171717] border-[#171717]' },
-  pending:     { label: 'To-do',       bg: 'bg-[#FAF7F2] text-[#171717] border-[#171717]' },
-  in_progress: { label: 'In Progress', bg: 'bg-[#FFD83D] text-[#171717] border-[#171717]' },
-  in_review:   { label: 'In Review',   bg: 'bg-[#B8A0F0] text-[#171717] border-[#171717]' },
-  completed:   { label: 'Done',        bg: 'bg-[#10B981] text-white border-[#171717]' },
-  done:        { label: 'Done',        bg: 'bg-[#10B981] text-white border-[#171717]' },
+  todo:        { label: 'Daftar Tugas', bg: 'bg-[#FAF7F2] text-[#171717] border-[#171717]' },
+  pending:     { label: 'Daftar Tugas', bg: 'bg-[#FAF7F2] text-[#171717] border-[#171717]' },
+  in_progress: { label: 'Sedang Berjalan', bg: 'bg-[#FFD83D] text-[#171717] border-[#171717]' },
+  in_review:   { label: 'Menunggu Peninjauan', bg: 'bg-[#B8A0F0] text-[#171717] border-[#171717]' },
+  completed:   { label: 'Selesai', bg: 'bg-[#10B981] text-white border-[#171717]' },
+  done:        { label: 'Selesai', bg: 'bg-[#10B981] text-white border-[#171717]' },
 }
 
 export default function MemberTodoList() {
@@ -447,7 +447,7 @@ export default function MemberTodoList() {
       <PageHeader
         title={`HALO, ${displayName.toUpperCase()}`}
         subtitle="Berikut adalah seluruh daftar tugas dan tanggung jawab pekerjaan pribadi Anda."
-        tag="MEMBER WORKSPACE"
+        tag="RUANG KERJA ANGGOTA"
         actions={
           <div className="bg-white px-3.5 py-2 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center gap-2">
             <Calendar size={15} className="text-[#FF2F92]" />
@@ -484,11 +484,11 @@ export default function MemberTodoList() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
         {[
           { id: 'all',        label: 'Total Tugas',     value: summary.total,       bg: 'bg-white',       accent: 'text-[#171717]' },
-          { id: 'todo',       label: 'To-do',           value: summary.todo,        bg: 'bg-[#FAF7F2]',   accent: 'text-[#171717]' },
-          { id: 'in_progress',label: 'In Progress',     value: summary.in_progress, bg: 'bg-[#FFD83D]/30',accent: 'text-[#171717]' },
-          { id: 'in_review',  label: 'In Review',       value: summary.in_review,   bg: 'bg-[#B8A0F0]/30',accent: 'text-[#171717]' },
-          { id: 'done',       label: 'Selesai (Done)',  value: summary.done,        bg: 'bg-[#ECFDF5]',   accent: 'text-[#065F46]' },
-          { id: 'overdue',    label: 'Terlewat Deadline',value: summary.overdue,    bg: summary.overdue > 0 ? 'bg-[#FF2F92]' : 'bg-white', accent: summary.overdue > 0 ? 'text-white' : 'text-[#FF2F92]' },
+          { id: 'todo',       label: 'Daftar Tugas',    value: summary.todo,        bg: 'bg-[#FAF7F2]',   accent: 'text-[#171717]' },
+          { id: 'in_progress',label: 'Sedang Berjalan', value: summary.in_progress, bg: 'bg-[#FFD83D]/30',accent: 'text-[#171717]' },
+          { id: 'in_review',  label: 'Menunggu Review', value: summary.in_review,   bg: 'bg-[#B8A0F0]/30',accent: 'text-[#171717]' },
+          { id: 'done',       label: 'Selesai',         value: summary.done,        bg: 'bg-[#ECFDF5]',   accent: 'text-[#065F46]' },
+          { id: 'overdue',    label: 'Terlambat',       value: summary.overdue,    bg: summary.overdue > 0 ? 'bg-[#FF2F92]' : 'bg-white', accent: summary.overdue > 0 ? 'text-white' : 'text-[#FF2F92]' },
         ].map((item) => (
           <button
             key={item.id}
@@ -561,11 +561,11 @@ export default function MemberTodoList() {
         <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-[#171717]/10">
           {[
             { id: 'all',        label: 'Semua Status' },
-            { id: 'todo',       label: 'To-do' },
-            { id: 'in_progress',label: 'In Progress' },
-            { id: 'in_review',  label: 'In Review' },
-            { id: 'done',       label: 'Selesai (Done)' },
-            { id: 'overdue',    label: 'Overdue Saja' },
+            { id: 'todo',       label: 'Daftar Tugas' },
+            { id: 'in_progress',label: 'Sedang Berjalan' },
+            { id: 'in_review',  label: 'Menunggu Review' },
+            { id: 'done',       label: 'Selesai' },
+            { id: 'overdue',    label: 'Terlambat Saja' },
           ].map(f => (
             <button
               key={f.id}

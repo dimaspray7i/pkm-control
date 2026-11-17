@@ -28,10 +28,10 @@ const PERIOD_OPTIONS = [
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Semua Status Proyek' },
-  { value: 'on_track', label: 'On Track' },
-  { value: 'at_risk', label: 'At Risk' },
-  { value: 'delayed', label: 'Delayed' },
-  { value: 'completed', label: 'Completed' },
+  { value: 'on_track', label: 'Tepat Waktu' },
+  { value: 'at_risk', label: 'Berisiko' },
+  { value: 'delayed', label: 'Terlambat' },
+  { value: 'completed', label: 'Selesai' },
 ]
 
 function BusinessReportsDirectory() {
@@ -1130,8 +1130,8 @@ export default function Reports() {
   return (
     <div className="min-h-screen bg-[#F5F1E9]">
       <PageHeader
-        tag="MONITORING & REPORTING"
-        title="Reports & Analytics"
+        tag="PEMANTAUAN & LAPORAN"
+        title="Laporan & Analitik"
         subtitle="Pantau laporan kemajuan operasional mingguan dan inteligensi performa bisnis"
       />
 
