@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\LeadershipAIController;
 use App\Http\Controllers\Api\LeadershipController;
+use App\Http\Controllers\Api\LeadershipOkrController;
 use App\Http\Controllers\Api\LeadershipReportController;
 use App\Http\Controllers\Api\LeadershipRiskController;
 use App\Http\Controllers\Api\MilestoneController;
@@ -76,6 +77,20 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/leadership/executive-reports/{id}/publish', [LeadershipReportController::class, 'publish']);
         Route::get('/leadership/executive-reports/{id}/export', [LeadershipReportController::class, 'export']);
         Route::get('/leadership/decision-followup', [LeadershipReportController::class, 'decisionFollowup']);
+
+        // Tahap P-H: Strategic Objectives & OKR Management
+        Route::get('/leadership/okr/overview', [LeadershipOkrController::class, 'overview']);
+        Route::get('/leadership/okr/objectives', [LeadershipOkrController::class, 'index']);
+        Route::post('/leadership/okr/objectives', [LeadershipOkrController::class, 'store']);
+        Route::get('/leadership/okr/objectives/{id}', [LeadershipOkrController::class, 'show']);
+        Route::put('/leadership/okr/objectives/{id}', [LeadershipOkrController::class, 'update']);
+        Route::delete('/leadership/okr/objectives/{id}', [LeadershipOkrController::class, 'destroy']);
+        Route::post('/leadership/okr/objectives/{id}/projects', [LeadershipOkrController::class, 'linkProject']);
+        Route::delete('/leadership/okr/objectives/{id}/projects/{projectId}', [LeadershipOkrController::class, 'unlinkProject']);
+        Route::post('/leadership/okr/objectives/{id}/key-results', [LeadershipOkrController::class, 'storeKeyResult']);
+        Route::put('/leadership/okr/key-results/{id}', [LeadershipOkrController::class, 'updateKeyResult']);
+        Route::delete('/leadership/okr/key-results/{id}', [LeadershipOkrController::class, 'destroyKeyResult']);
+        Route::post('/leadership/okr/key-results/{id}/checkin', [LeadershipOkrController::class, 'checkinKeyResult']);
     });
 
     // Project Manager Workspace (Scoped to PM's projects)

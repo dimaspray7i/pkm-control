@@ -18,6 +18,7 @@ import BusinessPerformance from './pages/leadership/BusinessPerformance'
 import RiskDecisionCenter from './pages/leadership/RiskDecisionCenter'
 import AIExecutiveAdvisor from './pages/leadership/AIExecutiveAdvisor'
 import ExecutiveReports from './pages/leadership/ExecutiveReports'
+import StrategicObjectives from './pages/leadership/StrategicObjectives'
 
 function DashboardRoute() {
   const { user } = useAuth()
@@ -81,6 +82,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={['admin', 'pimpinan']}>
               <ExecutiveReports />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="strategic-objectives"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'pimpinan']}>
+              <StrategicObjectives />
             </ProtectedRoute>
           }
         />

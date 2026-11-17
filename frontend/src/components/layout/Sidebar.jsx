@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   Activity,
+  Target,
   Settings,
   ChevronsLeft,
   ChevronsRight,
@@ -45,6 +46,7 @@ const ROLE_NAV_CONFIG = {
     {
       category: 'ANALITIK & SISTEM',
       items: [
+        { path: '/strategic-objectives', label: 'Strategic Objectives (OKR)', icon: Target },
         { path: '/executive-reports', label: 'Executive Reports', icon: FileBarChart },
         { path: '/reports', label: 'Reports', icon: FileBarChart },
         { path: '/ai-advisor', label: 'AI Executive Advisor', icon: Sparkles, badge: 'AI' },
@@ -59,6 +61,7 @@ const ROLE_NAV_CONFIG = {
       items: [
         { path: '/', label: 'Executive Command Center', icon: LayoutDashboard },
         { path: '/portfolio', label: 'Strategic Portfolio', icon: FolderKanban },
+        { path: '/strategic-objectives', label: 'Strategic Objectives (OKR)', icon: Target },
       ]
     },
     {
