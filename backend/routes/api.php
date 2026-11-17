@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\LeadershipAIController;
 use App\Http\Controllers\Api\LeadershipController;
+use App\Http\Controllers\Api\LeadershipReportController;
 use App\Http\Controllers\Api\LeadershipRiskController;
 use App\Http\Controllers\Api\MilestoneController;
 use App\Http\Controllers\Api\PmWorkspaceController;
@@ -65,6 +66,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/leadership/ai/conversations', [LeadershipAIController::class, 'conversationsStore']);
         Route::get('/leadership/ai/conversations/{id}', [LeadershipAIController::class, 'conversationsShow']);
         Route::delete('/leadership/ai/conversations/{id}', [LeadershipAIController::class, 'conversationsDestroy']);
+
+        // Tahap P-G: Executive Reports & Strategic Decision Follow-up
+        Route::get('/leadership/executive-reports', [LeadershipReportController::class, 'index']);
+        Route::post('/leadership/executive-reports', [LeadershipReportController::class, 'store']);
+        Route::get('/leadership/executive-reports/{id}', [LeadershipReportController::class, 'show']);
+        Route::put('/leadership/executive-reports/{id}', [LeadershipReportController::class, 'update']);
+        Route::delete('/leadership/executive-reports/{id}', [LeadershipReportController::class, 'destroy']);
+        Route::post('/leadership/executive-reports/{id}/publish', [LeadershipReportController::class, 'publish']);
+        Route::get('/leadership/executive-reports/{id}/export', [LeadershipReportController::class, 'export']);
+        Route::get('/leadership/decision-followup', [LeadershipReportController::class, 'decisionFollowup']);
     });
 
     // Project Manager Workspace (Scoped to PM's projects)
