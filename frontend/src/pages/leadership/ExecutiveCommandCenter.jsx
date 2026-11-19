@@ -26,7 +26,10 @@ import {
   FileBarChart,
   Target,
   DollarSign,
-  PieChart as PieIcon
+  PieChart as PieIcon,
+  Brain,
+  Compass,
+  Users
 } from 'lucide-react'
 import PageLoading from '../../components/ui/PageLoading'
 import {
@@ -53,6 +56,7 @@ export default function ExecutiveCommandCenter() {
   const navigate = useNavigate()
 
   const [data, setData] = useState(null)
+  const [biData, setBiData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
@@ -75,15 +79,20 @@ export default function ExecutiveCommandCenter() {
       }
       setError(null)
 
-      const res = await api.get('/leadership/command-center', {
-        signal: controller.signal,
-      })
+      const [res, biRes] = await Promise.allSettled([
+        api.get('/leadership/command-center', { signal: controller.signal }),
+        api.get('/leadership/intelligence', { signal: controller.signal }),
+      ])
 
-      if (res.data && res.data.success) {
-        setData(res.data)
+      if (res.status === 'fulfilled' && res.value.data && res.value.data.success) {
+        setData(res.value.data)
         setError(null)
-      } else {
-        throw new Error(res.data?.message || 'Gagal memuat data eksekutif.')
+      } else if (res.status === 'rejected') {
+        throw new Error(res.reason?.response?.data?.message || res.reason?.message || 'Gagal memuat data eksekutif.')
+      }
+
+      if (biRes.status === 'fulfilled' && biRes.value.data && biRes.value.data.success) {
+        setBiData(biRes.value.data)
       }
     } catch (err) {
       if (controller.signal.aborted) return
@@ -797,7 +806,149 @@ export default function ExecutiveCommandCenter() {
       </div>
 
       {/* =========================================================================
-          F. HISTORICAL TREND (AUTHENTIC WEEKLY REPORT SNAPSHOTS)
+          F. CROSS-MODULE BUSINESS INTELLIGENCE & EXECUTIVE DECISION INSIGHTS
+      ========================================================================= */}
+      <div className="bg-white border-2 border-[#171717] rounded-xl p-5 sm:p-6 shadow-[3px_3px_0px_#171717]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#171717]/15 mb-4 gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-[#FFD83D] border-1.5 border-[#171717] flex items-center justify-center text-[#171717]">
+              <Brain size={18} />
+            </div>
+            <div>
+              <h2 className="font-display text-sm sm:text-base uppercase tracking-wide text-[#171717]">
+                Business Intelligence Lintas Modul
+              </h2>
+              <p className="text-[11px] font-semibold text-[#171717]/60">
+                Korelasi performa proyek, transaksi keuangan riil, kapasitas tim, dan target sasaran strategis.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-black px-2.5 py-1 bg-[#171717] text-white rounded">
+              {biData?.cross_module_insights?.total_insights ?? 0} Anomali & Rekomendasi
+            </span>
+            {(biData?.cross_module_insights?.critical_count ?? 0) > 0 && (
+              <span className="text-[10px] font-black px-2 py-0.5 bg-[#FF2F92] text-white rounded border border-[#171717]">
+                {biData.cross_module_insights.critical_count} Kritis
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Intelligence Cross-Module Overview Strip */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          <div className="p-3 bg-[#F5F1E9] border border-[#171717] rounded-lg">
+            <div className="flex items-center gap-2 mb-1">
+              <DollarSign size={15} className="text-[#171717]" />
+              <span className="text-[10.5px] font-black uppercase text-[#171717]/70">Proyek &amp; Biaya Riil</span>
+            </div>
+            <p className="font-display text-lg text-[#171717]">
+              {biData?.project_finance_correlation?.total_tracked_projects ?? 0} Proyek
+            </p>
+            <p className="text-[10px] font-semibold text-[#171717]/60 mt-0.5">
+              Realisasi pengeluaran riil terlacak via transaksi
+            </p>
+          </div>
+
+          <div className="p-3 bg-[#F5F1E9] border border-[#171717] rounded-lg">
+            <div className="flex items-center gap-2 mb-1">
+              <Users size={15} className="text-[#FF2F92]" />
+              <span className="text-[10.5px] font-black uppercase text-[#171717]/70">Kapasitas &amp; Bottleneck Tim</span>
+            </div>
+            <p className="font-display text-lg text-[#171717]">
+              {biData?.team_workload_intelligence?.overloaded_members_count ?? 0} Personil Overload
+            </p>
+            <p className="text-[10px] font-semibold text-[#171717]/60 mt-0.5">
+              Dari {biData?.team_workload_intelligence?.total_members ?? 0} total anggota tim aktif
+            </p>
+          </div>
+
+          <div className="p-3 bg-[#F5F1E9] border border-[#171717] rounded-lg">
+            <div className="flex items-center gap-2 mb-1">
+              <Compass size={15} className="text-[#10B981]" />
+              <span className="text-[10.5px] font-black uppercase text-[#171717]/70">Keselarasan Strategis</span>
+            </div>
+            <p className="font-display text-lg text-[#171717]">
+              {biData?.strategic_alignment?.aligned_objectives_count ?? 0} / {biData?.strategic_alignment?.total_objectives ?? 0} Objective
+            </p>
+            <p className="text-[10px] font-semibold text-[#171717]/60 mt-0.5">
+              Telah diselaraskan dengan inisiatif strategis
+            </p>
+          </div>
+        </div>
+
+        {/* Actionable Insights List */}
+        {!biData?.cross_module_insights?.insights || biData.cross_module_insights.insights.length === 0 ? (
+          <div className="p-6 text-center bg-[#F5F1E9] border border-[#171717]/30 rounded-lg">
+            <CheckCircle2 size={32} className="text-[#10B981] mx-auto mb-2" />
+            <p className="font-display text-sm uppercase text-[#171717]">Tidak Ada Penyimpangan Kritis Lintas Modul</p>
+            <p className="text-xs text-[#171717]/60 mt-0.5">
+              Seluruh metrik proyek, beban kerja tim, transaksi keuangan, dan sasaran strategis berada dalam batas toleransi normal.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {biData.cross_module_insights.insights.map((insight) => {
+              const priorityBg =
+                insight.priority === 'critical'
+                  ? 'bg-[#FF2F92] text-white'
+                  : insight.priority === 'high'
+                  ? 'bg-[#FFD83D] text-[#171717]'
+                  : 'bg-[#B8A0F0] text-[#171717]'
+
+              return (
+                <div
+                  key={insight.id}
+                  className="p-4 bg-[#F5F1E9] border-1.5 border-[#171717] rounded-lg hover:bg-white transition-all space-y-2.5"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border border-[#171717] ${priorityBg}`}>
+                        {insight.priority}
+                      </span>
+                      <span className="text-[9.5px] font-bold uppercase px-2 py-0.5 rounded bg-white border border-[#171717]/40 text-[#171717]">
+                        Modul: {insight.source_module}
+                      </span>
+                      <h4 className="font-bold text-xs sm:text-sm text-[#171717]">
+                        {insight.title}
+                      </h4>
+                    </div>
+
+                    {insight.metric_value !== undefined && insight.metric_value !== null && (
+                      <div className="px-2.5 py-1 bg-white border border-[#171717] rounded text-right shrink-0">
+                        <span className="text-[9.5px] font-bold text-[#171717]/60 uppercase mr-1.5">
+                          {insight.metric_label}:
+                        </span>
+                        <span className="font-mono font-black text-xs text-[#FF2F92]">
+                          {insight.metric_value}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-xs font-semibold text-[#171717]/80 leading-relaxed">
+                    {insight.summary}
+                  </p>
+
+                  <div className="p-2.5 bg-white border-l-3 border-l-[#171717] border border-[#171717]/20 rounded-r-md text-[11px] text-[#171717] font-medium flex items-start gap-2">
+                    <Sparkles size={14} className="text-[#FFD83D] shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-black uppercase tracking-wider text-[10px] text-[#171717]/70 block">
+                        Rekomendasi Tindakan:
+                      </span>
+                      <span className="text-[#171717] font-semibold">{insight.recommendation}</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* =========================================================================
+          G. HISTORICAL TREND (AUTHENTIC WEEKLY REPORT SNAPSHOTS)
       ========================================================================= */}
       <div className="bg-white border-2 border-[#171717] rounded-xl p-5 sm:p-6 shadow-[3px_3px_0px_#171717]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#171717]/15 mb-4 gap-2">

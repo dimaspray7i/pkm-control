@@ -12,16 +12,21 @@ use App\Models\TaskReview;
 use App\Models\TaskUpdate;
 use App\Models\User;
 use App\Services\FinancialIntelligenceService;
+use App\Services\BusinessIntelligenceService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class LeadershipController extends Controller
 {
     protected FinancialIntelligenceService $financialIntelligence;
+    protected BusinessIntelligenceService $biService;
 
-    public function __construct(FinancialIntelligenceService $financialIntelligence)
-    {
+    public function __construct(
+        FinancialIntelligenceService $financialIntelligence,
+        BusinessIntelligenceService $biService
+    ) {
         $this->financialIntelligence = $financialIntelligence;
+        $this->biService = $biService;
     }
 
     /**
@@ -1643,6 +1648,35 @@ class LeadershipController extends Controller
             'financial_performance' => $this->financialIntelligence->getIntelligenceSummary('all'),
             'performance_comparison' => $comparison,
             'performance_insights' => $insights,
+        ]);
+    }
+
+    /**
+     * Cross-Module Business Intelligence Insights
+     * Accessible by: admin, pimpinan
+     */
+    public function intelligence(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user || !in_array($user->role, ['admin', 'pimpinan'], true)) {
+            return response()->json([
+                'message' => 'Akses ditolak. Fitur Business Intelligence hanya dapat diakses oleh Pimpinan dan Administrator.',
+            ], 403);
+        }
+
+        $insights = $this->biService->getCrossModuleInsights();
+        $correlation = $this->biService->getProjectFinanceCorrelation();
+        $workload = $this->biService->getTeamWorkloadIntelligence();
+        $strategic = $this->biService->getStrategicAlignmentIntelligence();
+
+        return response()->json([
+            'success' => true,
+            'cross_module_insights' => $insights,
+            'project_finance_correlation' => $correlation,
+            'team_workload_intelligence' => $workload,
+            'strategic_alignment' => $strategic,
+            'generated_at' => Carbon::now()->toIso8601String(),
         ]);
     }
 }

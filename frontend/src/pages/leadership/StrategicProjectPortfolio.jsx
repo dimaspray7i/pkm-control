@@ -36,6 +36,7 @@ import {
   LayoutGrid,
   Table as TableIcon
 } from 'lucide-react'
+import PageLoading from '../../components/ui/PageLoading'
 
 const STATUS_THEME = {
   on_track:  { label: 'Tepat Waktu', bg: 'bg-[#10B981]', text: 'text-white', border: 'border-[#171717]', dot: '#10B981' },
@@ -299,14 +300,7 @@ export default function StrategicProjectPortfolio() {
     )
   }
 
-  if (!data) {
-    return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4">
-        <Loader2 className="w-12 h-12 text-[#FF2F92] animate-spin" />
-        <p className="font-mono text-sm text-[#171717]">Menyiapkan data portofolio strategis...</p>
-      </div>
-    )
-  }
+  if (!data) return <PageLoading mode="page" text="Memuat Portofolio Strategis..." subtext="Mengagregasi analisis target vs realisasi dan perhatian strategis portofolio proyek." />
 
   const {
     portfolio_overview = {},

@@ -22,6 +22,7 @@ import {
   BarChart3
 } from 'lucide-react'
 import PageHeader from '../../components/ui/PageHeader'
+import PageLoading from '../../components/ui/PageLoading'
 
 const STATUS_CONFIG = {
   on_track:  { label: 'Tepat Waktu', bg: 'bg-[#10B981] text-white',        bar: 'bg-[#10B981]' },
@@ -74,16 +75,7 @@ export default function PmWorkspaceDashboard() {
     }
   }, [])
 
-  if (loading && !data) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-        <Loader2 size={32} className="animate-spin text-[#FF2F92]" />
-        <p className="font-display text-lg uppercase tracking-wider text-[#171717]">
-          MEMUAT WORKSPACE PROJECT MANAGER...
-        </p>
-      </div>
-    )
-  }
+  if (loading && !data) return <PageLoading mode="page" text="Memuat PM Workspace..." subtext="Menyiapkan ringkasan proyek, tugas aktif, dan beban kerja tim." />
 
   if (error && !data) {
     return (

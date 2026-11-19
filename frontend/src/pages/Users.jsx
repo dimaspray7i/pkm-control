@@ -7,6 +7,7 @@ import {
   RotateCcw, Search, ArrowUpDown, Power
 } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
+import PageLoading from '../components/ui/PageLoading'
 
 const ROLE_LABELS = {
   admin:           { label: 'Super Admin',     bg: 'bg-[#FF2F92] text-white', perm: 'Akses penuh ke semua fitur dan data sistem.' },
@@ -269,12 +270,7 @@ export default function Users() {
     }
   }
 
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3">
-      <Loader2 size={32} className="animate-spin text-[#FF2F92]" />
-      <p className="font-display text-lg uppercase tracking-wider text-[#171717]">MEMUAT DAFTAR PENGGUNA DARI DATABASE...</p>
-    </div>
-  )
+  if (loading) return <PageLoading mode="page" text="Memuat Manajemen Pengguna..." subtext="Mengambil daftar akun pengguna dan konfigurasi role." />
 
   if (error) return (
     <div className="p-6 bg-[#FFD83D] border border-[#171717] rounded-md shadow-[4px_4px_0px_#171717] max-w-md my-8">

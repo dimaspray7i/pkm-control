@@ -6,6 +6,7 @@ import {
   BarChart3, Edit3, Plus, X, Check, Trash2, ListTodo, AlertTriangle
 } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
+import PageLoading from '../components/ui/PageLoading'
 import { useAuth } from '../contexts/AuthContext'
 
 const STATUS_CONFIG = {
@@ -288,12 +289,7 @@ export default function Development() {
     }
   }
 
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3">
-      <Loader2 size={32} className="animate-spin text-[#FF2F92]" />
-      <p className="font-display text-lg uppercase tracking-wider text-[#171717]">MEMUAT DATA TRACKER...</p>
-    </div>
-  )
+  if (loading) return <PageLoading mode="page" text="Memuat Development Tracker..." subtext="Menyiapkan data sprint dan milestone proyek." />
 
   if (error) return (
     <div className="p-6 bg-[#FFD83D] border border-[#171717] rounded-md shadow-[4px_4px_0px_#171717] max-w-md my-8">

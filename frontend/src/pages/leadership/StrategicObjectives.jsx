@@ -10,6 +10,7 @@ import {
   ListChecks, ChevronRight, Layers, Users, Zap, Flag,
   ArrowUpRight, BarChart3, Edit3, Trash2, Link as LinkIcon
 } from 'lucide-react'
+import PageLoading from '../../components/ui/PageLoading'
 
 const formatDateIndo = (d) => {
   if (!d) return '—'
@@ -274,6 +275,10 @@ export default function StrategicObjectives() {
     } finally {
       setAiLoading(false)
     }
+  }
+
+  if (loading && objectives.length === 0) {
+    return <PageLoading mode="page" text="Memuat Strategic Objectives & OKR..." subtext="Mengagregasi capaian sasaran strategis dan Key Results perusahaan." />
   }
 
   return (

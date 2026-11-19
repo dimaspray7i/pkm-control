@@ -27,6 +27,7 @@ import {
   ShieldAlert
 } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
+import PageLoading from '../components/ui/PageLoading'
 
 const STATUS_CONFIG = {
   on_track:  { label: 'Tepat Waktu', bg: 'bg-[#10B981] text-white',     bar: 'bg-[#10B981]' },
@@ -233,16 +234,7 @@ export default function ProjectDetail() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-        <Loader2 size={36} className="animate-spin text-[#FF2F92]" />
-        <p className="font-display text-lg uppercase tracking-wider text-[#171717]">
-          MEMUAT DETAIL PROYEK DARI DATABASE...
-        </p>
-      </div>
-    )
-  }
+  if (loading) return <PageLoading mode="page" text="Memuat Detail Proyek..." subtext="Mengambil data tugas, milestone, dan progres proyek dari database." />
 
   if (notFound) {
     return (

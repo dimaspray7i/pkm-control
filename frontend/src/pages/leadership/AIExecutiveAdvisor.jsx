@@ -8,6 +8,7 @@ import {
   X, Activity, Building2, Target, Zap,
   Info, ChevronUp, DollarSign, TrendingUp
 } from 'lucide-react'
+import PageLoading from '../../components/ui/PageLoading'
 
 function MarkdownContent({ text }) {
   const lines = (text || '').split('\n')
@@ -425,7 +426,7 @@ export default function AIExecutiveAdvisor() {
 
       <div className="px-6 py-4 border-b-[3px] border-[#171717] bg-[#FAFAF8]">
         {healthLoading ? (
-          <div className="flex items-center gap-2 py-2 text-sm text-[#555]"><Loader2 size={16} className="animate-spin" /> Memuat data kondisi bisnis…</div>
+          <PageLoading mode="component" text="Memuat data kondisi bisnis..." subtext="Mengagregasi Corporate Health Index, risiko, dan deviasi proyek." transparent />
         ) : ch ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatCard label="Corporate Health Index" value={`${ch.chi_score}/100`} sub={ch.chi_category} color={chiColor} bg={ch.chi_score >= 75 ? '#F0FDF4' : ch.chi_score >= 50 ? '#FFFBEB' : '#FEF2F2'} icon={Activity} />

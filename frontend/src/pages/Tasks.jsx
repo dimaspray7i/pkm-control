@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import api from '../services/api'
 import { Check, Clock, AlertTriangle, Search, Loader2, RotateCcw, CheckSquare, Filter, Plus, Calendar, Edit3, Trash2, X } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
+import PageLoading from '../components/ui/PageLoading'
 import { useAuth } from '../contexts/AuthContext'
 import PmTaskDistributionBoard from './pm/PmTaskDistributionBoard'
 import MemberTodoList from './member/MemberTodoList'
@@ -303,6 +304,10 @@ function AdminMemberTasksList() {
       </button>
     </div>
   )
+
+  if (loading && tasks.length === 0) {
+    return <PageLoading mode="page" text="Memuat Manajemen Tugas..." subtext="Mengambil daftar tugas operasional, status penyelesaian, dan delegasi tim." />
+  }
 
   return (
     <div className="space-y-4 pb-6">

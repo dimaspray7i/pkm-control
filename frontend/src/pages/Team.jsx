@@ -9,6 +9,7 @@ import {
   UserCheck, Shield
 } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
+import PageLoading from '../components/ui/PageLoading'
 import PmTeamWorkload from './pm/PmTeamWorkload'
 
 const ROLE_CONFIG = {
@@ -150,12 +151,7 @@ function TeamDirectory() {
     setSortOrder('asc')
   }
 
-  if (loading && team.length === 0) return (
-    <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3">
-      <Loader2 size={32} className="animate-spin text-[#FF2F92]" />
-      <p className="font-display text-lg uppercase tracking-wider text-[#171717]">MEMUAT DIREKTORI ANGGOTA TIM...</p>
-    </div>
-  )
+  if (loading && team.length === 0) return <PageLoading mode="page" text="Memuat Direktori Tim..." subtext="Mengambil data anggota tim dan beban kerja aktif." />
 
   if (error && team.length === 0) return (
     <div className="p-6 bg-[#FFD83D] border border-[#171717] rounded-md shadow-[4px_4px_0px_#171717] max-w-md my-8">

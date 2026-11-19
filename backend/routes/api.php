@@ -44,6 +44,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/leadership/portfolio', [LeadershipController::class, 'portfolio']);
         Route::get('/leadership/portfolio/{id}', [LeadershipController::class, 'portfolioDetail']);
         Route::get('/leadership/performance', [LeadershipController::class, 'performance']);
+        Route::get('/leadership/intelligence', [LeadershipController::class, 'intelligence']);
 
         // Tahap P-E: Risk & Decision Center
         Route::get('/leadership/risk-overview', [LeadershipRiskController::class, 'overview']);

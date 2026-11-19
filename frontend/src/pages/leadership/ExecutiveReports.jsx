@@ -9,6 +9,7 @@ import {
   ArrowRight, Users, CheckSquare, Sparkles, Building2, Download,
   ExternalLink, FileText, Check, ListChecks, HelpCircle
 } from 'lucide-react'
+import PageLoading from '../../components/ui/PageLoading'
 
 const formatDateIndo = (d) => {
   if (!d) return '—'
@@ -416,10 +417,12 @@ export default function ExecutiveReports() {
 
           {/* REPORTS LIST TABLE / CARDS */}
           {reportsLoading ? (
-            <div className="border-[3px] border-[#171717] bg-white p-12 text-center">
-              <Loader2 size={32} className="animate-spin mx-auto text-[#B8A0F0] mb-3" />
-              <div className="text-sm font-bold text-[#555]">Memuat riwayat laporan eksekutif...</div>
-            </div>
+            <PageLoading
+              mode="component"
+              text="Memuat riwayat laporan eksekutif..."
+              subtext="Mengambil snapshot arsip laporan dari database."
+              className="border-[3px] border-[#171717] bg-white shadow-[4px_4px_0px_#171717] my-4"
+            />
           ) : reportsError ? (
             <div className="border-[3px] border-[#171717] bg-red-50 p-6 text-center text-red-700 font-bold">
               {reportsError}
@@ -631,10 +634,12 @@ export default function ExecutiveReports() {
 
           {/* DECISION ACTION TRACKER TABLE */}
           {decisionsLoading ? (
-            <div className="border-[3px] border-[#171717] bg-white p-12 text-center">
-              <Loader2 size={32} className="animate-spin mx-auto text-[#B8A0F0] mb-3" />
-              <div className="text-sm font-bold text-[#555]">Memuat data tindak lanjut keputusan...</div>
-            </div>
+            <PageLoading
+              mode="component"
+              text="Memuat data tindak lanjut keputusan..."
+              subtext="Mengambil riwayat keputusan pimpinan dan status implementasi."
+              className="border-[3px] border-[#171717] bg-white shadow-[4px_4px_0px_#171717] my-4"
+            />
           ) : decisionsError ? (
             <div className="border-[3px] border-[#171717] bg-red-50 p-6 text-center text-red-700 font-bold">
               {decisionsError}

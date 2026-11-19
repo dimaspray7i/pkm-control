@@ -14,6 +14,7 @@ import {
   CartesianGrid, Tooltip, PieChart, Pie, Cell, Legend
 } from 'recharts'
 import PageHeader from '../components/ui/PageHeader'
+import PageLoading from '../components/ui/PageLoading'
 import PmProjectReports from './pm/PmProjectReports'
 import LeadershipProjectReports from './reports/LeadershipProjectReports'
 
@@ -216,16 +217,7 @@ function BusinessReportsDirectory() {
 
   const sprints = reportData?.sprints || []
 
-  if (loading && !reportData) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[45vh] gap-3">
-        <Loader2 size={36} className="animate-spin text-[#FF2F92]" />
-        <p className="font-display text-lg uppercase tracking-wider text-[#171717]">
-          MENYUSUN LAPORAN BISNIS DARI DATABASE...
-        </p>
-      </div>
-    )
-  }
+  if (loading && !reportData) return <PageLoading mode="page" text="Menyusun Laporan Bisnis..." subtext="Mengagregasi data proyek, tugas, dan performa tim dari database." />
 
   if (error && !reportData) {
     return (

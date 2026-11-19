@@ -36,6 +36,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import PageHeader from '../../components/ui/PageHeader'
+import PageLoading from '../../components/ui/PageLoading'
 
 const PRIORITY_CONFIG = {
   urgent: { label: 'Mendesak', bg: 'bg-[#FF2F92] text-white border-[#171717]' },
@@ -660,16 +661,7 @@ export default function PmTaskDistributionBoard() {
     }
   }
 
-  if (loading && tasks.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[45vh] gap-3">
-        <Loader2 size={32} className="animate-spin text-[#FF2F92]" />
-        <p className="font-display text-lg uppercase tracking-wider text-[#171717]">
-          MEMUAT TASK DISTRIBUTION BOARD...
-        </p>
-      </div>
-    )
-  }
+  if (loading && tasks.length === 0) return <PageLoading mode="page" text="Memuat Task Distribution Board..." subtext="Menyiapkan distribusi tugas tim dan data approval workflow." />
 
   if (error && tasks.length === 0) {
     return (
