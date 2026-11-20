@@ -4,29 +4,44 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Activity;
+use App\Models\BlockerResolution;
+use App\Models\ExecutiveAction;
+use App\Models\ExecutiveDecision;
+use App\Models\FinancialAlert;
+use App\Models\FinancialBudget;
+use App\Models\FinancialTransaction;
 use App\Models\Milestone;
 use App\Models\Project;
 use App\Models\ProjectReport;
+use App\Models\StrategicInitiative;
+use App\Models\StrategicKeyResult;
+use App\Models\StrategicObjective;
+use App\Models\StrategicRisk;
 use App\Models\Task;
 use App\Models\TaskReview;
 use App\Models\TaskUpdate;
 use App\Models\User;
 use App\Services\FinancialIntelligenceService;
 use App\Services\BusinessIntelligenceService;
+use App\Services\ExecutiveBusinessContextService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class LeadershipController extends Controller
 {
     protected FinancialIntelligenceService $financialIntelligence;
     protected BusinessIntelligenceService $biService;
+    protected ExecutiveBusinessContextService $aiService;
 
     public function __construct(
         FinancialIntelligenceService $financialIntelligence,
-        BusinessIntelligenceService $biService
+        BusinessIntelligenceService $biService,
+        ExecutiveBusinessContextService $aiService
     ) {
         $this->financialIntelligence = $financialIntelligence;
         $this->biService = $biService;
+        $this->aiService = $aiService;
     }
 
     /**
@@ -512,10 +527,305 @@ class LeadershipController extends Controller
         $financialSummary = $this->financialIntelligence->getIntelligenceSummary('all');
 
         // =========================================================================
-        // 10. RETURN UNIFIED EXECUTIVE COMMAND CENTER RESPONSE
+        // 10. STRATEGIC OKR OVERVIEW (P-H Integration)
+        // =========================================================================
+        $allObjectives = StrategicObjective::with('keyResults')->get();
+        $totalObjectives = $allObjectives->count();
+        $activeObjectives = $allObjectives->where('status', 'active');
+        $achievedObjectives = $allObjectives->where('status', 'achieved');
+        $atRiskObjectives = $allObjectives->where('status', 'at_risk');
+        $notAchievedObjectives = $allObjectives->where('status', 'not_achieved');
+        
+        $monitoredObjectives = $allObjectives->whereIn('status', ['active', 'at_risk', 'achieved', 'not_achieved']);
+        $avgOkrProgress = $monitoredObjectives->count() > 0
+            ? round($monitoredObjectives->avg(fn($o) => $o->aggregated_progress), 1)
+            : 0.0;
+
+        $allKrs = StrategicKeyResult::all();
+        $okrSummary = [
+            'total_objectives' => $totalObjectives,
+            'active_count' => $activeObjectives->count(),
+            'achieved_count' => $achievedObjectives->count(),
+            'at_risk_count' => $atRiskObjectives->count(),
+            'not_achieved_count' => $notAchievedObjectives->count(),
+            'avg_progress' => $avgOkrProgress,
+            'total_key_results' => $allKrs->count(),
+            'krs_on_track' => $allKrs->where('status', 'on_track')->count(),
+            'krs_behind' => $allKrs->where('status', 'behind')->count(),
+            'krs_at_risk' => $allKrs->where('status', 'at_risk')->count(),
+            'top_objectives' => $allObjectives->whereIn('status', ['active', 'at_risk'])->sortByDesc('created_at')->take(4)->map(fn($o) => [
+                'id' => $o->id,
+                'title' => $o->title,
+                'status' => $o->status,
+                'progress' => $o->aggregated_progress,
+                'krs_count' => $o->keyResults->count(),
+            ])->values(),
+        ];
+
+        // =========================================================================
+        // 11. STRATEGIC INITIATIVES & RESOURCE ALLOCATION (P-I Integration)
+        // =========================================================================
+        $allInitiatives = StrategicInitiative::with(['projects', 'lead:id,name'])->get();
+        $totalInitiatives = $allInitiatives->count();
+        $activeInitiatives = $allInitiatives->where('status', 'active')->count();
+        $plannedInitiatives = $allInitiatives->where('status', 'planned')->count();
+        $completedInitiatives = $allInitiatives->where('status', 'completed')->count();
+        $onHoldInitiatives = $allInitiatives->where('status', 'on_hold')->count();
+        $totalAllocatedBudget = (float) $allInitiatives->sum('allocated_budget');
+        $totalSpentBudget = (float) $allInitiatives->sum('spent_budget');
+        $avgInitiativeProgress = $totalInitiatives > 0 ? round($allInitiatives->avg('progress'), 1) : 0.0;
+
+        $initiativesSummary = [
+            'total' => $totalInitiatives,
+            'active' => $activeInitiatives,
+            'planned' => $plannedInitiatives,
+            'completed' => $completedInitiatives,
+            'on_hold' => $onHoldInitiatives,
+            'avg_progress' => $avgInitiativeProgress,
+            'allocated_budget' => $totalAllocatedBudget,
+            'spent_budget' => $totalSpentBudget,
+            'budget_utilization_rate' => $totalAllocatedBudget > 0 ? round(($totalSpentBudget / $totalAllocatedBudget) * 100, 1) : 0.0,
+            'top_initiatives' => $allInitiatives->whereIn('status', ['active', 'planned', 'on_hold'])->sortByDesc('progress')->take(4)->map(fn($i) => [
+                'id' => $i->id,
+                'title' => $i->title,
+                'code' => $i->code,
+                'status' => $i->status,
+                'progress' => (int) ($i->progress ?? 0),
+                'lead_name' => $i->lead?->name ?? 'Belum Ditugaskan',
+                'allocated_budget' => (float) $i->allocated_budget,
+            ])->values(),
+        ];
+
+        // =========================================================================
+        // 12. RISK & DECISION CENTER OVERVIEW (P-E & P-G Integration)
+        // =========================================================================
+        $allRisks = StrategicRisk::all();
+        $activeRisks = $allRisks->whereIn('status', ['open', 'mitigating', 'monitoring'])->values();
+        $criticalRisksCount = $activeRisks->where('risk_level', 'critical')->count();
+        $highRisksCount = $activeRisks->where('risk_level', 'high')->count();
+        $overdueRisksCount = $activeRisks->filter(fn($r) => !empty($r->target_resolution_date) && $r->target_resolution_date < $today)->count();
+
+        $allDecisions = ExecutiveDecision::with(['pic:id,name', 'risk:id,title'])->get();
+        $pendingDecisions = $allDecisions->whereIn('status', ['draft', 'approved', 'in_progress'])->values();
+        $overdueDecisionsCount = $pendingDecisions->filter(fn($d) => in_array($d->status, ['approved', 'in_progress']) && !empty($d->due_date) && $d->due_date < $today)->count();
+
+        $resolvedBlockerIds = BlockerResolution::where('status', 'resolved')->pluck('task_update_id');
+        $activeBlockersCount = TaskUpdate::whereNotNull('blocker')->where('blocker', '!=', '')->whereNotIn('id', $resolvedBlockerIds)->count();
+
+        $riskDecisionSummary = [
+            'total_active_risks' => $activeRisks->count(),
+            'critical_risks' => $criticalRisksCount,
+            'high_risks' => $highRisksCount,
+            'overdue_risks' => $overdueRisksCount,
+            'total_decisions' => $allDecisions->count(),
+            'pending_decisions' => $pendingDecisions->count(),
+            'overdue_decisions' => $overdueDecisionsCount,
+            'active_blockers' => $activeBlockersCount,
+            'recent_decisions' => $pendingDecisions->take(4)->map(fn($d) => [
+                'id' => $d->id,
+                'decision_number' => $d->decision_number,
+                'title' => $d->title,
+                'status' => $d->status,
+                'priority' => $d->priority,
+                'pic_name' => $d->pic?->name ?? 'Pimpinan',
+                'due_date' => $d->due_date ? Carbon::parse($d->due_date)->format('d M Y') : null,
+                'is_overdue' => !empty($d->due_date) && $d->due_date < $today && in_array($d->status, ['approved', 'in_progress']),
+            ])->values(),
+        ];
+
+        // =========================================================================
+        // 13. EXECUTIVE ACTIONS OVERVIEW (P-M Integration)
+        // =========================================================================
+        $allActions = ExecutiveAction::with(['assignedUser:id,name', 'project:id,name'])->get();
+        $totalActions = $allActions->count();
+        $pendingActions = $allActions->where('status', 'pending')->count();
+        $inProgressActions = $allActions->where('status', 'in_progress')->count();
+        $completedActions = $allActions->where('status', 'completed')->count();
+        $cancelledActions = $allActions->where('status', 'cancelled')->count();
+        $overdueActions = $allActions->filter(fn($a) => in_array($a->status, ['pending', 'in_progress']) && !empty($a->due_date) && $a->due_date->toDateString() < $today)->count();
+        $criticalActions = $allActions->where('priority', 'critical')->whereIn('status', ['pending', 'in_progress'])->count();
+
+        $actionsSummary = [
+            'total' => $totalActions,
+            'active' => $pendingActions + $inProgressActions,
+            'pending' => $pendingActions,
+            'in_progress' => $inProgressActions,
+            'completed' => $completedActions,
+            'overdue' => $overdueActions,
+            'critical' => $criticalActions,
+            'recent_actions' => $allActions->whereIn('status', ['pending', 'in_progress'])->sortByDesc(fn($a) => $a->priority === 'critical' ? 2 : 1)->take(4)->map(fn($a) => [
+                'id' => $a->id,
+                'action_code' => $a->action_code,
+                'title' => $a->title,
+                'priority' => $a->priority,
+                'status' => $a->status,
+                'progress' => (int) ($a->progress ?? 0),
+                'assigned_to_name' => $a->assignedUser?->name ?? 'Belum Ditugaskan',
+                'due_date' => $a->due_date ? $a->due_date->format('d M Y') : null,
+                'is_overdue' => $a->isOverdue(),
+                'converted_task_id' => $a->converted_task_id,
+            ])->values(),
+        ];
+
+        // =========================================================================
+        // 14. PRIORITY & ATTENTION CENTER (Triage Urgensi Lintas Modul 100% Data Aktual)
+        // =========================================================================
+        $triageItems = collect();
+
+        // Triage 1: Overdue or Pending Decisions requiring executive action
+        foreach ($allDecisions->whereIn('status', ['draft', 'approved', 'in_progress']) as $dec) {
+            $isOverdue = !empty($dec->due_date) && $dec->due_date < $today;
+            if ($isOverdue || $dec->status === 'draft' || $dec->priority === 'urgent') {
+                $urgency = ($isOverdue || $dec->priority === 'urgent') ? 100 : 70;
+                $triageItems->push([
+                    'id' => 'triage-dec-' . $dec->id,
+                    'category' => 'decision_needed',
+                    'category_label' => 'Keputusan Eksekutif',
+                    'title' => "[{$dec->decision_number}] {$dec->title}",
+                    'severity' => $isOverdue ? 'critical' : ($dec->priority === 'urgent' ? 'high' : 'warning'),
+                    'reason' => $isOverdue
+                        ? 'Tenggat waktu pelaksanaan keputusan telah terlewati (' . Carbon::parse($dec->due_date)->format('d M Y') . ')'
+                        : ($dec->status === 'draft' ? 'Rancangan keputusan membutuhkan otorisasi formal Pimpinan' : 'Keputusan prioritas mendesak dalam proses implementasi'),
+                    'target_name' => $dec->pic?->name ?? 'Pimpinan',
+                    'source_module' => 'Risk & Decision Center (P-E)',
+                    'deep_link' => '/leadership/risks',
+                    'action_label' => 'Buka Detail Keputusan',
+                    'urgency_score' => $urgency,
+                ]);
+            }
+        }
+
+        // Triage 2: Critical & High Strategic Risks
+        foreach ($activeRisks->whereIn('risk_level', ['critical', 'high']) as $r) {
+            $isRiskOverdue = !empty($r->target_resolution_date) && $r->target_resolution_date < $today;
+            $urgency = ($r->risk_level === 'critical' ? 95 : 75) + ($isRiskOverdue ? 15 : 0);
+            $triageItems->push([
+                'id' => 'triage-risk-' . $r->id,
+                'category' => 'critical_risk',
+                'category_label' => 'Risiko Strategis',
+                'title' => "[{$r->risk_code}] {$r->title}",
+                'severity' => ($r->risk_level === 'critical' || $isRiskOverdue) ? 'critical' : 'high',
+                'reason' => $isRiskOverdue
+                    ? "Target penyelesaian mitigasi telah lewat tenggat ({$r->target_resolution_date})"
+                    : "Tingkat risiko {$r->risk_level} dengan score dampak " . ($r->risk_score ?? 'tinggi'),
+                'target_name' => $r->owner?->name ?? 'Risk Committee',
+                'source_module' => 'Risk Register (P-E)',
+                'deep_link' => '/leadership/risks',
+                'action_label' => 'Tinjau Mitigasi Risiko',
+                'urgency_score' => $urgency,
+            ]);
+        }
+
+        // Triage 3: Overdue Executive Actions (P-M)
+        foreach ($allActions->whereIn('status', ['pending', 'in_progress']) as $act) {
+            if ($act->isOverdue() || $act->priority === 'critical') {
+                $urgency = $act->isOverdue() ? 90 : 70;
+                $triageItems->push([
+                    'id' => 'triage-act-' . $act->id,
+                    'category' => 'overdue_action',
+                    'category_label' => 'Tindakan Eksekutif',
+                    'title' => "[{$act->action_code}] {$act->title}",
+                    'severity' => $act->isOverdue() ? 'critical' : 'high',
+                    'reason' => $act->isOverdue()
+                        ? "Tindakan eksekutif belum selesai melewati batas waktu ({$act->due_date?->format('d M Y')})"
+                        : 'Tindakan prioritas kritis memerlukan pemantauan ketat',
+                    'target_name' => $act->assignedUser?->name ?? 'PIC Terkait',
+                    'source_module' => 'Executive Action Center (P-M)',
+                    'deep_link' => '/executive-actions',
+                    'action_label' => 'Buka Pusat Tindakan',
+                    'urgency_score' => $urgency,
+                ]);
+            }
+        }
+
+        // Triage 4: Open Financial Alerts (P-J & P-K)
+        $openAlerts = FinancialAlert::where('status', 'open')->orderByRaw("CASE WHEN severity = 'critical' THEN 1 WHEN severity = 'warning' THEN 2 ELSE 3 END")->take(5)->get();
+        foreach ($openAlerts as $fa) {
+            $urgency = $fa->severity === 'critical' ? 88 : 65;
+            $triageItems->push([
+                'id' => 'triage-fin-' . $fa->id,
+                'category' => 'budget_alert',
+                'category_label' => 'Anomali Anggaran',
+                'title' => $fa->title,
+                'severity' => $fa->severity === 'critical' ? 'critical' : 'warning',
+                'reason' => $fa->description ?? 'Terdeteksi deviasi realisasi transaksi pengeluaran melampaui batas batas anggaran',
+                'target_name' => 'Finance & Controller',
+                'source_module' => 'Financial Control (P-J)',
+                'deep_link' => '/financial',
+                'action_label' => 'Kelola Peringatan Finansial',
+                'urgency_score' => $urgency,
+            ]);
+        }
+
+        // Triage 5: Lagging OKR Objectives
+        foreach ($atRiskObjectives as $okr) {
+            $triageItems->push([
+                'id' => 'triage-okr-' . $okr->id,
+                'category' => 'lagging_target',
+                'category_label' => 'Sasaran Strategis (OKR)',
+                'title' => $okr->title,
+                'severity' => 'high',
+                'reason' => "Progres sasaran berada di status Berisiko ({$okr->aggregated_progress}% tercapai)",
+                'target_name' => $okr->owner?->name ?? 'Executive Owner',
+                'source_module' => 'Strategic Objectives (P-H)',
+                'deep_link' => '/leadership/okr',
+                'action_label' => 'Buka Target OKR',
+                'urgency_score' => 68,
+            ]);
+        }
+
+        // Triage 6: Stalled Initiatives
+        foreach ($allInitiatives->where('status', 'on_hold') as $ini) {
+            $triageItems->push([
+                'id' => 'triage-ini-' . $ini->id,
+                'category' => 'stalled_initiative',
+                'category_label' => 'Inisiatif Strategis',
+                'title' => "[{$ini->code}] {$ini->title}",
+                'severity' => 'warning',
+                'reason' => 'Inisiatif strategis berstatus On Hold (tertahan) dan mengikat alokasi kapasitas sumber daya',
+                'target_name' => $ini->lead?->name ?? 'Lead Inisiatif',
+                'source_module' => 'Strategic Initiatives (P-I)',
+                'deep_link' => '/leadership/initiatives',
+                'action_label' => 'Buka Inisiatif',
+                'urgency_score' => 60,
+            ]);
+        }
+
+        $sortedTriage = $triageItems->sortByDesc('urgency_score')->values()->take(10);
+
+        // =========================================================================
+        // 15. AI EXECUTIVE INSIGHTS (P-F Integration - 100% Real DB-driven)
+        // =========================================================================
+        $aiExecutiveInsights = [];
+        try {
+            $aiExecutiveInsights = $this->aiService->getExecutiveInsights('all_time');
+        } catch (\Throwable $e) {
+            Log::warning('ECC 2.0 AI insights generation exception: ' . $e->getMessage());
+        }
+
+        // =========================================================================
+        // 16. EXECUTIVE FORECAST & GROWTH GLANCE (P-L & P-M Integration)
+        // =========================================================================
+        $totalRevRealization = (float) FinancialTransaction::where('type', 'income')->sum('amount');
+        $totalExpRealization = (float) FinancialTransaction::where('type', 'expense')->sum('amount');
+        $netCashflow = $totalRevRealization - $totalExpRealization;
+        $activeClientsCount = Project::where('is_active', true)->whereNotNull('client')->distinct('client')->count('client');
+
+        $forecastGlance = [
+            'cashflow_runway_months' => $financialSummary['kpis']['runway_months'] ?? 12.0,
+            'monthly_burn_rate' => $financialSummary['kpis']['burn_rate'] ?? 0.0,
+            'net_cashflow' => $netCashflow,
+            'active_clients_count' => $activeClientsCount,
+            'portfolio_velocity_status' => $progVariance >= 0 ? 'Optimal' : ($progVariance >= -10 ? 'Moderat' : 'Defisit'),
+            'financial_health_status' => $financialSummary['health']['category'] ?? 'Baik',
+        ];
+
+        // =========================================================================
+        // 17. RETURN UNIFIED EXECUTIVE COMMAND CENTER 2.0 RESPONSE
         // =========================================================================
         return response()->json([
             'success' => true,
+            'version' => '2.0',
             'executive' => [
                 'name' => $user->name,
                 'role' => $user->role,
@@ -525,6 +835,15 @@ class LeadershipController extends Controller
                 'as_of_date' => Carbon::now()->translatedFormat('l, d F Y'),
                 'as_of_time' => Carbon::now()->format('H:i') . ' WIB',
                 'refreshed_at' => Carbon::now()->toIso8601String(),
+                'data_sources' => [
+                    'projects' => 'Database Live Projects & Milestones',
+                    'finances' => 'Buku Kas & Transaksi Finansial Riil',
+                    'okr' => 'Strategic Objectives & Key Results System',
+                    'initiatives' => 'Inisiatif Strategis & Alokasi Tim',
+                    'risks_decisions' => 'Risk Register & Keputusan Pimpinan',
+                    'actions' => 'Pusat Tindakan Eksekutif (P-M)',
+                    'ai' => 'Deterministic Context & Algorithmic Insights',
+                ],
             ],
             'company_health_index' => $chiData,
             'financial_health' => $financialSummary['health'],
@@ -535,6 +854,14 @@ class LeadershipController extends Controller
             'review_backlog' => $reviewBacklog,
             'executive_feed' => $sortedFeed,
             'historical_trend' => $trendData,
+            // P-N Executive Command Center 2.0 Integrations
+            'strategic_okr' => $okrSummary,
+            'strategic_initiatives' => $initiativesSummary,
+            'risk_decision_center' => $riskDecisionSummary,
+            'executive_actions' => $actionsSummary,
+            'priority_triage' => $sortedTriage,
+            'ai_insights' => $aiExecutiveInsights,
+            'forecast_glance' => $forecastGlance,
         ]);
     }
 

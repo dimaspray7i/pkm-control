@@ -321,4 +321,75 @@ class LeadershipCommandCenterTest extends TestCase
                 'latest_projects',
             ]);
     }
+
+    /**
+     * Test 12: Executive Command Center 2.0 returns unified cross-module strategic integrations.
+     */
+    public function test_command_center_2_0_cross_module_integrations(): void
+    {
+        Sanctum::actingAs($this->pimpinanUser);
+
+        $response = $this->getJson('/api/leadership/command-center');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'version',
+                'meta' => ['as_of_date', 'as_of_time', 'refreshed_at', 'data_sources'],
+                'strategic_okr' => ['total_objectives', 'active_count', 'avg_progress'],
+                'strategic_initiatives' => ['total', 'active', 'avg_progress'],
+                'risk_decision_center' => ['total_active_risks', 'total_decisions', 'pending_decisions'],
+                'executive_actions' => ['total', 'active', 'overdue'],
+                'priority_triage',
+                'forecast_glance' => ['cashflow_runway_months', 'portfolio_velocity_status'],
+            ]);
+
+        $this->assertEquals('2.0', $response->json('version'));
+        $this->assertIsArray($response->json('priority_triage'));
+        $this->assertIsArray($response->json('meta.data_sources'));
+    }
+
+    /**
+     * Test 13: Priority Triage aggregates overdue decisions and critical risks correctly.
+     */
+    public function test_priority_triage_aggregates_urgent_items(): void
+    {
+        // 1. Create overdue decision
+        \App\Models\ExecutiveDecision::create([
+            'decision_number' => 'DEC-2026-TEST',
+            'title' => 'Urgent Infrastructure Decision',
+            'description' => 'Migrasi arsitektur server produksi',
+            'rationale' => 'System migration',
+            'decision_date' => Carbon::today()->subDays(10)->toDateString(),
+            'priority' => 'critical',
+            'status' => 'approved',
+            'due_date' => Carbon::today()->subDays(3)->toDateString(),
+            'created_by' => $this->pimpinanUser->id,
+        ]);
+
+        // 2. Create critical strategic risk
+        \App\Models\StrategicRisk::create([
+            'risk_code' => 'RSK-2026-CRIT',
+            'title' => 'Critical Vendor Supply Risk',
+            'category' => 'Operational',
+            'impact' => 5,
+            'likelihood' => 5,
+            'risk_score' => 25,
+            'risk_level' => 'critical',
+            'identified_date' => Carbon::today()->subDays(5)->toDateString(),
+            'status' => 'open',
+            'created_by' => $this->pimpinanUser->id,
+        ]);
+
+        Sanctum::actingAs($this->pimpinanUser);
+
+        $response = $this->getJson('/api/leadership/command-center');
+        $response->assertStatus(200);
+
+        $triage = $response->json('priority_triage');
+        $this->assertNotEmpty($triage);
+
+        $categories = collect($triage)->pluck('category')->toArray();
+        $this->assertContains('decision_needed', $categories);
+        $this->assertContains('critical_risk', $categories);
+    }
 }

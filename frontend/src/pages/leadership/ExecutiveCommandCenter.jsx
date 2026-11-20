@@ -30,7 +30,17 @@ import {
   Brain,
   Compass,
   Users,
-  Zap
+  Zap,
+  Award,
+  Briefcase,
+  ShieldAlert,
+  ListChecks,
+  Flame,
+  ArrowUpRight,
+  Database,
+  Filter,
+  Check,
+  X
 } from 'lucide-react'
 import PageLoading from '../../components/ui/PageLoading'
 import {
@@ -43,7 +53,6 @@ import {
   CartesianGrid,
   Cell
 } from 'recharts'
-import PageHeader from '../../components/ui/PageHeader'
 
 const STATUS_THEME = {
   on_track:  { label: 'Tepat Waktu', bg: 'bg-[#10B981]', text: 'text-white', border: 'border-[#171717]', dot: '#10B981' },
@@ -65,6 +74,8 @@ export default function ExecutiveCommandCenter() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
   const [showFormulaInfo, setShowFormulaInfo] = useState(false)
+  const [showDataSourceModal, setShowDataSourceModal] = useState(false)
+  const [triageFilter, setTriageFilter] = useState('all')
 
   const abortControllerRef = useRef(null)
 
@@ -169,7 +180,13 @@ export default function ExecutiveCommandCenter() {
   }
 
   if (loading && !data) {
-    return <PageLoading mode="page" text="Memuat Pusat Kendali Eksekutif..." subtext="Menghitung Company Health Index, status portofolio proyek, dan atensi strategis." />
+    return (
+      <PageLoading
+        mode="page"
+        text="Memuat Executive Command Center 2.0..."
+        subtext="Mengonsolidasi Company Health Index, sasaran strategis OKR, inisiatif, keuangan riil, risiko, dan pusat tindakan."
+      />
+    )
   }
 
   if (error && !data) {
@@ -190,6 +207,7 @@ export default function ExecutiveCommandCenter() {
     )
   }
 
+  // Destructure real unified data
   const chi = data?.company_health_index || {}
   const portfolio = data?.portfolio_snapshot || {}
   const progressAnalysis = data?.progress_analysis || {}
@@ -199,39 +217,69 @@ export default function ExecutiveCommandCenter() {
   const trend = data?.historical_trend || {}
   const finSummary = data?.financial_summary || {}
   const finHealth = data?.financial_health || {}
+  const strategicOkr = data?.strategic_okr || {}
+  const strategicInitiatives = data?.strategic_initiatives || {}
+  const riskDecision = data?.risk_decision_center || {}
+  const execActions = data?.executive_actions || {}
+  const priorityTriage = data?.priority_triage || []
+  const aiInsights = data?.ai_insights || []
+  const forecastGlance = data?.forecast_glance || {}
+  const dataSources = data?.meta?.data_sources || {}
 
   const formatIDR = (val) => {
     if (val === null || val === undefined) return 'Rp 0'
     return 'Rp ' + Number(val).toLocaleString('id-ID')
   }
 
-  // CHI Dial Angle Calculation (0 - 100 maps to 0% - 100%)
   const chiScore = typeof chi.score === 'number' ? chi.score : 0
+
+  // Filter priority triage
+  const filteredTriage = triageFilter === 'all'
+    ? priorityTriage
+    : priorityTriage.filter(item => item.category === triageFilter)
+
+  const triageCounts = {
+    all: priorityTriage.length,
+    decision_needed: priorityTriage.filter(i => i.category === 'decision_needed').length,
+    critical_risk: priorityTriage.filter(i => i.category === 'critical_risk').length,
+    overdue_action: priorityTriage.filter(i => i.category === 'overdue_action').length,
+    budget_alert: priorityTriage.filter(i => i.category === 'budget_alert').length,
+    lagging_target: priorityTriage.filter(i => i.category === 'lagging_target').length,
+    stalled_initiative: priorityTriage.filter(i => i.category === 'stalled_initiative').length,
+  }
 
   return (
     <div className="space-y-6 pb-12">
       {/* =========================================================================
-          A. EXECUTIVE HEADER
+          A. EXECUTIVE HEADER & DATA FRESHNESS TRANSPARENCY
       ========================================================================= */}
       <div className="bg-white border-2 border-[#171717] rounded-xl p-4 sm:p-6 shadow-[3px_3px_0px_#171717] relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-36 h-36 bg-[#FFD83D]/20 rounded-full blur-2xl -mr-12 -mt-12 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-44 h-44 bg-[#FFD83D]/20 rounded-full blur-2xl -mr-12 -mt-12 pointer-events-none" />
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="px-2 py-0.5 text-[9.5px] font-black uppercase tracking-wider bg-[#171717] text-white rounded">
-                EXECUTIVE SUITE
+                EXECUTIVE COMMAND CENTER 2.0
               </span>
               <span className="flex items-center gap-1 text-[11px] font-bold text-[#10B981]">
                 <span className="w-2 h-2 rounded-full bg-[#10B981] inline-block animate-pulse" />
                 Live Database Active
               </span>
+              <button
+                type="button"
+                onClick={() => setShowDataSourceModal(true)}
+                className="px-2 py-0.5 text-[10px] font-bold uppercase bg-[#F5F1E9] hover:bg-[#FFD83D] text-[#171717] border border-[#171717] rounded flex items-center gap-1 cursor-pointer transition-colors"
+                title="Lihat transparansi sumber data live"
+              >
+                <Database size={11} /> 7 Modul Terkoneksi
+              </button>
             </div>
             <h1 className="font-display text-2xl sm:text-3xl text-[#171717] tracking-tight leading-none uppercase">
               {getGreeting()}, {user?.name || 'Pimpinan'}
             </h1>
             <p className="text-xs sm:text-sm font-semibold text-[#171717]/70 mt-1">
-              Pusat komando dan evaluasi performa bisnis operasional PT Potensi Karya Mandiri.
+              Pusat komando strategis dan pengambilan keputusan holistik PT Potensi Karya Mandiri.
             </p>
           </div>
 
@@ -257,79 +305,23 @@ export default function ExecutiveCommandCenter() {
       </div>
 
       {/* =========================================================================
-          EXECUTIVE ACTIONS SHORTCUT STRIP
-      ========================================================================= */}
-      <div className="bg-[#171717] text-white border-2 border-[#171717] rounded-xl p-4 sm:p-5 shadow-[3px_3px_0px_#FFD83D] flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-lg bg-[#FFD83D] text-[#171717] border border-white flex items-center justify-center shrink-0">
-            <Zap size={24} className="fill-[#171717]" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-wider text-[#FFD83D]">
-                Insight-To-Action Execution Center
-              </span>
-              {(actionSummary?.overdue_actions ?? 0) > 0 && (
-                <span className="px-2 py-0.5 text-[9px] font-black uppercase bg-[#FF2F92] text-white rounded">
-                  {actionSummary.overdue_actions} Terlambat
-                </span>
-              )}
-            </div>
-            <h3 className="font-display text-base uppercase text-white tracking-wide">
-              Pusat Tindakan Strategis &amp; Operasional
-            </h3>
-            <p className="text-xs text-white/70">
-              Konversi anomali dan rekomendasi bisnis menjadi tindakan terukur dengan penanggung jawab dan tenggat waktu.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 self-end md:self-auto flex-wrap">
-          <div className="flex items-center gap-2.5 bg-white/10 px-3.5 py-2 rounded-lg border border-white/20 text-xs">
-            <span className="text-white/60 font-semibold">Aktif:</span>
-            <span className="font-mono font-black text-white">
-              {(actionSummary?.status_breakdown?.pending ?? 0) + (actionSummary?.status_breakdown?.in_progress ?? 0)}
-            </span>
-            <span className="text-white/30">|</span>
-            <span className="text-[#FF2F92] font-semibold">Kritis:</span>
-            <span className="font-mono font-black text-[#FF2F92]">
-              {actionSummary?.priority_breakdown?.critical ?? 0}
-            </span>
-            <span className="text-white/30">|</span>
-            <span className="text-[#10B981] font-semibold">Selesai:</span>
-            <span className="font-mono font-black text-[#10B981]">
-              {actionSummary?.status_breakdown?.completed ?? 0}
-            </span>
-          </div>
-
-          <button
-            onClick={() => navigate('/executive-actions')}
-            className="px-4 py-2.5 bg-[#FFD83D] hover:bg-[#f7cc24] text-[#171717] font-black text-xs uppercase rounded-lg shadow-[2px_2px_0px_#FFFFFF] flex items-center gap-2 cursor-pointer transition-transform hover:-translate-y-0.5 active:translate-y-0"
-          >
-            <span>Buka Action Center</span>
-            <ArrowRight size={14} />
-          </button>
-        </div>
-      </div>
-
-      {/* =========================================================================
-          B. COMPANY HEALTH INDEX (CHI) & PORTFOLIO SNAPSHOT (2 COLUMN GRID)
+          B. EXECUTIVE BUSINESS OVERVIEW (CHI 2.0 & 8 STRATEGIC DIMENSIONS)
       ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* B1. Company Health Index Card */}
+        {/* B1. Company Health Index (CHI 2.0) Card */}
         <div className="lg:col-span-5 bg-white border-2 border-[#171717] rounded-xl p-5 sm:p-6 shadow-[3px_3px_0px_#171717] flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-[#171717]/15">
               <div className="flex items-center gap-2">
                 <ShieldCheck size={18} className="text-[#FF2F92]" />
                 <h2 className="font-display text-sm sm:text-base uppercase tracking-wide text-[#171717]">
-                  Company Health Index
+                  Company Health Index 2.0
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setShowFormulaInfo(!showFormulaInfo)}
-                className="text-xs text-[#171717]/60 hover:text-[#171717] p-1 rounded hover:bg-[#F5F1E9] transition-colors"
+                className="text-xs text-[#171717]/60 hover:text-[#171717] p-1 rounded hover:bg-[#F5F1E9] transition-colors cursor-pointer"
                 title="Penjelasan Formula CHI"
               >
                 <HelpCircle size={16} />
@@ -344,7 +336,7 @@ export default function ExecutiveCommandCenter() {
                   CHI = (0.35 × S_proj) + (0.25 × S_sched) + (0.25 × S_deliv) + (0.15 × S_risk)
                 </code>
                 <p className="text-[11px] text-[#171717]/70">
-                  Dihitung 100% dari data database aktual: proyek on-track, ketepatan jadwal tugas, pencapaian target progres, dan mitigasi proyek berisiko tinggi.
+                  Dihitung 100% dari data database aktual: rasio proyek on-track, ketepatan jadwal tugas, pencapaian target progres, dan mitigasi proyek berisiko.
                 </p>
               </div>
             )}
@@ -398,7 +390,6 @@ export default function ExecutiveCommandCenter() {
               Rincian 4 Komponen Perhitungan:
             </p>
 
-            {/* S_project */}
             <div>
               <div className="flex justify-between text-[11px] font-bold text-[#171717]">
                 <span>Status Proyek (Bobot 35%)</span>
@@ -410,7 +401,6 @@ export default function ExecutiveCommandCenter() {
               <p className="text-[10px] text-[#171717]/60 mt-0.5">{chi.components?.project?.metric}</p>
             </div>
 
-            {/* S_schedule */}
             <div>
               <div className="flex justify-between text-[11px] font-bold text-[#171717]">
                 <span>Ketepatan Jadwal Tugas (Bobot 25%)</span>
@@ -422,7 +412,6 @@ export default function ExecutiveCommandCenter() {
               <p className="text-[10px] text-[#171717]/60 mt-0.5">{chi.components?.schedule?.metric}</p>
             </div>
 
-            {/* S_delivery */}
             <div>
               <div className="flex justify-between text-[11px] font-bold text-[#171717]">
                 <span>Pencapaian Target Progres (Bobot 25%)</span>
@@ -434,7 +423,6 @@ export default function ExecutiveCommandCenter() {
               <p className="text-[10px] text-[#171717]/60 mt-0.5">{chi.components?.delivery?.metric}</p>
             </div>
 
-            {/* S_risk */}
             <div>
               <div className="flex justify-between text-[11px] font-bold text-[#171717]">
                 <span>Pengendalian Risiko (Bobot 15%)</span>
@@ -448,336 +436,348 @@ export default function ExecutiveCommandCenter() {
           </div>
         </div>
 
-        {/* B2. Portfolio Status Snapshot Cards */}
-        <div className="lg:col-span-7 flex flex-col gap-4">
-          <div className="bg-white border-2 border-[#171717] rounded-xl p-5 sm:p-6 shadow-[3px_3px_0px_#171717] flex-1">
-            <div className="flex items-center justify-between pb-3 border-b border-[#171717]/15 mb-4">
-              <div className="flex items-center gap-2">
-                <FolderKanban size={18} className="text-[#FF2F92]" />
-                <h2 className="font-display text-sm sm:text-base uppercase tracking-wide text-[#171717]">
-                  Portfolio Status Snapshot
-                </h2>
-              </div>
-              <span className="text-[10.5px] font-bold text-[#171717]/60 uppercase">
-                {portfolio.total_projects || 0} Total Proyek Terdaftar
-              </span>
-            </div>
-
-            {/* 6 Metric Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {/* Total Proyek */}
-              <div
-                onClick={() => navigate('/projects')}
-                className="bg-[#F5F1E9] p-3.5 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] hover:bg-[#FFD83D]/30 cursor-pointer transition-all group"
-              >
-                <div className="flex items-center justify-between text-[#171717]/60 group-hover:text-[#171717]">
-                  <span className="text-[10px] font-black uppercase tracking-wider">Total Proyek</span>
-                  <ExternalLink size={12} />
-                </div>
-                <p className="font-display text-3xl text-[#171717] mt-1.5 leading-none">
-                  {portfolio.total_projects || 0}
-                </p>
-                <p className="text-[10px] font-semibold text-[#171717]/60 mt-1">Seluruh portofolio</p>
-              </div>
-
-              {/* Proyek Aktif */}
-              <div
-                onClick={() => navigate('/projects')}
-                className="bg-white p-3.5 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] hover:bg-[#FFD83D]/30 cursor-pointer transition-all group"
-              >
-                <div className="flex items-center justify-between text-[#171717]/60 group-hover:text-[#171717]">
-                  <span className="text-[10px] font-black uppercase tracking-wider">Proyek Aktif</span>
-                  <ExternalLink size={12} />
-                </div>
-                <p className="font-display text-3xl text-[#171717] mt-1.5 leading-none">
-                  {portfolio.active_projects || 0}
-                </p>
-                <p className="text-[10px] font-semibold text-[#171717]/60 mt-1">Dalam pengerjaan</p>
-              </div>
-
-              {/* On Track */}
-              <div
-                onClick={() => navigate('/projects?status=on_track')}
-                className="bg-[#10B981]/15 p-3.5 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] hover:bg-[#10B981]/25 cursor-pointer transition-all group"
-              >
-                <div className="flex items-center justify-between text-[#10B981] font-bold">
-                  <span className="text-[10px] font-black uppercase tracking-wider">Tepat Waktu</span>
-                  <ExternalLink size={12} />
-                </div>
-                <p className="font-display text-3xl text-[#171717] mt-1.5 leading-none">
-                  {portfolio.on_track || 0}
-                </p>
-                <p className="text-[10px] font-semibold text-[#10B981] mt-1 font-mono">Sesuai rencana</p>
-              </div>
-
-              {/* At Risk */}
-              <div
-                onClick={() => navigate('/projects?status=at_risk')}
-                className="bg-[#FFD83D]/25 p-3.5 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] hover:bg-[#FFD83D]/40 cursor-pointer transition-all group"
-              >
-                <div className="flex items-center justify-between text-[#B45309] font-bold">
-                  <span className="text-[10px] font-black uppercase tracking-wider">At Risk</span>
-                  <ExternalLink size={12} />
-                </div>
-                <p className="font-display text-3xl text-[#171717] mt-1.5 leading-none">
-                  {portfolio.at_risk || 0}
-                </p>
-                <p className="text-[10px] font-semibold text-[#B45309] mt-1">Perlu supervisi</p>
-              </div>
-
-              {/* Delayed */}
-              <div
-                onClick={() => navigate('/projects?status=delayed')}
-                className="bg-[#FF2F92]/15 p-3.5 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] hover:bg-[#FF2F92]/25 cursor-pointer transition-all group"
-              >
-                <div className="flex items-center justify-between text-[#FF2F92] font-bold">
-                  <span className="text-[10px] font-black uppercase tracking-wider">Delayed</span>
-                  <ExternalLink size={12} />
-                </div>
-                <p className="font-display text-3xl text-[#FF2F92] mt-1.5 leading-none">
-                  {portfolio.delayed || 0}
-                </p>
-                <p className="text-[10px] font-semibold text-[#FF2F92] mt-1">Kritis / Terlambat</p>
-              </div>
-
-              {/* Completed */}
-              <div
-                onClick={() => navigate('/projects?status=completed')}
-                className="bg-[#B8A0F0]/20 p-3.5 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] hover:bg-[#B8A0F0]/35 cursor-pointer transition-all group"
-              >
-                <div className="flex items-center justify-between text-[#6D28D9] font-bold">
-                  <span className="text-[10px] font-black uppercase tracking-wider">Completed</span>
-                  <ExternalLink size={12} />
-                </div>
-                <p className="font-display text-3xl text-[#171717] mt-1.5 leading-none">
-                  {portfolio.completed || 0}
-                </p>
-                <p className="text-[10px] font-semibold text-[#6D28D9] mt-1">{portfolio.completion_rate}% tuntas</p>
-              </div>
-            </div>
+        {/* B2. 8 Strategic Performance Dimensions Grid */}
+        <div className="lg:col-span-7 flex flex-col gap-3">
+          <div className="flex items-center justify-between pb-2">
+            <h3 className="font-display text-sm uppercase text-[#171717] tracking-wider flex items-center gap-2">
+              <Layers size={16} className="text-[#FF2F92]" />
+              8 Dimensi Kondisi Bisnis Terpadu
+            </h3>
+            <span className="text-[10.5px] font-bold text-[#10B981] flex items-center gap-1">
+              <CheckCircle2 size={13} /> Sinkronisasi P-B s/d P-M
+            </span>
           </div>
 
-          {/* C. Target vs Actual Progress Analysis */}
-          <div className="bg-white border-2 border-[#171717] rounded-xl p-5 shadow-[3px_3px_0px_#171717]">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Target size={16} className="text-[#FF2F92]" />
-                <h3 className="font-display text-xs sm:text-sm uppercase tracking-wide text-[#171717]">
-                  Target vs Actual Progress (Portofolio Aktif)
-                </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* 1. Finansial */}
+            <div
+              onClick={() => navigate('/financial')}
+              className="p-3.5 bg-white border-1.5 border-[#171717] rounded-xl shadow-[2px_2px_0px_#171717] hover:bg-[#FFD83D]/20 cursor-pointer transition-all group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between text-[#171717]/60 group-hover:text-[#171717]">
+                  <span className="text-[9.5px] font-black uppercase">Finansial</span>
+                  <ArrowUpRight size={13} />
+                </div>
+                <p className="font-display text-xl text-[#171717] mt-1 leading-none">
+                  {finHealth.label || 'Stabil'}
+                </p>
+                <p className="text-[10px] font-semibold text-[#171717]/60 mt-1 truncate">
+                  Net: {formatIDR(forecastGlance.net_cashflow)}
+                </p>
               </div>
-              <span className={`text-[10px] font-black px-2 py-0.5 rounded border border-[#171717] ${
-                progressAnalysis.variance < 0 ? 'bg-[#FF2F92] text-white' : 'bg-[#10B981] text-white'
-              }`}>
-                Deviasi {progressAnalysis.variance > 0 ? `+${progressAnalysis.variance}` : progressAnalysis.variance}%
+              <span className="text-[9px] font-bold text-[#10B981] mt-2 block font-mono">
+                Runway: {forecastGlance.cashflow_runway_months || 12} bln
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+            {/* 2. Sasaran OKR */}
+            <div
+              onClick={() => navigate('/leadership/okr')}
+              className="p-3.5 bg-white border-1.5 border-[#171717] rounded-xl shadow-[2px_2px_0px_#171717] hover:bg-[#FFD83D]/20 cursor-pointer transition-all group flex flex-col justify-between"
+            >
               <div>
-                <div className="space-y-2">
-                  <div>
-                    <div className="flex justify-between text-xs font-bold text-[#171717]">
-                      <span>Rata-Rata Target Progress</span>
-                      <span className="font-mono">{progressAnalysis.avg_target}%</span>
-                    </div>
-                    <div className="w-full bg-[#EAE4D8] h-3 rounded border border-[#171717] overflow-hidden mt-1 p-0.5">
-                      <div className="bg-[#171717] h-full rounded" style={{ width: `${Math.min(100, progressAnalysis.avg_target)}%` }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs font-bold text-[#171717]">
-                      <span>Rata-Rata Aktual Progress</span>
-                      <span className="font-mono">{progressAnalysis.avg_actual}%</span>
-                    </div>
-                    <div className="w-full bg-[#EAE4D8] h-3 rounded border border-[#171717] overflow-hidden mt-1 p-0.5">
-                      <div className="bg-[#10B981] h-full rounded" style={{ width: `${Math.min(100, progressAnalysis.avg_actual)}%` }} />
-                    </div>
-                  </div>
+                <div className="flex items-center justify-between text-[#171717]/60 group-hover:text-[#171717]">
+                  <span className="text-[9.5px] font-black uppercase">Sasaran OKR</span>
+                  <ArrowUpRight size={13} />
                 </div>
+                <p className="font-display text-xl text-[#171717] mt-1 leading-none">
+                  {strategicOkr.avg_progress ?? 0}%
+                </p>
+                <p className="text-[10px] font-semibold text-[#171717]/60 mt-1 truncate">
+                  {strategicOkr.active_count ?? 0} Aktif | {strategicOkr.at_risk_count ?? 0} At Risk
+                </p>
               </div>
+              <span className="text-[9px] font-bold text-[#3B82F6] mt-2 block font-mono">
+                {strategicOkr.total_key_results ?? 0} Key Results
+              </span>
+            </div>
 
-              <div className="p-3 bg-[#F5F1E9] border border-[#171717] rounded-lg text-xs space-y-1">
-                <p className="font-bold text-[#171717]">Kondisi Distribusi Progres:</p>
-                <p className="text-[11.5px] text-[#171717]/80">
-                  <span className="font-bold text-[#FF2F92]">{progressAnalysis.projects_below_target}</span> proyek berada di bawah target progres yang ditentukan.
+            {/* 3. Portofolio Proyek */}
+            <div
+              onClick={() => navigate('/leadership/portfolio')}
+              className="p-3.5 bg-white border-1.5 border-[#171717] rounded-xl shadow-[2px_2px_0px_#171717] hover:bg-[#FFD83D]/20 cursor-pointer transition-all group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between text-[#171717]/60 group-hover:text-[#171717]">
+                  <span className="text-[9.5px] font-black uppercase">Portofolio</span>
+                  <ArrowUpRight size={13} />
+                </div>
+                <p className="font-display text-xl text-[#171717] mt-1 leading-none">
+                  {portfolio.active_projects || 0} Proyek
                 </p>
-                <p className="text-[11.5px] text-[#171717]/80">
-                  <span className="font-bold text-[#10B981]">{progressAnalysis.projects_on_target}</span> proyek berjalan sesuai atau melampaui target.
+                <p className="text-[10px] font-semibold text-[#10B981] mt-1 truncate">
+                  {portfolio.on_track || 0} On-Track
                 </p>
               </div>
+              <span className={`text-[9px] font-bold mt-2 block font-mono ${(portfolio.delayed || 0) > 0 ? 'text-[#FF2F92]' : 'text-[#171717]/60'}`}>
+                {portfolio.delayed || 0} Terlambat
+              </span>
+            </div>
+
+            {/* 4. Inisiatif Strategis */}
+            <div
+              onClick={() => navigate('/leadership/initiatives')}
+              className="p-3.5 bg-white border-1.5 border-[#171717] rounded-xl shadow-[2px_2px_0px_#171717] hover:bg-[#FFD83D]/20 cursor-pointer transition-all group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between text-[#171717]/60 group-hover:text-[#171717]">
+                  <span className="text-[9.5px] font-black uppercase">Inisiatif</span>
+                  <ArrowUpRight size={13} />
+                </div>
+                <p className="font-display text-xl text-[#171717] mt-1 leading-none">
+                  {strategicInitiatives.active ?? 0} Aktif
+                </p>
+                <p className="text-[10px] font-semibold text-[#171717]/60 mt-1 truncate">
+                  Progres: {strategicInitiatives.avg_progress ?? 0}%
+                </p>
+              </div>
+              <span className="text-[9px] font-bold text-[#6D28D9] mt-2 block font-mono">
+                Pagu: {formatIDR(strategicInitiatives.allocated_budget)}
+              </span>
+            </div>
+
+            {/* 5. Risiko Bisnis */}
+            <div
+              onClick={() => navigate('/leadership/risks')}
+              className="p-3.5 bg-white border-1.5 border-[#171717] rounded-xl shadow-[2px_2px_0px_#171717] hover:bg-[#FFD83D]/20 cursor-pointer transition-all group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between text-[#171717]/60 group-hover:text-[#171717]">
+                  <span className="text-[9.5px] font-black uppercase">Profil Risiko</span>
+                  <ArrowUpRight size={13} />
+                </div>
+                <p className={`font-display text-xl mt-1 leading-none ${(riskDecision.critical_risks || 0) > 0 ? 'text-[#FF2F92]' : 'text-[#171717]'}`}>
+                  {riskDecision.total_active_risks ?? 0} Aktif
+                </p>
+                <p className="text-[10px] font-semibold text-[#FF2F92] mt-1 truncate">
+                  {riskDecision.critical_risks ?? 0} Kritis | {riskDecision.high_risks ?? 0} Tinggi
+                </p>
+              </div>
+              <span className="text-[9px] font-bold text-[#171717]/60 mt-2 block font-mono">
+                {riskDecision.overdue_risks ?? 0} Overdue mitigasi
+              </span>
+            </div>
+
+            {/* 6. Tindakan Eksekutif */}
+            <div
+              onClick={() => navigate('/executive-actions')}
+              className="p-3.5 bg-white border-1.5 border-[#171717] rounded-xl shadow-[2px_2px_0px_#171717] hover:bg-[#FFD83D]/20 cursor-pointer transition-all group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between text-[#171717]/60 group-hover:text-[#171717]">
+                  <span className="text-[9.5px] font-black uppercase">Action Center</span>
+                  <ArrowUpRight size={13} />
+                </div>
+                <p className="font-display text-xl text-[#171717] mt-1 leading-none">
+                  {execActions.active ?? 0} Tindakan
+                </p>
+                <p className="text-[10px] font-semibold text-[#FF2F92] mt-1 truncate">
+                  {execActions.critical ?? 0} Kritis | {execActions.overdue ?? 0} Lewat
+                </p>
+              </div>
+              <span className="text-[9px] font-bold text-[#10B981] mt-2 block font-mono">
+                {execActions.completed ?? 0} Selesai
+              </span>
+            </div>
+
+            {/* 7. Kapasitas & Tim */}
+            <div
+              onClick={() => navigate('/pm/workspace')}
+              className="p-3.5 bg-white border-1.5 border-[#171717] rounded-xl shadow-[2px_2px_0px_#171717] hover:bg-[#FFD83D]/20 cursor-pointer transition-all group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between text-[#171717]/60 group-hover:text-[#171717]">
+                  <span className="text-[9.5px] font-black uppercase">Kapasitas Tim</span>
+                  <ArrowUpRight size={13} />
+                </div>
+                <p className="font-display text-xl text-[#171717] mt-1 leading-none">
+                  {biData?.team_workload_intelligence?.overloaded_members_count ?? 0} Overload
+                </p>
+                <p className="text-[10px] font-semibold text-[#171717]/60 mt-1 truncate">
+                  {reviewBacklog.total_in_review || 0} Review Antrean
+                </p>
+              </div>
+              <span className="text-[9px] font-bold text-[#171717]/60 mt-2 block font-mono">
+                {chi.components?.schedule?.score ?? 0}% On-time tasks
+              </span>
+            </div>
+
+            {/* 8. Pertumbuhan & Klien */}
+            <div
+              onClick={() => navigate('/reports')}
+              className="p-3.5 bg-white border-1.5 border-[#171717] rounded-xl shadow-[2px_2px_0px_#171717] hover:bg-[#FFD83D]/20 cursor-pointer transition-all group flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between text-[#171717]/60 group-hover:text-[#171717]">
+                  <span className="text-[9.5px] font-black uppercase">Pertumbuhan</span>
+                  <ArrowUpRight size={13} />
+                </div>
+                <p className="font-display text-xl text-[#171717] mt-1 leading-none">
+                  {forecastGlance.active_clients_count ?? 0} Klien
+                </p>
+                <p className="text-[10px] font-semibold text-[#171717]/60 mt-1 truncate">
+                  Velocity: {forecastGlance.portfolio_velocity_status || 'Optimal'}
+                </p>
+              </div>
+              <span className="text-[9px] font-bold text-[#10B981] mt-2 block font-mono">
+                {portfolio.completed || 0} Delivered
+              </span>
             </div>
           </div>
         </div>
       </div>
 
       {/* =========================================================================
-          C2. FINANCIAL INTELLIGENCE & BUDGET CONTROL (P-K Integration)
+          C. PRIORITY & ATTENTION CENTER (HAL YANG MEMBUTUHKAN TINDAKAN PIMPINAN)
       ========================================================================= */}
       <div className="bg-white border-2 border-[#171717] rounded-xl p-5 sm:p-6 shadow-[3px_3px_0px_#171717]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#171717]/15 mb-4 gap-2">
-          <div className="flex items-center gap-2">
-            <DollarSign size={18} className="text-[#10B981]" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-[#FF2F92] text-white border border-[#171717] flex items-center justify-center shrink-0">
+              <Flame size={20} />
+            </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="font-display text-sm sm:text-base uppercase tracking-wide text-[#171717]">
-                  Ringkasan Kinerja Keuangan & Anggaran
+                  Priority &amp; Attention Center
                 </h2>
-                <span
-                  className="px-2 py-0.5 rounded text-[10px] font-black uppercase border border-[#171717]"
-                  style={{ backgroundColor: finHealth.color || '#EAE4D8', color: finHealth.status === 'critical' ? '#FFFFFF' : '#171717' }}
-                >
-                  {finHealth.label || 'Memuat...'}
+                <span className="px-2 py-0.5 text-[9.5px] font-black uppercase bg-[#FF2F92] text-white rounded">
+                  {priorityTriage.length} Isu Terdeteksi
                 </span>
               </div>
               <p className="text-[11px] font-semibold text-[#171717]/60">
-                {finHealth.description || 'Pemantauan realisasi pendapatan, beban belanja, dan deviasi anggaran operasional.'}
+                Pusat atensi eksekutif: keputusan tertunda, risiko kritis, deviasi anggaran, dan sasaran yang terhambat.
               </p>
             </div>
           </div>
+        </div>
+
+        {/* Filter Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-4 scrollbar-thin">
           <button
-            onClick={() => navigate('/financial')}
-            className="text-xs font-bold text-[#171717] bg-[#FFD83D] px-3 py-1.5 border border-[#171717] rounded shadow-[2px_2px_0px_#171717] hover:bg-[#f5cd2f] flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+            onClick={() => setTriageFilter('all')}
+            className={`px-3 py-1.5 text-xs font-black uppercase rounded-lg border border-[#171717] shrink-0 cursor-pointer transition-all ${
+              triageFilter === 'all'
+                ? 'bg-[#171717] text-white shadow-[2px_2px_0px_#FFD83D]'
+                : 'bg-[#F5F1E9] text-[#171717] hover:bg-white'
+            }`}
           >
-            <span>Buka Financial Center</span>
-            <ArrowRight size={13} />
+            Semua ({triageCounts.all})
+          </button>
+          <button
+            onClick={() => setTriageFilter('decision_needed')}
+            className={`px-3 py-1.5 text-xs font-black uppercase rounded-lg border border-[#171717] shrink-0 cursor-pointer transition-all ${
+              triageFilter === 'decision_needed'
+                ? 'bg-[#171717] text-white shadow-[2px_2px_0px_#FFD83D]'
+                : 'bg-[#F5F1E9] text-[#171717] hover:bg-white'
+            }`}
+          >
+            Perlu Keputusan ({triageCounts.decision_needed})
+          </button>
+          <button
+            onClick={() => setTriageFilter('critical_risk')}
+            className={`px-3 py-1.5 text-xs font-black uppercase rounded-lg border border-[#171717] shrink-0 cursor-pointer transition-all ${
+              triageFilter === 'critical_risk'
+                ? 'bg-[#171717] text-white shadow-[2px_2px_0px_#FFD83D]'
+                : 'bg-[#F5F1E9] text-[#171717] hover:bg-white'
+            }`}
+          >
+            Risiko Kritis ({triageCounts.critical_risk})
+          </button>
+          <button
+            onClick={() => setTriageFilter('overdue_action')}
+            className={`px-3 py-1.5 text-xs font-black uppercase rounded-lg border border-[#171717] shrink-0 cursor-pointer transition-all ${
+              triageFilter === 'overdue_action'
+                ? 'bg-[#171717] text-white shadow-[2px_2px_0px_#FFD83D]'
+                : 'bg-[#F5F1E9] text-[#171717] hover:bg-white'
+            }`}
+          >
+            Tindakan Terlambat ({triageCounts.overdue_action})
+          </button>
+          <button
+            onClick={() => setTriageFilter('budget_alert')}
+            className={`px-3 py-1.5 text-xs font-black uppercase rounded-lg border border-[#171717] shrink-0 cursor-pointer transition-all ${
+              triageFilter === 'budget_alert'
+                ? 'bg-[#171717] text-white shadow-[2px_2px_0px_#FFD83D]'
+                : 'bg-[#F5F1E9] text-[#171717] hover:bg-white'
+            }`}
+          >
+            Anomali Anggaran ({triageCounts.budget_alert})
+          </button>
+          <button
+            onClick={() => setTriageFilter('lagging_target')}
+            className={`px-3 py-1.5 text-xs font-black uppercase rounded-lg border border-[#171717] shrink-0 cursor-pointer transition-all ${
+              triageFilter === 'lagging_target'
+                ? 'bg-[#171717] text-white shadow-[2px_2px_0px_#FFD83D]'
+                : 'bg-[#F5F1E9] text-[#171717] hover:bg-white'
+            }`}
+          >
+            Target Tertinggal ({triageCounts.lagging_target})
           </button>
         </div>
 
-        {/* 4 Financial Metrics Strip */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="p-3.5 bg-[#F5F1E9] border border-[#171717] rounded-lg">
-            <span className="text-[10px] font-black uppercase text-[#171717]/70">Total Pendapatan Aktual</span>
-            <p className="font-display text-2xl text-[#10B981] mt-1 leading-none">
-              {formatIDR(finSummary.total_income)}
-            </p>
-            <p className="text-[10px] font-semibold text-[#171717]/60 mt-1">
-              Target: {formatIDR(finSummary.revenue_target)}
-            </p>
-          </div>
-
-          <div className="p-3.5 bg-[#F5F1E9] border border-[#171717] rounded-lg">
-            <span className="text-[10px] font-black uppercase text-[#171717]/70">Total Pengeluaran Aktual</span>
-            <p className="font-display text-2xl text-[#FF2F92] mt-1 leading-none">
-              {formatIDR(finSummary.total_expense)}
-            </p>
-            <p className="text-[10px] font-semibold text-[#171717]/60 mt-1">
-              Pagu: {formatIDR(finSummary.expense_budget)}
-            </p>
-          </div>
-
-          <div className="p-3.5 bg-[#F5F1E9] border border-[#171717] rounded-lg">
-            <span className="text-[10px] font-black uppercase text-[#171717]/70">Hasil Bersih Operasional</span>
-            <p className={`font-display text-2xl mt-1 leading-none ${(finSummary.net_result ?? 0) >= 0 ? 'text-[#171717]' : 'text-[#FF2F92]'}`}>
-              {formatIDR(finSummary.net_result)}
-            </p>
-            <p className="text-[10px] font-semibold text-[#171717]/60 mt-1">
-              {(finSummary.net_result ?? 0) >= 0 ? 'Surplus Operasional' : 'Defisit Anggaran'}
-            </p>
-          </div>
-
-          <div className="p-3.5 bg-[#FFD83D]/30 border border-[#171717] rounded-lg">
-            <span className="text-[10px] font-black uppercase text-[#171717]/70">Utilisasi Anggaran & Peringatan</span>
-            <div className="flex items-baseline justify-between mt-1">
-              <span className="font-display text-2xl text-[#171717] leading-none">
-                {finSummary.budget_utilization !== null && finSummary.budget_utilization !== undefined ? `${finSummary.budget_utilization}%` : '—'}
-              </span>
-              <span className="text-[10px] font-black px-1.5 py-0.5 bg-[#FF2F92] text-white rounded">
-                {finSummary.active_alerts ?? 0} Alert
-              </span>
-            </div>
-            <p className="text-[10px] font-bold text-[#171717]/70 uppercase mt-1">
-              Status: {finSummary.variance_status === 'under_budget' ? 'Di Bawah Anggaran' : finSummary.variance_status === 'on_budget' ? 'Tepat Anggaran' : finSummary.variance_status === 'over_budget' ? 'Melebihi Anggaran' : 'Belum Ditentukan'}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* =========================================================================
-          D. ATTENTION RADAR (PROJECTS NEEDING IMMEDIATE LEADERSHIP ATTENTION)
-      ========================================================================= */}
-      <div className="bg-white border-2 border-[#171717] rounded-xl p-5 sm:p-6 shadow-[3px_3px_0px_#171717]">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#171717]/15 mb-4 gap-2">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={18} className="text-[#FF2F92]" />
-            <div>
-              <h2 className="font-display text-sm sm:text-base uppercase tracking-wide text-[#171717]">
-                Attention Radar — Proyek Membutuhkan Perhatian
-              </h2>
-              <p className="text-[11px] font-semibold text-[#171717]/60">
-                Proyek aktif yang ditandai karena status delayed, deviasi progres negatif, risiko tinggi, atau blocker aktif.
-              </p>
-            </div>
-          </div>
-          <span className="text-[10px] font-bold px-2.5 py-1 bg-[#FF2F92]/10 text-[#FF2F92] border border-[#FF2F92] rounded self-start sm:self-auto">
-            {radar.length} Proyek Terdeteksi
-          </span>
-        </div>
-
-        {radar.length === 0 ? (
+        {/* Triage Items List */}
+        {filteredTriage.length === 0 ? (
           <div className="p-8 text-center bg-[#F5F1E9] border border-[#171717]/30 rounded-lg">
             <CheckCircle2 size={32} className="text-[#10B981] mx-auto mb-2" />
-            <p className="font-display text-sm uppercase text-[#171717]">Seluruh Proyek Berjalan Aman</p>
-            <p className="text-xs text-[#171717]/60 mt-0.5">Tidak ada proyek aktif dengan indikator keterlambatan kritis atau risiko tinggi hari ini.</p>
+            <p className="font-display text-sm uppercase text-[#171717]">
+              Tidak Ada Masalah Prioritas Pada Kategori Ini
+            </p>
+            <p className="text-xs text-[#171717]/60 mt-0.5">
+              Seluruh metrik dan alur operasional pada filter ini berada dalam toleransi normal.
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {radar.map((proj) => {
-              const statusCfg = STATUS_THEME[proj.status] || STATUS_THEME.on_track
+          <div className="space-y-3">
+            {filteredTriage.map((item) => {
+              const severityBg =
+                item.severity === 'critical'
+                  ? 'bg-[#FF2F92] text-white'
+                  : item.severity === 'high'
+                  ? 'bg-[#FFD83D] text-[#171717]'
+                  : 'bg-[#B8A0F0] text-[#171717]'
 
               return (
                 <div
-                  key={proj.id}
-                  onClick={() => navigate(`/projects/${proj.id}`)}
-                  className="bg-[#F5F1E9] border-1.5 border-[#171717] rounded-lg p-4 shadow-[2px_2px_0px_#171717] hover:bg-white cursor-pointer transition-all flex flex-col justify-between group"
+                  key={item.id}
+                  className="p-4 bg-[#F5F1E9] border-1.5 border-[#171717] rounded-xl hover:bg-white transition-all space-y-2"
                 >
-                  <div>
-                    {/* Header item */}
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <span className="text-[9.5px] font-mono font-bold text-[#171717]/60 uppercase">{proj.code}</span>
-                        <h4 className="font-bold text-sm text-[#171717] group-hover:text-[#FF2F92] transition-colors leading-snug line-clamp-1">
-                          {proj.name}
-                        </h4>
-                        <p className="text-[10.5px] text-[#171717]/60 font-semibold truncate">Klien: {proj.client}</p>
-                      </div>
-
-                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border border-[#171717] shrink-0 ${statusCfg.bg} ${statusCfg.text}`}>
-                        {statusCfg.label}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border border-[#171717] ${severityBg}`}>
+                        {item.severity === 'critical' ? 'Kritis' : item.severity === 'high' ? 'Tinggi' : 'Peringatan'}
+                      </span>
+                      <span className="text-[9.5px] font-bold uppercase px-2 py-0.5 rounded bg-white border border-[#171717]/40 text-[#171717]">
+                        {item.category_label}
+                      </span>
+                      <span className="text-[9.5px] font-bold text-[#171717]/60">
+                        Sumber: {item.source_module}
                       </span>
                     </div>
 
-                    {/* Progress Bar & Deviation */}
-                    <div className="my-3 space-y-1">
-                      <div className="flex justify-between text-[11px] font-bold">
-                        <span>Progress: {proj.progress}%</span>
-                        <span className={proj.deviation < 0 ? 'text-[#FF2F92]' : 'text-[#10B981]'}>
-                          Target: {proj.target_progress}% ({proj.deviation > 0 ? `+${proj.deviation}` : proj.deviation}%)
-                        </span>
-                      </div>
-                      <div className="w-full bg-white h-2 rounded-full border border-[#171717] overflow-hidden">
-                        <div className="h-full bg-[#171717]" style={{ width: `${proj.progress}%` }} />
-                      </div>
-                    </div>
-
-                    {/* Flag Reasons */}
-                    <div className="space-y-1 my-2">
-                      {proj.flag_reasons?.map((reason, idx) => (
-                        <div key={idx} className="flex items-center gap-1.5 text-[10.5px] font-semibold text-[#FF2F92]">
-                          <AlertCircle size={12} className="shrink-0" />
-                          <span className="truncate">{reason}</span>
-                        </div>
-                      ))}
+                    <div className="text-[11px] font-bold text-[#171717]/70">
+                      Penanggung Jawab: <span className="text-[#171717] font-black">{item.target_name}</span>
                     </div>
                   </div>
 
-                  {/* Footer item: PM & Deadline */}
-                  <div className="mt-3 pt-2.5 border-t border-[#171717]/15 flex items-center justify-between text-[10.5px] text-[#171717]/70 font-semibold">
-                    <span className="truncate">PIC: {proj.pic_name}</span>
-                    <span className="flex items-center gap-1 text-[#171717] font-bold shrink-0">
-                      Detail <ArrowRight size={11} />
-                    </span>
+                  <div>
+                    <h4 className="font-bold text-sm text-[#171717]">
+                      {item.title}
+                    </h4>
+                    <p className="text-xs font-semibold text-[#171717]/80 mt-0.5">
+                      {item.reason}
+                    </p>
+                  </div>
+
+                  <div className="pt-1 flex items-center justify-end">
+                    <button
+                      onClick={() => navigate(item.deep_link)}
+                      className="px-3.5 py-1.5 bg-[#FFD83D] hover:bg-[#f7cc24] active:translate-y-0.5 border border-[#171717] rounded shadow-[2px_2px_0px_#171717] text-xs font-black text-[#171717] flex items-center gap-1.5 cursor-pointer transition-transform"
+                    >
+                      <span>{item.action_label}</span>
+                      <ArrowRight size={13} />
+                    </button>
                   </div>
                 </div>
               )
@@ -787,124 +787,378 @@ export default function ExecutiveCommandCenter() {
       </div>
 
       {/* =========================================================================
-          E. TASK REVIEW BACKLOG & RECENT EXECUTIVE FEED (2 COLUMN GRID)
+          D. STRATEGIC PERFORMANCE INTEGRATION (HUBUNGAN LINTAS MODUL)
       ========================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* E1. Task Review Backlog */}
-        <div className="lg:col-span-6 bg-white border-2 border-[#171717] rounded-xl p-5 sm:p-6 shadow-[3px_3px_0px_#171717] flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-[#171717]/15 mb-3">
-              <div className="flex items-center gap-2">
-                <Clock size={18} className="text-[#FFD83D]" />
-                <div>
-                  <h2 className="font-display text-sm sm:text-base uppercase tracking-wide text-[#171717]">
-                    Task Review Backlog
-                  </h2>
-                  <p className="text-[10.5px] font-semibold text-[#171717]/60">
-                    Antrean review teknis Project Manager (Approval Operasional PM)
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="px-2 py-0.5 bg-[#FFD83D] text-[#171717] text-[10px] font-black rounded border border-[#171717]">
-                  {reviewBacklog.total_in_review || 0} Antrean
-                </span>
-                {reviewBacklog.overdue_count > 0 && (
-                  <span className="px-2 py-0.5 bg-[#FF2F92] text-white text-[10px] font-black rounded border border-[#171717]">
-                    {reviewBacklog.overdue_count} &gt; 3 Hari
-                  </span>
-                )}
-              </div>
+      <div className="bg-white border-2 border-[#171717] rounded-xl p-5 sm:p-6 shadow-[3px_3px_0px_#171717]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#171717]/15 mb-4 gap-2">
+          <div className="flex items-center gap-2">
+            <Compass size={18} className="text-[#3B82F6]" />
+            <div>
+              <h2 className="font-display text-sm sm:text-base uppercase tracking-wide text-[#171717]">
+                Integrasi Performa Strategis Lintas Modul
+              </h2>
+              <p className="text-[11px] font-semibold text-[#171717]/60">
+                Pimpinan dapat meninjau keterhubungan antara sasaran strategis, proyek deliverable, anggaran, dan mitigasi risiko.
+              </p>
             </div>
-
-            <p className="text-[11px] text-[#171717]/70 bg-[#F5F1E9] p-2.5 rounded-lg border border-[#171717]/30 mb-3">
-              <span className="font-bold">Catatan Otoritas:</span> Tahap ini memantau kelancaran approval teknis oleh PM agar pekerjaan tim tidak tertahan. Pimpinan dapat menegur PM jika antrean menumpuk lebih dari 3 hari.
-            </p>
-
-            {/* List Tasks in Review */}
-            {!reviewBacklog.items || reviewBacklog.items.length === 0 ? (
-              <div className="p-6 text-center text-xs font-semibold text-[#171717]/60 bg-[#F5F1E9] rounded-lg border border-[#171717]/20">
-                Tidak ada tugas yang sedang menunggu review PM saat ini.
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {reviewBacklog.items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3 bg-[#F5F1E9] border border-[#171717] rounded-lg flex items-start justify-between gap-3 hover:bg-white transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[9.5px] font-mono font-bold text-[#171717]/60">{item.project_code}</span>
-                        <span className="text-[10px] text-[#171717]/40">•</span>
-                        <span className="text-[10px] font-semibold text-[#171717]/70 truncate">{item.project_name}</span>
-                      </div>
-                      <p className="font-bold text-xs text-[#171717] mt-0.5 truncate">{item.title}</p>
-                      <p className="text-[10px] text-[#171717]/60 mt-0.5">
-                        Diajukan oleh: <span className="font-semibold text-[#171717]">{item.assignee_name}</span> • PM Reviewer: <span className="font-semibold text-[#171717]">{item.pm_name}</span>
-                      </p>
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <span className={`text-[9.5px] font-black px-2 py-0.5 rounded border border-[#171717] ${
-                        item.is_overdue ? 'bg-[#FF2F92] text-white' : 'bg-white text-[#171717]'
-                      }`}>
-                        {item.waiting_days} hari
-                      </span>
-                      <p className="text-[9px] text-[#171717]/50 mt-1">{item.submitted_at}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
-        {/* E2. Recent Executive Feed */}
-        <div className="lg:col-span-6 bg-white border-2 border-[#171717] rounded-xl p-5 sm:p-6 shadow-[3px_3px_0px_#171717] flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between pb-3 border-b border-[#171717]/15 mb-3">
-              <div className="flex items-center gap-2">
-                <Activity size={18} className="text-[#FF2F92]" />
-                <h2 className="font-display text-sm sm:text-base uppercase tracking-wide text-[#171717]">
-                  Recent Executive Feed
-                </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Matrix 1: OKR & Proyek */}
+          <div className="p-4 bg-[#F5F1E9] border-1.5 border-[#171717] rounded-xl flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase text-[#171717]/60">1. Target vs Proyek</span>
+                <Target size={15} className="text-[#3B82F6]" />
               </div>
-              <span className="text-[10.5px] font-bold text-[#171717]/60 uppercase">
-                Aktivitas Strategis Riil
-              </span>
+              <h4 className="font-display text-sm uppercase text-[#171717]">
+                Sasaran &amp; Realisasi Proyek
+              </h4>
+              <p className="text-xs font-semibold text-[#171717]/70 mt-1 leading-relaxed">
+                {strategicOkr.active_count ?? 0} sasaran aktif diselaraskan dengan proyek portofolio berjalan.
+              </p>
+              <div className="my-3 space-y-1">
+                <div className="flex justify-between text-[11px] font-bold">
+                  <span>Pencapaian OKR:</span>
+                  <span className="font-mono">{strategicOkr.avg_progress ?? 0}%</span>
+                </div>
+                <div className="w-full bg-white h-2 rounded-full border border-[#171717] overflow-hidden">
+                  <div className="bg-[#3B82F6] h-full" style={{ width: `${strategicOkr.avg_progress ?? 0}%` }} />
+                </div>
+              </div>
             </div>
+            <button
+              onClick={() => navigate('/leadership/okr')}
+              className="text-xs font-bold text-[#171717] underline hover:text-[#3B82F6] inline-flex items-center gap-1 cursor-pointer"
+            >
+              Kelola OKR Strategis &rarr;
+            </button>
+          </div>
 
-            {feed.length === 0 ? (
-              <div className="p-6 text-center text-xs font-semibold text-[#171717]/60 bg-[#F5F1E9] rounded-lg border border-[#171717]/20">
-                Belum ada catatan aktivitas baru di sistem.
+          {/* Matrix 2: Anggaran vs Realisasi Riil */}
+          <div className="p-4 bg-[#F5F1E9] border-1.5 border-[#171717] rounded-xl flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase text-[#171717]/60">2. Anggaran vs Realisasi</span>
+                <DollarSign size={15} className="text-[#10B981]" />
               </div>
-            ) : (
-              <div className="space-y-2.5">
-                {feed.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-3 bg-[#F5F1E9] border border-[#171717] rounded-lg hover:bg-white transition-colors"
-                  >
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className={`text-[9px] font-black px-2 py-0.5 rounded border border-[#171717] ${item.badge?.bg || 'bg-[#FFD83D]'} ${item.badge?.text || 'text-[#171717]'}`}>
-                        {item.badge?.label || 'Aktivitas'}
-                      </span>
-                      <span className="text-[10px] font-semibold text-[#171717]/50">{item.time_ago}</span>
-                    </div>
-                    <p className="font-bold text-xs text-[#171717] leading-snug">{item.title}</p>
-                    <p className="text-[10.5px] text-[#171717]/70 mt-0.5 line-clamp-2">{item.description}</p>
-                  </div>
-                ))}
+              <h4 className="font-display text-sm uppercase text-[#171717]">
+                Pagu vs Arus Kas Transaksi
+              </h4>
+              <p className="text-xs font-semibold text-[#171717]/70 mt-1 leading-relaxed">
+                Utilisasi anggaran operasional {finSummary.budget_utilization ?? 0}% dengan status {finSummary.variance_status || 'On Track'}.
+              </p>
+              <div className="my-3 space-y-1">
+                <div className="flex justify-between text-[11px] font-bold">
+                  <span>Realisasi Pengeluaran:</span>
+                  <span className="font-mono">{formatIDR(finSummary.total_expense)}</span>
+                </div>
+                <div className="w-full bg-white h-2 rounded-full border border-[#171717] overflow-hidden">
+                  <div className="bg-[#10B981] h-full" style={{ width: `${Math.min(100, finSummary.budget_utilization || 0)}%` }} />
+                </div>
               </div>
-            )}
+            </div>
+            <button
+              onClick={() => navigate('/financial')}
+              className="text-xs font-bold text-[#171717] underline hover:text-[#10B981] inline-flex items-center gap-1 cursor-pointer"
+            >
+              Kelola Keuangan &rarr;
+            </button>
+          </div>
+
+          {/* Matrix 3: Inisiatif & Kapasitas Tim */}
+          <div className="p-4 bg-[#F5F1E9] border-1.5 border-[#171717] rounded-xl flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase text-[#171717]/60">3. Inisiatif &amp; Kapasitas</span>
+                <Briefcase size={15} className="text-[#6D28D9]" />
+              </div>
+              <h4 className="font-display text-sm uppercase text-[#171717]">
+                Inisiatif &amp; Alokasi Personil
+              </h4>
+              <p className="text-xs font-semibold text-[#171717]/70 mt-1 leading-relaxed">
+                {strategicInitiatives.active ?? 0} inisiatif aktif menggerakkan strategi jangka menengah PT PKM.
+              </p>
+              <div className="my-3 space-y-1">
+                <div className="flex justify-between text-[11px] font-bold">
+                  <span>Progres Rata-Rata:</span>
+                  <span className="font-mono">{strategicInitiatives.avg_progress ?? 0}%</span>
+                </div>
+                <div className="w-full bg-white h-2 rounded-full border border-[#171717] overflow-hidden">
+                  <div className="bg-[#6D28D9] h-full" style={{ width: `${strategicInitiatives.avg_progress ?? 0}%` }} />
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/leadership/initiatives')}
+              className="text-xs font-bold text-[#171717] underline hover:text-[#6D28D9] inline-flex items-center gap-1 cursor-pointer"
+            >
+              Kelola Inisiatif &rarr;
+            </button>
+          </div>
+
+          {/* Matrix 4: Risiko & Keputusan */}
+          <div className="p-4 bg-[#F5F1E9] border-1.5 border-[#171717] rounded-xl flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase text-[#171717]/60">4. Risiko &amp; Keputusan</span>
+                <ShieldAlert size={15} className="text-[#FF2F92]" />
+              </div>
+              <h4 className="font-display text-sm uppercase text-[#171717]">
+                Mitigasi Risiko &amp; Keputusan
+              </h4>
+              <p className="text-xs font-semibold text-[#171717]/70 mt-1 leading-relaxed">
+                {riskDecision.total_decisions ?? 0} keputusan formal mengawal mitigasi risiko strategis.
+              </p>
+              <div className="my-3 space-y-1">
+                <div className="flex justify-between text-[11px] font-bold">
+                  <span>Keputusan Menunggu:</span>
+                  <span className="font-mono text-[#FF2F92]">{riskDecision.pending_decisions ?? 0} pending</span>
+                </div>
+                <div className="w-full bg-white h-2 rounded-full border border-[#171717] overflow-hidden">
+                  <div className="bg-[#FF2F92] h-full" style={{ width: `${Math.min(100, (riskDecision.pending_decisions || 0) * 20)}%` }} />
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/leadership/risks')}
+              className="text-xs font-bold text-[#171717] underline hover:text-[#FF2F92] inline-flex items-center gap-1 cursor-pointer"
+            >
+              Buka Risk &amp; Decision Center &rarr;
+            </button>
           </div>
         </div>
       </div>
 
       {/* =========================================================================
-          F. CROSS-MODULE BUSINESS INTELLIGENCE & EXECUTIVE DECISION INSIGHTS
+          E. EXECUTIVE ACTION CENTER & KEPUTUSAN PIMPINAN (P-M & P-E DUAL PANEL)
+      ========================================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* E1. Keputusan Pimpinan Sedang Berjalan */}
+        <div className="lg:col-span-6 bg-white border-2 border-[#171717] rounded-xl p-5 sm:p-6 shadow-[3px_3px_0px_#171717] flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b border-[#171717]/15 mb-3">
+              <div className="flex items-center gap-2">
+                <Award size={18} className="text-[#FFD83D]" />
+                <div>
+                  <h3 className="font-display text-sm sm:text-base uppercase tracking-wide text-[#171717]">
+                    Keputusan Pimpinan Sedang Berjalan
+                  </h3>
+                  <p className="text-[10.5px] font-semibold text-[#171717]/60">
+                    Otorisasi strategis dan pelacakan implementasi keputusan Pimpinan.
+                  </p>
+                </div>
+              </div>
+
+              <span className="px-2 py-0.5 bg-[#FFD83D] text-[#171717] text-[10px] font-black rounded border border-[#171717]">
+                {riskDecision.pending_decisions || 0} Aktif
+              </span>
+            </div>
+
+            {!riskDecision.recent_decisions || riskDecision.recent_decisions.length === 0 ? (
+              <div className="p-6 text-center bg-[#F5F1E9] border border-[#171717]/20 rounded-lg">
+                <CheckCircle2 size={24} className="text-[#10B981] mx-auto mb-1" />
+                <p className="text-xs font-bold uppercase text-[#171717]">Tidak Ada Keputusan Tertunda</p>
+                <p className="text-[11px] text-[#171717]/60">Seluruh arahan pimpinan telah selesai diimplementasikan.</p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {riskDecision.recent_decisions.map((dec) => (
+                  <div
+                    key={dec.id}
+                    onClick={() => navigate('/leadership/risks')}
+                    className="p-3 bg-[#F5F1E9] border border-[#171717] rounded-lg hover:bg-white cursor-pointer transition-all space-y-1"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-mono font-bold text-[10px] text-[#171717]/70">{dec.decision_number}</span>
+                      <div className="flex items-center gap-1.5">
+                        {dec.is_overdue && (
+                          <span className="px-1.5 py-0.2 text-[9px] font-black bg-[#FF2F92] text-white rounded">
+                            LEWAT TENGGAT
+                          </span>
+                        )}
+                        <span className="px-1.5 py-0.2 text-[9px] font-bold uppercase bg-white border border-[#171717]/30 rounded">
+                          {dec.status}
+                        </span>
+                      </div>
+                    </div>
+                    <h5 className="font-bold text-xs text-[#171717] line-clamp-1">{dec.title}</h5>
+                    <div className="flex items-center justify-between text-[10.5px] text-[#171717]/60">
+                      <span>PIC: {dec.pic_name}</span>
+                      <span>Tenggat: {dec.due_date || '—'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="pt-4 border-t border-[#171717]/15 mt-3">
+            <button
+              onClick={() => navigate('/leadership/risks')}
+              className="text-xs font-bold text-[#171717] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              Lihat Seluruh Keputusan di Risk &amp; Decision Center &rarr;
+            </button>
+          </div>
+        </div>
+
+        {/* E2. Pusat Tindakan Eksekutif (P-M) */}
+        <div className="lg:col-span-6 bg-white border-2 border-[#171717] rounded-xl p-5 sm:p-6 shadow-[3px_3px_0px_#171717] flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b border-[#171717]/15 mb-3">
+              <div className="flex items-center gap-2">
+                <Zap size={18} className="text-[#FF2F92] fill-[#FF2F92]" />
+                <div>
+                  <h3 className="font-display text-sm sm:text-base uppercase tracking-wide text-[#171717]">
+                    Tindakan Eksekutif Terkini (P-M)
+                  </h3>
+                  <p className="text-[10.5px] font-semibold text-[#171717]/60">
+                    Eksekusi langsung dari temuan anomali bisnis ke PIC operasional.
+                  </p>
+                </div>
+              </div>
+
+              <span className="px-2 py-0.5 bg-[#FF2F92] text-white text-[10px] font-black rounded border border-[#171717]">
+                {execActions.active ?? 0} Aktif
+              </span>
+            </div>
+
+            {!execActions.recent_actions || execActions.recent_actions.length === 0 ? (
+              <div className="p-6 text-center bg-[#F5F1E9] border border-[#171717]/20 rounded-lg">
+                <CheckCircle2 size={24} className="text-[#10B981] mx-auto mb-1" />
+                <p className="text-xs font-bold uppercase text-[#171717]">Tidak Ada Tindakan Aktif</p>
+                <p className="text-[11px] text-[#171717]/60">Semua tindakan eksekutif telah tuntas diselesaikan.</p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {execActions.recent_actions.map((act) => (
+                  <div
+                    key={act.id}
+                    onClick={() => navigate('/executive-actions')}
+                    className="p-3 bg-[#F5F1E9] border border-[#171717] rounded-lg hover:bg-white cursor-pointer transition-all space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-mono font-bold text-[10px] text-[#171717]/70">{act.action_code}</span>
+                      <div className="flex items-center gap-1.5">
+                        {act.priority === 'critical' && (
+                          <span className="px-1.5 py-0.2 text-[9px] font-black bg-[#FF2F92] text-white rounded">
+                            KRITIS
+                          </span>
+                        )}
+                        {act.is_overdue && (
+                          <span className="px-1.5 py-0.2 text-[9px] font-black bg-[#FFD83D] text-[#171717] rounded">
+                            OVERDUE
+                          </span>
+                        )}
+                        <span className="px-1.5 py-0.2 text-[9px] font-bold uppercase bg-white border border-[#171717]/30 rounded">
+                          {act.status}
+                        </span>
+                      </div>
+                    </div>
+                    <h5 className="font-bold text-xs text-[#171717] line-clamp-1">{act.title}</h5>
+                    <div className="w-full bg-white h-1.5 rounded-full border border-[#171717]/30 overflow-hidden">
+                      <div className="bg-[#10B981] h-full" style={{ width: `${act.progress}%` }} />
+                    </div>
+                    <div className="flex items-center justify-between text-[10.5px] text-[#171717]/60">
+                      <span>PIC: {act.assigned_to_name}</span>
+                      <span>Progres: {act.progress}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="pt-4 border-t border-[#171717]/15 mt-3 flex items-center justify-between">
+            <button
+              onClick={() => navigate('/executive-actions')}
+              className="text-xs font-bold text-[#171717] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              Buka Action Center Lengkap &rarr;
+            </button>
+            <span className="text-[10px] font-bold text-[#10B981]">
+              {execActions.completed ?? 0} Selesai Terevaluasi
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          F. AI EXECUTIVE INSIGHT (P-F INTEGRATION - 100% REAL DETERMINISTIC CONTEXT)
+      ========================================================================= */}
+      <div className="bg-white border-2 border-[#171717] rounded-xl p-5 sm:p-6 shadow-[3px_3px_0px_#171717]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#171717]/15 mb-4 gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-[#FFD83D] border-1.5 border-[#171717] flex items-center justify-center text-[#171717]">
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <h2 className="font-display text-sm sm:text-base uppercase tracking-wide text-[#171717]">
+                AI Executive Strategic Insight
+              </h2>
+              <p className="text-[11px] font-semibold text-[#171717]/60">
+                Temuan penting, potensi masalah, dan rekomendasi keputusan dari agregasi data bisnis aktual.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => navigate('/leadership/ai-advisor')}
+            className="px-3 py-1.5 bg-[#FFD83D] hover:bg-[#ffc800] text-[#171717] border border-[#171717] rounded shadow-[2px_2px_0px_#171717] text-xs font-black uppercase flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+          >
+            <Brain size={14} />
+            <span>Buka AI Executive Advisor</span>
+          </button>
+        </div>
+
+        {aiInsights.length === 0 ? (
+          <div className="p-6 bg-[#F5F1E9] border border-[#171717]/30 rounded-lg text-center">
+            <Info size={24} className="text-[#3B82F6] mx-auto mb-1" />
+            <p className="text-xs font-bold uppercase text-[#171717]">Wawasan Strategis Sedang Berjalan</p>
+            <p className="text-xs text-[#171717]/60 mt-0.5">
+              Data bisnis aktual sedang dianalisis oleh Executive Advisor.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {aiInsights.slice(0, 3).map((ins) => (
+              <div
+                key={ins.id}
+                className="p-4 bg-[#F5F1E9] border-1.5 border-[#171717] rounded-xl flex flex-col justify-between space-y-2 hover:bg-white transition-all"
+              >
+                <div>
+                  <div className="flex items-center justify-between text-[9px] font-black uppercase mb-1">
+                    <span className="px-2 py-0.5 bg-white border border-[#171717]/30 rounded text-[#171717]">
+                      {ins.category}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded border border-[#171717] ${
+                      ins.priority === 'critical' ? 'bg-[#FF2F92] text-white' : 'bg-[#FFD83D] text-[#171717]'
+                    }`}>
+                      {ins.priority}
+                    </span>
+                  </div>
+                  <h4 className="font-bold text-xs sm:text-sm text-[#171717] leading-snug">
+                    {ins.title}
+                  </h4>
+                  <p className="text-xs font-semibold text-[#171717]/70 mt-1 line-clamp-3 leading-relaxed">
+                    {ins.summary}
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-[#171717]/10 text-[11px] text-[#171717]">
+                  <p className="font-bold text-[10px] text-[#171717]/60 uppercase">Rekomendasi:</p>
+                  <p className="font-semibold text-[#171717] line-clamp-2">{ins.recommended_action}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* =========================================================================
+          G. BUSINESS INTELLIGENCE LINTAS MODUL (P-L INTEGRATION)
       ========================================================================= */}
       <div className="bg-white border-2 border-[#171717] rounded-xl p-5 sm:p-6 shadow-[3px_3px_0px_#171717]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#171717]/15 mb-4 gap-2">
@@ -924,7 +1178,7 @@ export default function ExecutiveCommandCenter() {
 
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[10px] font-black px-2.5 py-1 bg-[#171717] text-white rounded">
-              {biData?.cross_module_insights?.total_insights ?? 0} Anomali & Rekomendasi
+              {biData?.cross_module_insights?.total_insights ?? 0} Anomali &amp; Rekomendasi
             </span>
             {(biData?.cross_module_insights?.critical_count ?? 0) > 0 && (
               <span className="text-[10px] font-black px-2 py-0.5 bg-[#FF2F92] text-white rounded border border-[#171717]">
@@ -1086,7 +1340,7 @@ export default function ExecutiveCommandCenter() {
       </div>
 
       {/* =========================================================================
-          G. HISTORICAL TREND (AUTHENTIC WEEKLY REPORT SNAPSHOTS)
+          H. HISTORICAL TREND (SNAPSHOT LAPORAN MINGGUAN OTENTIK)
       ========================================================================= */}
       <div className="bg-white border-2 border-[#171717] rounded-xl p-5 sm:p-6 shadow-[3px_3px_0px_#171717]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#171717]/15 mb-4 gap-2">
@@ -1149,6 +1403,101 @@ export default function ExecutiveCommandCenter() {
           </div>
         )}
       </div>
+
+      {/* =========================================================================
+          DATA FRESHNESS & SOURCE TRANSPARENCY MODAL
+      ========================================================================= */}
+      {showDataSourceModal && (
+        <div className="fixed inset-0 z-50 bg-[#171717]/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] max-w-lg w-full p-6 animate-in fade-in zoom-in-95 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#171717]/15">
+              <div className="flex items-center gap-2">
+                <Database size={20} className="text-[#FF2F92]" />
+                <h3 className="font-display text-base uppercase text-[#171717]">
+                  Transparansi Sumber Data Live
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowDataSourceModal(false)}
+                className="w-7 h-7 rounded bg-[#F5F1E9] border border-[#171717] flex items-center justify-center hover:bg-[#FF2F92] hover:text-white cursor-pointer transition-colors"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <p className="text-xs font-semibold text-[#171717]/70 leading-relaxed">
+              Executive Command Center 2.0 tersambung secara otomatis ke 7 modul strategis dan operasional tanpa manipulasi atau data sintetis:
+            </p>
+
+            <div className="space-y-2 text-xs font-semibold">
+              <div className="p-2.5 bg-[#F5F1E9] border border-[#171717] rounded-lg flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-[#171717]">Proyek &amp; Tugas:</span>
+                  <p className="text-[10.5px] text-[#171717]/60">Tabel `projects`, `tasks`, `milestones`</p>
+                </div>
+                <span className="px-2 py-0.5 bg-[#10B981] text-white text-[9.5px] font-black rounded">Aktif</span>
+              </div>
+
+              <div className="p-2.5 bg-[#F5F1E9] border border-[#171717] rounded-lg flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-[#171717]">Keuangan Riil:</span>
+                  <p className="text-[10.5px] text-[#171717]/60">Tabel `financial_transactions`, `financial_budgets`</p>
+                </div>
+                <span className="px-2 py-0.5 bg-[#10B981] text-white text-[9.5px] font-black rounded">Aktif</span>
+              </div>
+
+              <div className="p-2.5 bg-[#F5F1E9] border border-[#171717] rounded-lg flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-[#171717]">Sasaran Strategis OKR:</span>
+                  <p className="text-[10.5px] text-[#171717]/60">Tabel `strategic_objectives`, `strategic_key_results`</p>
+                </div>
+                <span className="px-2 py-0.5 bg-[#10B981] text-white text-[9.5px] font-black rounded">Aktif</span>
+              </div>
+
+              <div className="p-2.5 bg-[#F5F1E9] border border-[#171717] rounded-lg flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-[#171717]">Inisiatif Strategis:</span>
+                  <p className="text-[10.5px] text-[#171717]/60">Tabel `strategic_initiatives`, `resource_allocations`</p>
+                </div>
+                <span className="px-2 py-0.5 bg-[#10B981] text-white text-[9.5px] font-black rounded">Aktif</span>
+              </div>
+
+              <div className="p-2.5 bg-[#F5F1E9] border border-[#171717] rounded-lg flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-[#171717]">Risiko &amp; Keputusan:</span>
+                  <p className="text-[10.5px] text-[#171717]/60">Tabel `strategic_risks`, `executive_decisions`</p>
+                </div>
+                <span className="px-2 py-0.5 bg-[#10B981] text-white text-[9.5px] font-black rounded">Aktif</span>
+              </div>
+
+              <div className="p-2.5 bg-[#F5F1E9] border border-[#171717] rounded-lg flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-[#171717]">Tindakan Eksekutif:</span>
+                  <p className="text-[10.5px] text-[#171717]/60">Tabel `executive_actions`, `action_histories`</p>
+                </div>
+                <span className="px-2 py-0.5 bg-[#10B981] text-white text-[9.5px] font-black rounded">Aktif</span>
+              </div>
+
+              <div className="p-2.5 bg-[#F5F1E9] border border-[#171717] rounded-lg flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-[#171717]">AI Advisor Context:</span>
+                  <p className="text-[10.5px] text-[#171717]/60">Deterministic Rule Engine &amp; DB Metrics</p>
+                </div>
+                <span className="px-2 py-0.5 bg-[#10B981] text-white text-[9.5px] font-black rounded">Aktif</span>
+              </div>
+            </div>
+
+            <div className="pt-2 text-right">
+              <button
+                onClick={() => setShowDataSourceModal(false)}
+                className="px-4 py-2 bg-[#171717] text-white font-bold text-xs uppercase rounded shadow-[2px_2px_0px_#171717] cursor-pointer"
+              >
+                Tutup Informasi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
