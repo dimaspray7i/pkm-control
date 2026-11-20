@@ -18,7 +18,8 @@ import {
   ChevronsRight,
   X,
   Compass,
-  TrendingUp
+  TrendingUp,
+  Zap
 } from 'lucide-react'
 
 // Konfigurasi Navigasi Terpisah Berdasarkan Role (Tahap P-I: Full Indonesian Localization)
@@ -48,6 +49,7 @@ const ROLE_NAV_CONFIG = {
     {
       category: 'EKSEKUTIF & ANALITIK',
       items: [
+        { path: '/executive-actions', label: 'Pusat Tindakan Eksekutif', icon: Zap },
         { path: '/portfolio', label: 'Portofolio Strategis', icon: FolderKanban },
         { path: '/performance', label: 'Kinerja Bisnis & KPI', icon: Activity },
         { path: '/financial', label: 'Kinerja Keuangan', icon: TrendingUp },
@@ -67,6 +69,7 @@ const ROLE_NAV_CONFIG = {
       category: 'PUSAT KENDALI EKSEKUTIF',
       items: [
         { path: '/', label: 'Pusat Kendali Eksekutif', icon: LayoutDashboard },
+        { path: '/executive-actions', label: 'Pusat Tindakan Eksekutif', icon: Zap },
         { path: '/portfolio', label: 'Portofolio Strategis', icon: FolderKanban },
         { path: '/strategic-objectives', label: 'Sasaran Strategis (OKR)', icon: Target },
         { path: '/strategic-initiatives', label: 'Inisiatif & Alokasi Sumber Daya', icon: Compass },
@@ -95,6 +98,7 @@ const ROLE_NAV_CONFIG = {
       category: 'RUANG KERJA PM',
       items: [
         { path: '/', label: 'Ruang Kerja Saya', icon: LayoutDashboard },
+        { path: '/executive-actions', label: 'Tindakan Eksekutif', icon: Zap },
       ]
     },
     {

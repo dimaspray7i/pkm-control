@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AiAnalystController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\ExecutiveActionController;
 use App\Http\Controllers\Api\FinancialController;
 use App\Http\Controllers\Api\LeadershipAIController;
 use App\Http\Controllers\Api\LeadershipController;
@@ -122,6 +123,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/financial/alerts/{id}/status', [FinancialController::class, 'alertUpdateStatus']);
         Route::post('/financial/alerts/{id}/escalate', [FinancialController::class, 'alertEscalate']);
         Route::get('/financial/initiatives/{id}/reconciliation', [FinancialController::class, 'initiativeReconciliation']);
+    });
+
+    // Tahap P-M: Executive Actions & Strategic Execution Center (Admin, Pimpinan, PM)
+    Route::middleware('role:admin,pimpinan,project_manager')->group(function () {
+        Route::get('/leadership/actions/summary', [ExecutiveActionController::class, 'summary']);
+        Route::get('/leadership/actions', [ExecutiveActionController::class, 'index']);
+        Route::post('/leadership/actions', [ExecutiveActionController::class, 'store']);
+        Route::post('/leadership/actions/from-insight', [ExecutiveActionController::class, 'createFromInsight']);
+        Route::get('/leadership/actions/{id}', [ExecutiveActionController::class, 'show']);
+        Route::put('/leadership/actions/{id}', [ExecutiveActionController::class, 'update']);
+        Route::post('/leadership/actions/{id}/cancel', [ExecutiveActionController::class, 'cancel']);
+        Route::post('/leadership/actions/{id}/convert-task', [ExecutiveActionController::class, 'convertToTask']);
     });
 
     // Project Manager Workspace (Scoped to PM's projects)

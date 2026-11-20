@@ -21,6 +21,7 @@ import AIExecutiveAdvisor from './pages/leadership/AIExecutiveAdvisor'
 import ExecutiveReports from './pages/leadership/ExecutiveReports'
 import StrategicObjectives from './pages/leadership/StrategicObjectives'
 import StrategicInitiatives from './pages/leadership/StrategicInitiatives'
+import ExecutiveActionCenter from './pages/leadership/ExecutiveActionCenter'
 import NotFound from './pages/NotFound'
 
 function DashboardRoute() {
@@ -109,6 +110,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={['admin', 'pimpinan']}>
               <StrategicInitiatives />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="executive-actions"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'pimpinan', 'project_manager']}>
+              <ExecutiveActionCenter />
             </ProtectedRoute>
           }
         />

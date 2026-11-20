@@ -29,7 +29,8 @@ import {
   PieChart as PieIcon,
   Brain,
   Compass,
-  Users
+  Users,
+  Zap
 } from 'lucide-react'
 import PageLoading from '../../components/ui/PageLoading'
 import {
@@ -57,6 +58,9 @@ export default function ExecutiveCommandCenter() {
 
   const [data, setData] = useState(null)
   const [biData, setBiData] = useState(null)
+  const [actionSummary, setActionSummary] = useState(null)
+  const [actionLoadingId, setActionLoadingId] = useState(null)
+  const [actionCreatedSuccess, setActionCreatedSuccess] = useState(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
@@ -79,9 +83,10 @@ export default function ExecutiveCommandCenter() {
       }
       setError(null)
 
-      const [res, biRes] = await Promise.allSettled([
+      const [res, biRes, actRes] = await Promise.allSettled([
         api.get('/leadership/command-center', { signal: controller.signal }),
         api.get('/leadership/intelligence', { signal: controller.signal }),
+        api.get('/leadership/actions/summary', { signal: controller.signal }),
       ])
 
       if (res.status === 'fulfilled' && res.value.data && res.value.data.success) {
@@ -94,6 +99,10 @@ export default function ExecutiveCommandCenter() {
       if (biRes.status === 'fulfilled' && biRes.value.data && biRes.value.data.success) {
         setBiData(biRes.value.data)
       }
+
+      if (actRes.status === 'fulfilled' && actRes.value.data && actRes.value.data.success) {
+        setActionSummary(actRes.value.data.summary)
+      }
     } catch (err) {
       if (controller.signal.aborted) return
       console.error('Leadership Command Center fetch error:', err)
@@ -105,6 +114,39 @@ export default function ExecutiveCommandCenter() {
     } finally {
       setLoading(false)
       setRefreshing(false)
+    }
+  }
+
+  const handleCreateActionFromInsight = async (insight) => {
+    try {
+      setActionLoadingId(insight.id)
+      const payload = {
+        title: insight.title,
+        summary: insight.summary,
+        recommendation: insight.recommendation,
+        source_id: String(insight.id),
+        source_title: `BI Insight: ${insight.title}`,
+        priority: insight.priority === 'critical' ? 'critical' : (insight.priority === 'high' ? 'high' : 'medium'),
+        project_id: insight.project_id || null,
+      }
+      const res = await api.post('/leadership/actions/from-insight', payload)
+      if (res.data?.success) {
+        setActionCreatedSuccess({
+          sourceId: String(insight.id),
+          id: res.data.action?.id,
+          code: res.data.action?.action_code,
+          title: res.data.action?.title,
+        })
+        const sumRes = await api.get('/leadership/actions/summary')
+        if (sumRes.data?.success) {
+          setActionSummary(sumRes.data.summary)
+        }
+      }
+    } catch (err) {
+      console.error('Error creating action from insight:', err)
+      alert(err.response?.data?.message || 'Gagal menerbitkan tindakan dari insight.')
+    } finally {
+      setActionLoadingId(null)
     }
   }
 
@@ -211,6 +253,62 @@ export default function ExecutiveCommandCenter() {
               <span>{refreshing ? 'Memperbarui...' : 'Refresh'}</span>
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          EXECUTIVE ACTIONS SHORTCUT STRIP
+      ========================================================================= */}
+      <div className="bg-[#171717] text-white border-2 border-[#171717] rounded-xl p-4 sm:p-5 shadow-[3px_3px_0px_#FFD83D] flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-lg bg-[#FFD83D] text-[#171717] border border-white flex items-center justify-center shrink-0">
+            <Zap size={24} className="fill-[#171717]" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-[#FFD83D]">
+                Insight-To-Action Execution Center
+              </span>
+              {(actionSummary?.overdue_actions ?? 0) > 0 && (
+                <span className="px-2 py-0.5 text-[9px] font-black uppercase bg-[#FF2F92] text-white rounded">
+                  {actionSummary.overdue_actions} Terlambat
+                </span>
+              )}
+            </div>
+            <h3 className="font-display text-base uppercase text-white tracking-wide">
+              Pusat Tindakan Strategis &amp; Operasional
+            </h3>
+            <p className="text-xs text-white/70">
+              Konversi anomali dan rekomendasi bisnis menjadi tindakan terukur dengan penanggung jawab dan tenggat waktu.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 self-end md:self-auto flex-wrap">
+          <div className="flex items-center gap-2.5 bg-white/10 px-3.5 py-2 rounded-lg border border-white/20 text-xs">
+            <span className="text-white/60 font-semibold">Aktif:</span>
+            <span className="font-mono font-black text-white">
+              {(actionSummary?.status_breakdown?.pending ?? 0) + (actionSummary?.status_breakdown?.in_progress ?? 0)}
+            </span>
+            <span className="text-white/30">|</span>
+            <span className="text-[#FF2F92] font-semibold">Kritis:</span>
+            <span className="font-mono font-black text-[#FF2F92]">
+              {actionSummary?.priority_breakdown?.critical ?? 0}
+            </span>
+            <span className="text-white/30">|</span>
+            <span className="text-[#10B981] font-semibold">Selesai:</span>
+            <span className="font-mono font-black text-[#10B981]">
+              {actionSummary?.status_breakdown?.completed ?? 0}
+            </span>
+          </div>
+
+          <button
+            onClick={() => navigate('/executive-actions')}
+            className="px-4 py-2.5 bg-[#FFD83D] hover:bg-[#f7cc24] text-[#171717] font-black text-xs uppercase rounded-lg shadow-[2px_2px_0px_#FFFFFF] flex items-center gap-2 cursor-pointer transition-transform hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <span>Buka Action Center</span>
+            <ArrowRight size={14} />
+          </button>
         </div>
       </div>
 
@@ -939,6 +1037,46 @@ export default function ExecutiveCommandCenter() {
                       </span>
                       <span className="text-[#171717] font-semibold">{insight.recommendation}</span>
                     </div>
+                  </div>
+
+                  {/* Insight-to-Action Action Trigger */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-[#171717]/10">
+                    {actionCreatedSuccess?.sourceId === String(insight.id) ? (
+                      <div className="flex items-center gap-2 text-xs font-bold text-[#10B981]">
+                        <CheckCircle2 size={15} />
+                        <span>Tindakan diterbitkan ({actionCreatedSuccess.code})</span>
+                        <button
+                          onClick={() => navigate('/executive-actions')}
+                          className="underline hover:text-[#171717] font-black cursor-pointer text-[11px]"
+                        >
+                          Buka Detail &rarr;
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-[#171717]/50 font-medium">
+                        Dapat langsung didelegasikan ke PIC / PM dengan tenggat terukur
+                      </span>
+                    )}
+
+                    <button
+                      type="button"
+                      disabled={actionLoadingId === insight.id}
+                      onClick={() => handleCreateActionFromInsight(insight)}
+                      className="px-3 py-1.5 bg-[#FFD83D] hover:bg-[#ffc800] active:translate-y-0.5 border border-[#171717] rounded shadow-[2px_2px_0px_#171717] text-xs font-black text-[#171717] flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all sm:ml-auto"
+                      title="Terbitkan tindakan eksekutif dari anomali/rekomendasi ini"
+                    >
+                      {actionLoadingId === insight.id ? (
+                        <>
+                          <Loader2 size={13} className="animate-spin" />
+                          <span>Menerbitkan...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap size={13} className="fill-[#171717]" />
+                          <span>Tindak Lanjuti Menjadi Action</span>
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
               )
