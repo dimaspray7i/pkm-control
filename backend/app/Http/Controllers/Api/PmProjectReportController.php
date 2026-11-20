@@ -379,7 +379,7 @@ class PmProjectReportController extends Controller
     {
         $user = $this->getAuthorizedUser($request);
 
-        $report = ProjectReport::with(['project:id,name,code,client,pic_id,pic_name,status,deadline', 'creator:id,name,email,position'])
+        $report = ProjectReport::with(['project:id,name,code,client,pic_id,pic_name,status,deadline', 'creator:id,name,email'])
             ->find($id);
 
         if (!$report) {
@@ -395,6 +395,10 @@ class PmProjectReportController extends Controller
             if ($report->status !== 'published') {
                 return response()->json(['message' => 'Laporan berstatus draft tidak dapat diakses oleh pimpinan.'], 403);
             }
+        }
+
+        if ($report->creator) {
+            $report->creator->setAttribute('position', null);
         }
 
         return response()->json([

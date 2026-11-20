@@ -946,4 +946,51 @@ class ProjectReportTest extends TestCase
         $this->assertEquals(1, $pmStats['total_drafts']);
         $this->assertEquals(1, $pmStats['total_published']);
     }
+
+    public function test_34_get_report_detail_loads_creator_without_position_column_error()
+    {
+        $report = ProjectReport::create([
+            'report_number' => 'RPT-TEST-0034',
+            'project_id' => $this->projectPm1->id,
+            'created_by' => $this->pm1->id,
+            'period_start' => '2026-11-02',
+            'period_end' => '2026-11-08',
+            'status' => 'published',
+            'executive_summary' => 'Ringkasan laporan valid',
+            'snapshot_data' => ['test' => true],
+            'published_at' => now(),
+        ]);
+
+        \Illuminate\Support\Facades\DB::enableQueryLog();
+
+        Sanctum::actingAs($this->pm1);
+        $response = $this->getJson("/api/project-reports/{$report->id}");
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure([
+            'report' => [
+                'id',
+                'report_number',
+                'project' => ['id', 'name', 'code', 'client', 'pic_id', 'pic_name', 'status', 'deadline'],
+                'creator' => ['id', 'name', 'email'],
+            ],
+        ]);
+
+        $data = $response->json('report');
+        $this->assertEquals($this->pm1->id, $data['creator']['id']);
+        $this->assertEquals($this->pm1->name, $data['creator']['name']);
+        $this->assertEquals($this->pm1->email, $data['creator']['email']);
+        $this->assertArrayHasKey('position', $data['creator']);
+        $this->assertNull($data['creator']['position']);
+
+        // Verify no query on users table requests 'position' column
+        $queries = \Illuminate\Support\Facades\DB::getQueryLog();
+        foreach ($queries as $q) {
+            $sql = strtolower($q['query']);
+            if (str_contains($sql, 'users')) {
+                $this->assertStringNotContainsString('position', $sql);
+            }
+        }
+        \Illuminate\Support\Facades\DB::disableQueryLog();
+    }
 }
