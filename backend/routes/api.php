@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\LeadershipInitiativeController;
 use App\Http\Controllers\Api\LeadershipOkrController;
 use App\Http\Controllers\Api\LeadershipReportController;
 use App\Http\Controllers\Api\LeadershipRiskController;
+use App\Http\Controllers\Api\MemberNotificationController;
 use App\Http\Controllers\Api\MemberWorkspaceController;
 use App\Http\Controllers\Api\MilestoneController;
 use App\Http\Controllers\Api\PmWorkspaceController;
@@ -143,9 +144,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/pm/workspace', [PmWorkspaceController::class, 'index']);
     });
 
-    // Tahap P-O & M-A: Member Workspace & Personal Work Calendar (Member role only — strict personal data scoping)
+    // Tahap P-O, M-A, M-B: Member Workspace, Personal Work Calendar & Notification Center (Member role only)
     Route::get('/member/workspace', [MemberWorkspaceController::class, 'index']);
     Route::get('/member/calendar', [MemberWorkspaceController::class, 'calendar']);
+
+    // Tahap M-B: Member Notification Center Routes
+    Route::get('/member/notifications', [MemberNotificationController::class, 'index']);
+    Route::get('/member/notifications/summary', [MemberNotificationController::class, 'summary']);
+    Route::patch('/member/notifications/{id}/read', [MemberNotificationController::class, 'markAsRead']);
+    Route::patch('/member/notifications/{id}/unread', [MemberNotificationController::class, 'markAsUnread']);
+    Route::post('/member/notifications/read-all', [MemberNotificationController::class, 'markAllAsRead']);
+    Route::delete('/member/notifications/{id}', [MemberNotificationController::class, 'destroy']);
 
     // AI Analyst (Live LLM + Rule-Based fallback on DB context)
     Route::post('/ai/ask', [AiAnalystController::class, 'ask']);

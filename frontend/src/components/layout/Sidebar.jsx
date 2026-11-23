@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import api from '../../services/api'
 import {
   LayoutDashboard,
   FolderKanban,
@@ -20,7 +21,8 @@ import {
   Compass,
   TrendingUp,
   Zap,
-  CalendarDays
+  CalendarDays,
+  Bell
 } from 'lucide-react'
 
 // Konfigurasi Navigasi Terpisah Berdasarkan Role (Tahap P-I: Full Indonesian Localization)
@@ -131,6 +133,7 @@ const ROLE_NAV_CONFIG = {
       items: [
         { path: '/tasks', label: 'Workspace Saya', icon: LayoutDashboard },
         { path: '/member/calendar', label: 'Kalender Kerja', icon: CalendarDays },
+        { path: '/member/notifications', label: 'Notifikasi', icon: Bell, badgeKey: 'unread_notifications' },
       ]
     },
     {
@@ -153,10 +156,39 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }) {
   const location = useLocation()
   const { user } = useAuth()
   const [collapsed, setCollapsed] = useState(false)
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0)
 
   const role = user?.role || 'member'
   const navSections = ROLE_NAV_CONFIG[role] || ROLE_NAV_CONFIG.member
   const homePath = role === 'member' ? '/tasks' : '/'
+
+  useEffect(() => {
+    if (role !== 'member') return
+
+    const loadUnread = async () => {
+      try {
+        const res = await api.get('/member/notifications/summary')
+        if (res.data?.unread !== undefined) {
+          setUnreadNotifCount(res.data.unread)
+        }
+      } catch (e) {
+        // silently ignore error on sidebar badge
+      }
+    }
+
+    loadUnread()
+
+    const handleUpdate = (e) => {
+      if (e.detail?.unread !== undefined) {
+        setUnreadNotifCount(e.detail.unread)
+      } else {
+        loadUnread()
+      }
+    }
+
+    window.addEventListener('notification-updated', handleUpdate)
+    return () => window.removeEventListener('notification-updated', handleUpdate)
+  }, [role])
 
   const handleLinkClick = () => {
     if (setMobileOpen) setMobileOpen(false)
@@ -253,6 +285,9 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }) {
                     ? location.pathname === '/'
                     : location.pathname.startsWith(item.path)
                   const isCollapsedDesktop = collapsed && !mobileOpen
+                  const badgeValue = item.badgeKey === 'unread_notifications'
+                    ? (unreadNotifCount > 0 ? (unreadNotifCount > 99 ? '99+' : unreadNotifCount) : null)
+                    : item.badge
 
                   return (
                     <li key={item.path}>
@@ -261,7 +296,7 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }) {
                         onClick={handleLinkClick}
                         title={isCollapsedDesktop ? item.label : undefined}
                         aria-current={isActive ? 'page' : undefined}
-                        className={`flex items-center min-h-[42px] font-bold text-xs uppercase tracking-wider transition-all rounded-lg overflow-hidden ${
+                        className={`relative flex items-center min-h-[42px] font-bold text-xs uppercase tracking-wider transition-all rounded-lg overflow-hidden ${
                           isCollapsedDesktop
                             ? 'justify-center px-0 py-2'
                             : 'gap-2.5 px-3 py-2.5'
@@ -271,15 +306,24 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }) {
                             : 'text-[#171717] hover:bg-white hover:border-1.5 hover:border-[#171717] hover:shadow-[2px_2px_0px_#171717] border-1.5 border-transparent'
                         }`}
                       >
-                        <Icon size={17} strokeWidth={2.4} className="shrink-0" />
+                        <div className="relative">
+                          <Icon size={17} strokeWidth={2.4} className="shrink-0" />
+                          {isCollapsedDesktop && item.badgeKey === 'unread_notifications' && unreadNotifCount > 0 && (
+                            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#FF2F92] border border-[#171717] rounded-full" />
+                          )}
+                        </div>
                         {!isCollapsedDesktop && (
                           <span className="truncate flex-1 text-[11px] font-bold tracking-wide">
                             {item.label}
                           </span>
                         )}
-                        {!isCollapsedDesktop && item.badge && (
-                          <span className="px-1.5 py-0.2 text-[8px] font-black bg-[#FFD83D] text-[#171717] border border-[#171717] rounded-sm shrink-0">
-                            {item.badge}
+                        {!isCollapsedDesktop && badgeValue && (
+                          <span className={`px-1.5 py-0.2 text-[8px] font-black border border-[#171717] rounded-sm shrink-0 ${
+                            item.badgeKey === 'unread_notifications'
+                              ? 'bg-[#FF2F92] text-white'
+                              : 'bg-[#FFD83D] text-[#171717]'
+                          }`}>
+                            {badgeValue}
                           </span>
                         )}
                       </Link>

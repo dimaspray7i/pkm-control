@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\TaskChecklist;
 use App\Models\User;
+use App\Services\NotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -388,6 +389,15 @@ class TaskController extends Controller
             return $t;
         });
 
+        // Tahap M-B: Buat notifikasi penugasan tugas jika ditugaskan ke Member
+        try {
+            if ($task->assignee_id) {
+                NotificationService::notifyTaskAssigned($task, $user);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed creating task assignment notification: ' . $e->getMessage());
+        }
+
         $chkStats = $task->getChecklistStats();
         $task->checklist_total = $chkStats['total'];
         $task->checklist_completed = $chkStats['completed'];
@@ -458,6 +468,7 @@ class TaskController extends Controller
         }
 
         $task = Task::with('project')->findOrFail($id);
+        $previousAssigneeId = $task->assignee_id;
 
         // Otorisasi tugas: PM hanya boleh mengubah task pada proyek yang dipimpinnya
         if ($user->role === 'project_manager' && (int) $task->project->pic_id !== (int) $user->id) {
@@ -620,6 +631,16 @@ class TaskController extends Controller
 
             return $task;
         });
+
+        // Tahap M-B: Jika assignee berubah dan ditugaskan ke Member, buat notifikasi penugasan
+        try {
+            $prevAssigneeId = $previousAssigneeId ?? null;
+            if ($task->assignee_id && (int) $task->assignee_id !== (int) $prevAssigneeId) {
+                NotificationService::notifyTaskAssigned($task, $user);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed creating task assignment notification on update: ' . $e->getMessage());
+        }
 
         $chkStats = $task->getChecklistStats();
         $task->checklist_total = $chkStats['total'];

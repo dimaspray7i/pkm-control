@@ -8,6 +8,7 @@ use App\Models\Milestone;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\TaskReview;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -252,6 +253,13 @@ class TaskReviewController extends Controller
                 'avatar_color' => 'bg-[#10B981]',
             ]);
 
+            // Tahap M-B: Buat notifikasi persetujuan untuk Member penanggung jawab tugas
+            try {
+                NotificationService::notifyReviewApproved($lockedTask, $user, $notes);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed creating approval notification: ' . $e->getMessage());
+            }
+
             return [
                 'task' => $lockedTask,
                 'review' => $review,
@@ -343,6 +351,13 @@ class TaskReviewController extends Controller
                 'project_name' => $lockedTask->project->name ?? 'Proyek PKM',
                 'avatar_color' => 'bg-[#FF5722]',
             ]);
+
+            // Tahap M-B: Buat notifikasi permintaan revisi untuk Member
+            try {
+                NotificationService::notifyReviewRevision($lockedTask, $user, $reason);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed creating revision notification: ' . $e->getMessage());
+            }
 
             return ['task' => $lockedTask, 'review' => $review];
         });
@@ -436,6 +451,13 @@ class TaskReviewController extends Controller
                 'project_name' => $lockedTask->project->name ?? 'Proyek PKM',
                 'avatar_color' => 'bg-[#FF2F92]',
             ]);
+
+            // Tahap M-B: Buat notifikasi pembukaan kembali tugas untuk Member
+            try {
+                NotificationService::notifyTaskReopened($lockedTask, $user, $reason);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed creating reopen notification: ' . $e->getMessage());
+            }
 
             return [
                 'task' => $lockedTask,
