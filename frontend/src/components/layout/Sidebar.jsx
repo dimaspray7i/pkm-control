@@ -19,7 +19,8 @@ import {
   X,
   Compass,
   TrendingUp,
-  Zap
+  Zap,
+  CalendarDays
 } from 'lucide-react'
 
 // Konfigurasi Navigasi Terpisah Berdasarkan Role (Tahap P-I: Full Indonesian Localization)
@@ -129,6 +130,7 @@ const ROLE_NAV_CONFIG = {
       category: 'WORKSPACE SAYA',
       items: [
         { path: '/tasks', label: 'Workspace Saya', icon: LayoutDashboard },
+        { path: '/member/calendar', label: 'Kalender Kerja', icon: CalendarDays },
       ]
     },
     {

@@ -143,8 +143,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/pm/workspace', [PmWorkspaceController::class, 'index']);
     });
 
-    // Tahap P-O: Member Workspace (Member role only — strict personal data scoping)
+    // Tahap P-O & M-A: Member Workspace & Personal Work Calendar (Member role only — strict personal data scoping)
     Route::get('/member/workspace', [MemberWorkspaceController::class, 'index']);
+    Route::get('/member/calendar', [MemberWorkspaceController::class, 'calendar']);
 
     // AI Analyst (Live LLM + Rule-Based fallback on DB context)
     Route::post('/ai/ask', [AiAnalystController::class, 'ask']);

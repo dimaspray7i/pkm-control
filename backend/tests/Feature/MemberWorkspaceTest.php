@@ -477,4 +477,227 @@ class MemberWorkspaceTest extends TestCase
         $this->member1->refresh();
         $this->assertEquals('member', $this->member1->role);
     }
+
+    // ================================================================
+    // TAHAP M-A: MEMBER PERSONAL WORK CALENDAR TESTS (13 - 24)
+    // ================================================================
+
+    // Test 13: Member dapat mengakses kalender kerja miliknya sendiri
+    public function test_13_member_can_access_own_work_calendar(): void
+    {
+        Sanctum::actingAs($this->member1);
+
+        $response = $this->getJson('/api/member/calendar');
+        $response->assertStatus(200);
+        $response->assertJsonStructure([
+            'overview' => [
+                'due_today',
+                'due_this_week',
+                'near_deadline',
+                'overdue',
+                'completed_this_month',
+            ],
+            'upcoming_deadlines',
+            'tasks',
+            'daily_distribution',
+            'meta' => [
+                'current_date',
+                'current_time',
+                'timezone',
+            ],
+        ]);
+        $response->assertJsonPath('meta.timezone', 'Asia/Jakarta');
+    }
+
+    // Test 14: Member tidak dapat melihat deadline anggota lain (Isolasi data ketat)
+    public function test_14_member_calendar_strictly_isolated_from_other_members(): void
+    {
+        Sanctum::actingAs($this->member1);
+
+        $response = $this->getJson('/api/member/calendar');
+        $response->assertStatus(200);
+
+        $taskIds = collect($response->json('tasks'))->pluck('id')->all();
+        $this->assertNotContains($this->taskOtherMember->id, $taskIds);
+    }
+
+    // Test 15: Tugas completed tidak dihitung sebagai overdue
+    public function test_15_completed_tasks_are_not_counted_as_overdue(): void
+    {
+        Sanctum::actingAs($this->member1);
+
+        // Buat tugas yang sudah lewat deadline tetapi sudah selesai
+        $doneOverdueTask = Task::create([
+            'project_id'    => $this->project->id,
+            'title'         => 'Tugas Selesai Terlampaui',
+            'status'        => 'completed',
+            'is_completed'  => true,
+            'priority'      => 'high',
+            'deadline'      => Carbon::now()->subDays(5)->toDateString(),
+            'assignee_id'   => $this->member1->id,
+            'creator_id'    => $this->pm->id,
+        ]);
+
+        $response = $this->getJson('/api/member/calendar');
+        $response->assertStatus(200);
+
+        // Pastikan tidak masuk hitungan overdue
+        $tasks = collect($response->json('tasks'));
+        $found = $tasks->firstWhere('id', $doneOverdueTask->id);
+        $this->assertNotNull($found);
+        $this->assertTrue($found['is_completed']);
+        $this->assertFalse($found['is_overdue']);
+    }
+
+    // Test 16: Tugas in_review tetap ditampilkan sebagai pekerjaan aktif menunggu approval
+    public function test_16_in_review_tasks_are_active_and_awaiting_approval(): void
+    {
+        Sanctum::actingAs($this->member1);
+
+        $inReviewTask = Task::create([
+            'project_id'    => $this->project->id,
+            'title'         => 'Tugas Menunggu Review PM',
+            'status'        => 'in_review',
+            'is_completed'  => false,
+            'priority'      => 'urgent',
+            'deadline'      => Carbon::now()->addDays(2)->toDateString(),
+            'assignee_id'   => $this->member1->id,
+            'creator_id'    => $this->pm->id,
+        ]);
+
+        $response = $this->getJson('/api/member/calendar');
+        $response->assertStatus(200);
+
+        $tasks = collect($response->json('tasks'));
+        $found = $tasks->firstWhere('id', $inReviewTask->id);
+        $this->assertNotNull($found);
+        $this->assertEquals('in_review', $found['status']);
+        $this->assertFalse($found['is_completed']);
+    }
+
+    // Test 17: Perhitungan deadline hari ini akurat
+    public function test_17_due_today_calculation_is_accurate(): void
+    {
+        Sanctum::actingAs($this->member1);
+
+        $todayStr = Carbon::now('Asia/Jakarta')->toDateString();
+
+        Task::create([
+            'project_id'    => $this->project->id,
+            'title'         => 'Tugas Deadline Hari Ini',
+            'status'        => 'in_progress',
+            'is_completed'  => false,
+            'priority'      => 'high',
+            'deadline'      => $todayStr,
+            'assignee_id'   => $this->member1->id,
+            'creator_id'    => $this->pm->id,
+        ]);
+
+        $response = $this->getJson('/api/member/calendar');
+        $response->assertStatus(200);
+
+        $this->assertGreaterThanOrEqual(1, $response->json('overview.due_today'));
+    }
+
+    // Test 18: Perhitungan deadline minggu ini akurat
+    public function test_18_due_this_week_calculation_is_accurate(): void
+    {
+        Sanctum::actingAs($this->member1);
+
+        $now = Carbon::now('Asia/Jakarta');
+        $startOfWeek = (clone $now)->startOfWeek()->toDateString();
+
+        Task::create([
+            'project_id'    => $this->project->id,
+            'title'         => 'Tugas Minggu Ini',
+            'status'        => 'todo',
+            'is_completed'  => false,
+            'priority'      => 'medium',
+            'deadline'      => $startOfWeek,
+            'assignee_id'   => $this->member1->id,
+            'creator_id'    => $this->pm->id,
+        ]);
+
+        $response = $this->getJson('/api/member/calendar');
+        $response->assertStatus(200);
+
+        $this->assertGreaterThanOrEqual(1, $response->json('overview.due_this_week'));
+    }
+
+    // Test 19: Perhitungan upcoming deadline akurat (maks 5 pekerjaan terdekat)
+    public function test_19_upcoming_deadlines_accurate_and_capped_at_five(): void
+    {
+        Sanctum::actingAs($this->member1);
+
+        $response = $this->getJson('/api/member/calendar');
+        $response->assertStatus(200);
+
+        $upcoming = $response->json('upcoming_deadlines');
+        $this->assertIsArray($upcoming);
+        $this->assertLessThanOrEqual(5, count($upcoming));
+    }
+
+    // Test 20: Filter prioritas kalender bekerja
+    public function test_20_calendar_priority_filter_works(): void
+    {
+        Sanctum::actingAs($this->member1);
+
+        $response = $this->getJson('/api/member/calendar?priority=urgent');
+        $response->assertStatus(200);
+
+        $tasks = collect($response->json('tasks'));
+        foreach ($tasks as $t) {
+            $this->assertEquals('urgent', $t['priority']);
+        }
+    }
+
+    // Test 21: Filter status kalender bekerja
+    public function test_21_calendar_status_filter_works(): void
+    {
+        Sanctum::actingAs($this->member1);
+
+        $response = $this->getJson('/api/member/calendar?status=completed');
+        $response->assertStatus(200);
+
+        $tasks = collect($response->json('tasks'));
+        foreach ($tasks as $t) {
+            $this->assertTrue($t['is_completed']);
+        }
+    }
+
+    // Test 22: Unauthenticated request ke kalender mendapat 401
+    public function test_22_unauthenticated_calendar_returns_401(): void
+    {
+        $this->getJson('/api/member/calendar')->assertStatus(401);
+    }
+
+    // Test 23: Role non-member mendapat 403 Forbidden
+    public function test_23_non_member_roles_get_403_forbidden_on_calendar(): void
+    {
+        Sanctum::actingAs($this->pm);
+        $this->getJson('/api/member/calendar')->assertStatus(403);
+
+        Sanctum::actingAs($this->admin);
+        $this->getJson('/api/member/calendar')->assertStatus(403);
+    }
+
+    // Test 24: Filter rentang tanggal pergantian bulan bekerja akurat
+    public function test_24_calendar_date_range_filter_works(): void
+    {
+        Sanctum::actingAs($this->member1);
+
+        $start = Carbon::now()->startOfMonth()->toDateString();
+        $end = Carbon::now()->endOfMonth()->toDateString();
+
+        $response = $this->getJson("/api/member/calendar?start_date={$start}&end_date={$end}");
+        $response->assertStatus(200);
+
+        $tasks = collect($response->json('tasks'));
+        foreach ($tasks as $t) {
+            if ($t['deadline']) {
+                $this->assertGreaterThanOrEqual($start, $t['deadline']);
+                $this->assertLessThanOrEqual($end, $t['deadline']);
+            }
+        }
+    }
 }

@@ -22,6 +22,7 @@ import ExecutiveReports from './pages/leadership/ExecutiveReports'
 import StrategicObjectives from './pages/leadership/StrategicObjectives'
 import StrategicInitiatives from './pages/leadership/StrategicInitiatives'
 import ExecutiveActionCenter from './pages/leadership/ExecutiveActionCenter'
+import MemberWorkCalendar from './pages/member/MemberWorkCalendar'
 import NotFound from './pages/NotFound'
 
 function DashboardRoute() {
@@ -138,6 +139,14 @@ function AppRoutes() {
           }
         />
         <Route path="tasks" element={<Tasks />} />
+        <Route
+          path="member/calendar"
+          element={
+            <ProtectedRoute allowedRoles={['member']}>
+              <MemberWorkCalendar />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="development"
           element={
