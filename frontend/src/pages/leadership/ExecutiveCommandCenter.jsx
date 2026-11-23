@@ -43,6 +43,7 @@ import {
   X
 } from 'lucide-react'
 import PageLoading from '../../components/ui/PageLoading'
+import PageHeader from '../../components/ui/PageHeader'
 import {
   ResponsiveContainer,
   BarChart,
@@ -253,39 +254,30 @@ export default function ExecutiveCommandCenter() {
       {/* =========================================================================
           A. EXECUTIVE HEADER & DATA FRESHNESS TRANSPARENCY
       ========================================================================= */}
-      <div className="bg-white border-2 border-[#171717] rounded-xl p-4 sm:p-6 shadow-[3px_3px_0px_#171717] relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-44 h-44 bg-[#FFD83D]/20 rounded-full blur-2xl -mr-12 -mt-12 pointer-events-none" />
-
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-          <div>
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="px-2 py-0.5 text-[9.5px] font-black uppercase tracking-wider bg-[#171717] text-white rounded">
-                EXECUTIVE COMMAND CENTER 2.0
-              </span>
-              <span className="flex items-center gap-1 text-[11px] font-bold text-[#10B981]">
-                <span className="w-2 h-2 rounded-full bg-[#10B981] inline-block animate-pulse" />
-                Live Database Active
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowDataSourceModal(true)}
-                className="px-2 py-0.5 text-[10px] font-bold uppercase bg-[#F5F1E9] hover:bg-[#FFD83D] text-[#171717] border border-[#171717] rounded flex items-center gap-1 cursor-pointer transition-colors"
-                title="Lihat transparansi sumber data live"
-              >
-                <Database size={11} /> 7 Modul Terkoneksi
-              </button>
-            </div>
-            <h1 className="font-display text-2xl sm:text-3xl text-[#171717] tracking-tight leading-none uppercase">
-              {getGreeting()}, {user?.name || 'Pimpinan'}
-            </h1>
-            <p className="text-xs sm:text-sm font-semibold text-[#171717]/70 mt-1">
-              Pusat komando strategis dan pengambilan keputusan holistik PT Potensi Karya Mandiri.
-            </p>
+      <PageHeader
+        title={`${getGreeting()}, ${user?.name || 'Pimpinan'}`}
+        subtitle="Pusat komando strategis dan pengambilan keputusan holistik PT Potensi Karya Mandiri."
+        tag="PUSAT KENDALI EKSEKUTIF 2.0"
+        badge={
+          <div className="inline-flex items-center gap-1.5 flex-wrap">
+            <span className="flex items-center gap-1 text-[10px] font-bold text-[#047857]">
+              <span className="w-2 h-2 rounded-full bg-[#10B981] inline-block animate-pulse" />
+              Live DB
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowDataSourceModal(true)}
+              className="px-1.5 py-0.5 text-[9px] font-bold uppercase bg-white hover:bg-[#FFD83D] text-[#171717] border border-[#171717] rounded flex items-center gap-1 cursor-pointer transition-colors"
+              title="Lihat transparansi sumber data live"
+            >
+              <Database size={10} /> 7 Modul
+            </button>
           </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="px-3.5 py-2 bg-[#F5F1E9] border border-[#171717] rounded-lg text-right">
-              <p className="text-[10px] font-bold uppercase text-[#171717]/60 leading-none">Pembaruan Terakhir</p>
+        }
+        actions={
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="px-3 py-1.5 bg-white border-1.5 border-[#171717] rounded-lg text-right shadow-[2px_2px_0px_#171717]">
+              <p className="text-[9px] font-bold uppercase text-[#171717]/60 leading-none">Pembaruan Terakhir</p>
               <p className="text-xs font-black text-[#171717] mt-0.5">
                 {data?.meta?.as_of_time || 'Baru saja'} • {data?.meta?.as_of_date || ''}
               </p>
@@ -294,15 +286,15 @@ export default function ExecutiveCommandCenter() {
             <button
               onClick={() => fetchData(true)}
               disabled={refreshing}
-              className="px-4 py-2.5 bg-[#FFD83D] hover:bg-[#e6c335] active:translate-y-0.5 text-[#171717] font-black text-xs uppercase border border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+              className="px-3.5 py-2 bg-[#FFD83D] hover:bg-[#e6c335] active:translate-y-0.5 text-[#171717] font-black text-xs uppercase border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50 min-h-[40px]"
               title="Perbarui data real-time"
             >
               <RotateCcw size={14} className={refreshing ? 'animate-spin' : ''} />
-              <span>{refreshing ? 'Memperbarui...' : 'Refresh'}</span>
+              <span>{refreshing ? 'Memperbarui...' : 'Segarkan'}</span>
             </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* =========================================================================
           B. EXECUTIVE BUSINESS OVERVIEW (CHI 2.0 & 8 STRATEGIC DIMENSIONS)

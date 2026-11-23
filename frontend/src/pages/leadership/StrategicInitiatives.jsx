@@ -32,6 +32,7 @@ import {
   Sparkles
 } from 'lucide-react'
 import PageLoading from '../../components/ui/PageLoading'
+import PageHeader from '../../components/ui/PageHeader'
 
 const PRIORITY_BADGES = {
   critical: { label: 'Kritis', bg: 'bg-[#FF2F92]', text: 'text-white', border: 'border-[#171717]' },
@@ -363,45 +364,31 @@ export default function StrategicInitiatives() {
       {/* =========================================================================
           1. EXECUTIVE HEADER
          ========================================================================= */}
-      <div className="bg-[#F5F1E9] border-2 border-[#171717] shadow-[6px_6px_0px_#171717] p-5 md:p-7 relative overflow-hidden">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="px-2.5 py-0.5 bg-[#FF2F92] text-white border-2 border-[#171717] font-black text-xs tracking-wider uppercase shadow-[2px_2px_0px_#171717]">
-                PIMPINAN &middot; INISIATIF STRATEGIS
-              </span>
-              <span className="text-xs text-[#171717]/60 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" />
-                Periode Berjalan &bull; PT Potensi Karya Mandiri
-              </span>
-            </div>
-            <h1 className="font-black text-2xl md:text-3xl lg:text-4xl text-[#171717] tracking-tight">
-              STRATEGIC INITIATIVES &amp; RESOURCE ALLOCATION
-            </h1>
-            <p className="text-xs md:text-sm text-[#171717]/70 max-w-2xl">
-              Pusat orkestrasi inisiatif transformasi bisnis, pemantauan utilisasi kapasitas sumber daya manusia, dan evaluasi realisasi anggaran strategis.
-            </p>
-          </div>
-
+      <PageHeader
+        title="STRATEGIC INITIATIVES & RESOURCES"
+        subtitle="Pusat orkestrasi inisiatif transformasi bisnis, pemantauan utilisasi kapasitas sumber daya manusia, dan evaluasi realisasi anggaran strategis."
+        tag="INISIATIF STRATEGIS"
+        badge="Periode Berjalan • PT Potensi Karya Mandiri"
+        actions={
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
               onClick={() => fetchData(true)}
               disabled={refreshing}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#EAE4D8] border-2 border-[#171717] font-bold text-xs shadow-[3px_3px_0px_#171717] hover:bg-[#FFD83D] active:translate-x-[1px] active:translate-y-[1px] transition-all disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-[#EAE4D8] border-1.5 border-[#171717] rounded-lg font-bold text-xs shadow-[2px_2px_0px_#171717] hover:bg-[#FFD83D] active:translate-x-[1px] active:translate-y-[1px] transition-all disabled:opacity-50 cursor-pointer min-h-[40px]"
             >
               <RotateCcw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               {refreshing ? 'Menyinkronkan...' : 'Segarkan Data'}
             </button>
             <button
               onClick={handleOpenCreate}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#FFD83D] text-[#171717] border-2 border-[#171717] font-bold text-xs shadow-[3px_3px_0px_#171717] hover:bg-[#FFD83D]/90 active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FFD83D] text-[#171717] border-1.5 border-[#171717] rounded-lg font-black text-xs uppercase shadow-[2px_2px_0px_#171717] hover:bg-[#FFD83D]/90 active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer min-h-[40px]"
             >
               <Plus className="w-4 h-4" />
               Inisiatif Baru
             </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* =========================================================================
           2. KPI SUMMARY METRIC CARDS

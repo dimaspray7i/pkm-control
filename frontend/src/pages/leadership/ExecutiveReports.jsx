@@ -10,6 +10,7 @@ import {
   ExternalLink, FileText, Check, ListChecks, HelpCircle
 } from 'lucide-react'
 import PageLoading from '../../components/ui/PageLoading'
+import PageHeader from '../../components/ui/PageHeader'
 
 const formatDateIndo = (d) => {
   if (!d) return '—'
@@ -261,44 +262,35 @@ export default function ExecutiveReports() {
     <div className="min-h-screen bg-[#F5F1E9] p-4 md:p-8 space-y-6">
 
       {/* HEADER SECTION */}
-      <div className="border-[3px] border-[#171717] bg-white shadow-[6px_6px_0px_#171717] p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 text-xs font-black uppercase bg-[#B8A0F0] text-[#171717] border border-[#171717]">
-              P-G — EKSEKUTIF
-            </span>
-            <span className="text-xs font-bold text-[#666]">PT Potensi Karya Mandiri</span>
+      <PageHeader
+        title="EXECUTIVE REPORTS & DECISIONS"
+        subtitle="Pusat dokumentasi laporan berkala perusahaan, arsip snapshot historis, dan pelacakan tindak lanjut keputusan strategis."
+        tag="LAPORAN EKSEKUTIF"
+        badge="PT Potensi Karya Mandiri"
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                handleTypeChange('monthly')
+                setShowCreateModal(true)
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-[#FFD83D] text-[#171717] font-black border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] hover:bg-[#f5cd2f] active:translate-x-[1px] active:translate-y-[1px] transition-all text-xs uppercase cursor-pointer min-h-[40px]"
+            >
+              <Plus size={15} /> Buat Laporan Baru
+            </button>
+            <button
+              onClick={() => {
+                if (activeTab === 'reports') fetchReports()
+                else fetchDecisions()
+              }}
+              className="p-2.5 bg-white text-[#171717] border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] hover:bg-[#F5F1E9] transition-all cursor-pointer min-h-[40px]"
+              title="Segarkan Data"
+            >
+              <RotateCcw size={15} />
+            </button>
           </div>
-          <h1 className="text-2xl md:text-3xl font-black text-[#171717] uppercase tracking-tight">
-            Executive Reports & Decision Follow-up
-          </h1>
-          <p className="text-sm font-semibold text-[#555] mt-1">
-            Pusat dokumentasi laporan berkala perusahaan, arsip snapshot snapshot historis, dan pelacakan tindak lanjut keputusan strategis.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => {
-              handleTypeChange('monthly')
-              setShowCreateModal(true)
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#FFD83D] text-[#171717] font-black border-[2px] border-[#171717] shadow-[3px_3px_0px_#171717] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_#171717] transition-all text-xs uppercase"
-          >
-            <Plus size={16} /> Buat Laporan Baru
-          </button>
-          <button
-            onClick={() => {
-              if (activeTab === 'reports') fetchReports()
-              else fetchDecisions()
-            }}
-            className="p-2.5 bg-white text-[#171717] border-[2px] border-[#171717] shadow-[3px_3px_0px_#171717] hover:bg-[#F5F1E9] transition-all"
-            title="Refresh Data"
-          >
-            <RotateCcw size={16} />
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* TAB NAVIGATION */}
       <div className="flex border-b-[3px] border-[#171717] gap-2 overflow-x-auto">

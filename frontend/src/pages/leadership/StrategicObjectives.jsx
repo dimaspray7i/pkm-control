@@ -11,6 +11,7 @@ import {
   ArrowUpRight, BarChart3, Edit3, Trash2, Link as LinkIcon
 } from 'lucide-react'
 import PageLoading from '../../components/ui/PageLoading'
+import PageHeader from '../../components/ui/PageHeader'
 
 const formatDateIndo = (d) => {
   if (!d) return '—'
@@ -285,40 +286,31 @@ export default function StrategicObjectives() {
     <div className="min-h-screen bg-[#F5F1E9] p-4 md:p-8 space-y-6">
 
       {/* HEADER SECTION */}
-      <div className="border-[3px] border-[#171717] bg-white shadow-[6px_6px_0px_#171717] p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 text-xs font-black uppercase bg-[#B8A0F0] text-[#171717] border border-[#171717]">
-              P-H — STRATEGIC OKR
-            </span>
-            <span className="text-xs font-bold text-[#666]">PT Potensi Karya Mandiri</span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-black text-[#171717] uppercase tracking-tight">
-            Strategic Objectives & OKR Management
-          </h1>
-          <p className="text-sm font-semibold text-[#555] mt-1">
-            Pusat penetapan sasaran strategis, Key Results terukur, keselarasan portofolio proyek, dan evaluasi ketercapaian target perusahaan.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          {isLeaderOrAdmin && (
+      <PageHeader
+        title="STRATEGIC OBJECTIVES & OKR"
+        subtitle="Pusat penetapan sasaran strategis, Key Results terukur, keselarasan portofolio proyek, dan evaluasi ketercapaian target perusahaan."
+        tag="SASARAN STRATEGIS"
+        badge="PT Potensi Karya Mandiri"
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            {isLeaderOrAdmin && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-[#FFD83D] text-[#171717] font-black border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] hover:bg-[#f5cd2f] active:translate-x-[1px] active:translate-y-[1px] transition-all text-xs uppercase cursor-pointer min-h-[40px]"
+              >
+                <Plus size={15} /> Buat Sasaran
+              </button>
+            )}
             <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#FFD83D] text-[#171717] font-black border-[2px] border-[#171717] shadow-[3px_3px_0px_#171717] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_#171717] transition-all text-xs uppercase"
+              onClick={fetchOkrData}
+              className="p-2.5 bg-white text-[#171717] border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] hover:bg-[#F5F1E9] transition-all cursor-pointer min-h-[40px]"
+              title="Segarkan Data"
             >
-              <Plus size={16} /> Buat Objective Baru
+              <RotateCcw size={15} />
             </button>
-          )}
-          <button
-            onClick={fetchOkrData}
-            className="p-2.5 bg-white text-[#171717] border-[2px] border-[#171717] shadow-[3px_3px_0px_#171717] hover:bg-[#F5F1E9] transition-all"
-            title="Refresh Data"
-          >
-            <RotateCcw size={16} />
-          </button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {/* STRATEGIC OVERVIEW CARDS */}
       {summary && (

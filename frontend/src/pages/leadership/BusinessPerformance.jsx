@@ -38,6 +38,7 @@ import {
   HelpCircle as QuestionIcon
 } from 'lucide-react'
 import PageLoading from '../../components/ui/PageLoading'
+import PageHeader from '../../components/ui/PageHeader'
 
 const KPI_STATUS_THEME = {
   excellent: { label: 'Sangat Baik', bg: 'bg-[#10B981]', text: 'text-white', border: 'border-[#171717]', badge: 'bg-[#10B981]/20 text-[#047857] border-[#10B981]' },
@@ -171,33 +172,18 @@ export default function BusinessPerformance() {
       {/* =========================================================================
           1. HEADER & PERIOD FILTER
          ========================================================================= */}
-      <div className="bg-[#F5F1E9] border-2 border-[#171717] shadow-[6px_6px_0px_#171717] p-5 md:p-7 relative overflow-hidden">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="px-2.5 py-0.5 bg-[#FF2F92] text-white border-2 border-[#171717] font-mono font-black text-xs tracking-wider uppercase shadow-[2px_2px_0px_#171717]">
-                PIMPINAN &middot; KINERJA BISNIS & KPI
-              </span>
-              <span className="text-xs font-mono text-[#171717]/60 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" />
-                {meta?.as_of_date} &bull; {meta?.as_of_time}
-              </span>
-            </div>
-            <h1 className="font-mono font-black text-2xl md:text-3xl lg:text-4xl text-[#171717] tracking-tight">
-              KINERJA BISNIS &amp; KPI
-            </h1>
-            <p className="text-xs md:text-sm font-mono text-[#171717]/70 max-w-2xl">
-              Pusat analisis efektivitas operasional, kecepatan pengiriman proyek, produktivitas kerja tim, dan ketepatan pencapaian target PT Potensi Karya Mandiri.
-            </p>
-          </div>
-
-          {/* Action Bar & Period Filter */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+      <PageHeader
+        title="KINERJA BISNIS & KPI"
+        subtitle="Pusat analisis efektivitas operasional, kecepatan pengiriman proyek, produktivitas kerja tim, dan ketepatan pencapaian target PT Potensi Karya Mandiri."
+        tag="KINERJA BISNIS"
+        badge={meta?.as_of_date ? `${meta.as_of_date} • ${meta?.as_of_time || ''}` : null}
+        actions={
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 flex-wrap">
             {/* Period Switcher */}
-            <div className="flex items-center border-2 border-[#171717] bg-[#EAE4D8] p-0.5 shadow-[2px_2px_0px_#171717]">
+            <div className="flex items-center border-1.5 border-[#171717] rounded-lg bg-[#EAE4D8] p-0.5 shadow-[2px_2px_0px_#171717]">
               <button
                 onClick={() => handlePeriodChange('all_time')}
-                className={`px-3 py-1.5 font-mono text-xs font-bold transition-all ${
+                className={`px-3 py-1.5 rounded text-xs font-bold transition-all cursor-pointer ${
                   period === 'all_time' ? 'bg-[#171717] text-white shadow-[1px_1px_0px_#FFD83D]' : 'text-[#171717] hover:bg-white/50'
                 }`}
               >
@@ -205,7 +191,7 @@ export default function BusinessPerformance() {
               </button>
               <button
                 onClick={() => handlePeriodChange('this_month')}
-                className={`px-3 py-1.5 font-mono text-xs font-bold transition-all ${
+                className={`px-3 py-1.5 rounded text-xs font-bold transition-all cursor-pointer ${
                   period === 'this_month' ? 'bg-[#171717] text-white shadow-[1px_1px_0px_#FFD83D]' : 'text-[#171717] hover:bg-white/50'
                 }`}
               >
@@ -213,7 +199,7 @@ export default function BusinessPerformance() {
               </button>
               <button
                 onClick={() => handlePeriodChange('last_month')}
-                className={`px-3 py-1.5 font-mono text-xs font-bold transition-all ${
+                className={`px-3 py-1.5 rounded text-xs font-bold transition-all cursor-pointer ${
                   period === 'last_month' ? 'bg-[#171717] text-white shadow-[1px_1px_0px_#FFD83D]' : 'text-[#171717] hover:bg-white/50'
                 }`}
               >
@@ -225,7 +211,7 @@ export default function BusinessPerformance() {
               <button
                 onClick={() => fetchPerformanceData(true)}
                 disabled={refreshing}
-                className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#EAE4D8] border-2 border-[#171717] font-mono font-bold text-xs shadow-[3px_3px_0px_#171717] hover:bg-[#FFD83D] active:translate-x-[1px] active:translate-y-[1px] transition-all disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#EAE4D8] border-1.5 border-[#171717] rounded-lg font-bold text-xs shadow-[2px_2px_0px_#171717] hover:bg-[#FFD83D] active:translate-x-[1px] active:translate-y-[1px] transition-all disabled:opacity-50 cursor-pointer min-h-[38px]"
                 title="Sinkronisasi data KPI"
               >
                 <RotateCcw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
@@ -234,7 +220,7 @@ export default function BusinessPerformance() {
 
               <button
                 onClick={() => setShowFormulaModal(true)}
-                className="inline-flex items-center gap-1 px-3 py-2 bg-white border-2 border-[#171717] font-mono font-bold text-xs shadow-[3px_3px_0px_#171717] hover:bg-[#B8A0F0] active:translate-x-[1px] active:translate-y-[1px] transition-all"
+                className="inline-flex items-center gap-1 px-3 py-2 bg-white border-1.5 border-[#171717] rounded-lg font-bold text-xs shadow-[2px_2px_0px_#171717] hover:bg-[#B8A0F0] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer min-h-[38px]"
                 title="Lihat Metodologi & Rumus KPI"
               >
                 <QuestionIcon className="w-3.5 h-3.5 text-[#171717]" />
@@ -242,8 +228,8 @@ export default function BusinessPerformance() {
               </button>
             </div>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* =========================================================================
           1B. FINANCIAL PERFORMANCE & BUDGET CONTROL KPI (P-K Integration)

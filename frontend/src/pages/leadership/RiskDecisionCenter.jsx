@@ -41,6 +41,7 @@ import {
   ArrowUpRight
 } from 'lucide-react'
 import PageLoading from '../../components/ui/PageLoading'
+import PageHeader from '../../components/ui/PageHeader'
 
 // Severity Themes
 const SEVERITY_CONFIG = {
@@ -558,59 +559,40 @@ export default function RiskDecisionCenter() {
       )}
 
       {/* HEADER SECTION */}
-      <div className="bg-[#FFFFFF] border-[3px] border-[#171717] p-5 sm:p-6 shadow-[6px_6px_0px_#171717]">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="bg-[#FF2F92] text-white text-xs font-black px-2.5 py-1 border-[2px] border-[#171717] tracking-wider uppercase">
-                C-Level Executive Hub
-              </span>
-              <span className="bg-[#FFD83D] text-[#171717] text-xs font-bold px-2.5 py-1 border-[2px] border-[#171717]">
-                PT Potensi Karya Mandiri
-              </span>
-              {overview?.meta?.as_of_time && (
-                <span className="text-xs font-mono text-[#737373]">
-                  As of: {overview.meta.as_of_time}
-                </span>
-              )}
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-[#171717] tracking-tight uppercase flex items-center gap-2">
-              <ShieldAlert className="w-8 h-8 text-[#FF2F92]" />
-              Risk & Decision Center
-            </h1>
-            <p className="text-sm text-[#525252] max-w-3xl leading-relaxed">
-              Pusat komando terpadu pimpinan untuk mengidentifikasi ancaman proyek, menindaklanjuti kendala lapangan, serta mencatat keputusan strategis berbasis data aktual.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 flex-wrap">
+      <PageHeader
+        title="RISK & DECISION CENTER"
+        subtitle="Pusat komando terpadu pimpinan untuk mengidentifikasi ancaman proyek, menindaklanjuti kendala lapangan, serta mencatat keputusan strategis berbasis data aktual."
+        tag="PUSAT RISIKO & KEPUTUSAN"
+        badge={overview?.meta?.as_of_time ? `Pembaruan: ${overview.meta.as_of_time}` : null}
+        actions={
+          <div className="flex items-center gap-2.5 flex-wrap">
             <button
               onClick={() => fetchData(true)}
               disabled={refreshing || loading}
-              className="flex items-center gap-2 bg-[#EAE4D8] hover:bg-[#DCD5C6] text-[#171717] px-4 py-2.5 font-bold text-xs uppercase tracking-wider border-[2px] border-[#171717] shadow-[3px_3px_0px_#171717] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all disabled:opacity-50"
+              className="flex items-center gap-2 bg-[#EAE4D8] hover:bg-[#DCD5C6] text-[#171717] px-3.5 py-2 font-bold text-xs uppercase tracking-wider border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] active:translate-x-[1px] active:translate-y-[1px] transition-all disabled:opacity-50 cursor-pointer min-h-[40px]"
             >
-              <RotateCcw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <RotateCcw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               <span>{refreshing ? 'Memperbarui...' : 'Sinkronisasi'}</span>
             </button>
 
             <button
               onClick={() => setShowCreateRiskModal(true)}
-              className="flex items-center gap-2 bg-[#FFD83D] hover:bg-[#FACC15] text-[#171717] px-4 py-2.5 font-black text-xs uppercase tracking-wider border-[2px] border-[#171717] shadow-[3px_3px_0px_#171717] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+              className="flex items-center gap-1.5 bg-[#FFD83D] hover:bg-[#FACC15] text-[#171717] px-3.5 py-2 font-black text-xs uppercase tracking-wider border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer min-h-[40px]"
             >
               <Plus className="w-4 h-4" />
-              <span>Catat Risiko Baru</span>
+              <span>Catat Risiko</span>
             </button>
 
             <button
               onClick={() => setShowCreateDecisionModal(true)}
-              className="flex items-center gap-2 bg-[#FF2F92] hover:bg-[#E61E7E] text-white px-4 py-2.5 font-black text-xs uppercase tracking-wider border-[2px] border-[#171717] shadow-[3px_3px_0px_#171717] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
+              className="flex items-center gap-1.5 bg-[#FF2F92] hover:bg-[#E61E7E] text-white px-3.5 py-2 font-black text-xs uppercase tracking-wider border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer min-h-[40px]"
             >
               <Scale className="w-4 h-4" />
               <span>Buat Keputusan</span>
             </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* METRICS OVERVIEW (8 EXECUTIVE CARDS) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import api from '../../services/api'
 import { useAuth } from '../../contexts/AuthContext'
 import PageLoading from '../../components/ui/PageLoading'
+import PageHeader from '../../components/ui/PageHeader'
 import {
   Zap,
   CheckCircle2,
@@ -350,32 +351,20 @@ export default function ExecutiveActionCenter() {
       {/* =========================================================================
           1. EXECUTIVE HEADER
       ========================================================================= */}
-      <div className="bg-white border-2 border-[#171717] rounded-xl p-5 sm:p-6 shadow-[3px_3px_0px_#171717] relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-36 h-36 bg-[#FF2F92]/10 rounded-full blur-2xl -mr-12 -mt-12 pointer-events-none" />
-
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-2 py-0.5 text-[9.5px] font-black uppercase tracking-wider bg-[#FF2F92] text-white rounded">
-                STRATEGIC EXECUTION
-              </span>
-              <span className="text-[11px] font-bold text-[#171717]/60">
-                Insight-to-Action Center &bull; PT Potensi Karya Mandiri
-              </span>
-            </div>
-            <h1 className="font-display text-2xl sm:text-3xl text-[#171717] tracking-tight leading-none uppercase">
-              Executive Action Center
-            </h1>
-            <p className="text-xs sm:text-sm font-semibold text-[#171717]/70 mt-1 max-w-2xl">
-              Pusat komando eksekusi tindak lanjut strategis menghubungkan deteksi Business Intelligence menjadi tindakan nyata dengan penanggung jawab, tenggat waktu, dan audit riwayat.
-            </p>
-          </div>
-
+      {/* =========================================================================
+          1. EXECUTIVE HEADER
+      ========================================================================= */}
+      <PageHeader
+        title="EXECUTIVE ACTION CENTER"
+        subtitle="Pusat komando eksekusi tindak lanjut strategis menghubungkan deteksi Business Intelligence menjadi tindakan nyata dengan penanggung jawab, tenggat waktu, dan audit riwayat."
+        tag="STRATEGIC EXECUTION"
+        badge="PT Potensi Karya Mandiri"
+        actions={
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
               onClick={() => fetchData(true)}
               disabled={refreshing}
-              className="px-4 py-2.5 bg-[#F5F1E9] hover:bg-[#EAE4D8] border border-[#171717] font-black text-xs uppercase rounded-lg shadow-[2px_2px_0px_#171717] flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+              className="px-3.5 py-2 bg-[#F5F1E9] hover:bg-[#EAE4D8] border-1.5 border-[#171717] font-bold text-xs uppercase rounded-lg shadow-[2px_2px_0px_#171717] flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50 min-h-[40px]"
             >
               <RotateCcw size={14} className={refreshing ? 'animate-spin' : ''} />
               <span>{refreshing ? 'Menyinkronkan...' : 'Segarkan'}</span>
@@ -384,15 +373,15 @@ export default function ExecutiveActionCenter() {
             {canManage && (
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2.5 bg-[#FFD83D] hover:bg-[#e6c335] border-2 border-[#171717] font-black text-xs uppercase rounded-lg shadow-[2px_2px_0px_#171717] flex items-center gap-2 cursor-pointer transition-all"
+                className="px-3.5 py-2 bg-[#FFD83D] hover:bg-[#e6c335] border-1.5 border-[#171717] font-black text-xs uppercase rounded-lg shadow-[2px_2px_0px_#171717] flex items-center gap-1.5 cursor-pointer transition-all min-h-[40px]"
               >
                 <Plus size={15} />
                 <span>Buat Tindakan</span>
               </button>
             )}
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* =========================================================================
           2. ACTION KPI OVERVIEW STRIP

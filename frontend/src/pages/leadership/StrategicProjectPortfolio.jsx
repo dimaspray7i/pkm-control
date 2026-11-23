@@ -37,6 +37,7 @@ import {
   Table as TableIcon
 } from 'lucide-react'
 import PageLoading from '../../components/ui/PageLoading'
+import PageHeader from '../../components/ui/PageHeader'
 
 const STATUS_THEME = {
   on_track:  { label: 'Tepat Waktu', bg: 'bg-[#10B981]', text: 'text-white', border: 'border-[#171717]', dot: '#10B981' },
@@ -313,46 +314,32 @@ export default function StrategicProjectPortfolio() {
       {/* =========================================================================
           1. EXECUTIVE HEADER & ACTIONS
          ========================================================================= */}
-      <div className="bg-[#F5F1E9] border-2 border-[#171717] shadow-[6px_6px_0px_#171717] p-5 md:p-7 relative overflow-hidden">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="px-2.5 py-0.5 bg-[#FF2F92] text-white border-2 border-[#171717] font-mono font-black text-xs tracking-wider uppercase shadow-[2px_2px_0px_#171717]">
-                PIMPINAN &middot; PORTOFOLIO STRATEGIS
-              </span>
-              <span className="text-xs font-mono text-[#171717]/60 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" />
-                {data.meta?.as_of_date} &bull; {data.meta?.as_of_time}
-              </span>
-            </div>
-            <h1 className="font-mono font-black text-2xl md:text-3xl lg:text-4xl text-[#171717] tracking-tight">
-              PORTOFOLIO STRATEGIS PROYEK
-            </h1>
-            <p className="text-xs md:text-sm font-mono text-[#171717]/70 max-w-2xl">
-              Pusat kendali dan audit menyeluruh seluruh portofolio proyek PT Potensi Karya Mandiri. Berorientasi pada evaluasi target, mitigasi risiko, dan pengambilan keputusan eksekutif.
-            </p>
-          </div>
-
+      <PageHeader
+        title="PORTOFOLIO STRATEGIS PROYEK"
+        subtitle="Pusat kendali dan audit menyeluruh seluruh portofolio proyek PT Potensi Karya Mandiri. Berorientasi pada evaluasi target, mitigasi risiko, dan pengambilan keputusan eksekutif."
+        tag="PORTOFOLIO STRATEGIS"
+        badge={data.meta?.as_of_date ? `${data.meta.as_of_date} • ${data.meta?.as_of_time || ''}` : null}
+        actions={
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
               onClick={() => fetchPortfolioData(true)}
               disabled={refreshing}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#EAE4D8] border-2 border-[#171717] font-mono font-bold text-xs shadow-[3px_3px_0px_#171717] hover:bg-[#FFD83D] active:translate-x-[1px] active:translate-y-[1px] transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-[#EAE4D8] border-1.5 border-[#171717] rounded-lg font-bold text-xs shadow-[2px_2px_0px_#171717] hover:bg-[#FFD83D] active:translate-x-[1px] active:translate-y-[1px] transition-all disabled:opacity-50 cursor-pointer min-h-[40px]"
               title="Perbarui data portofolio dari database"
             >
               <RotateCcw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-              {refreshing ? 'Sinkronisasi...' : 'Refresh'}
+              {refreshing ? 'Sinkronisasi...' : 'Segarkan'}
             </button>
             <button
               onClick={() => navigate('/')}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#B8A0F0] border-2 border-[#171717] font-mono font-bold text-xs text-[#171717] shadow-[3px_3px_0px_#171717] hover:bg-[#B8A0F0]/80 active:translate-x-[1px] active:translate-y-[1px] transition-all"
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-[#B8A0F0] border-1.5 border-[#171717] rounded-lg font-black text-xs text-[#171717] shadow-[2px_2px_0px_#171717] hover:bg-[#a68bf0] active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer min-h-[40px]"
             >
               <Layers className="w-3.5 h-3.5" />
               Command Center
             </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* =========================================================================
           2. PORTFOLIO STATUS SNAPSHOT (6 Interactive Status Cards)

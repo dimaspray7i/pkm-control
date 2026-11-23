@@ -9,6 +9,7 @@ import {
   Info, ChevronUp, DollarSign, TrendingUp
 } from 'lucide-react'
 import PageLoading from '../../components/ui/PageLoading'
+import PageHeader from '../../components/ui/PageHeader'
 
 function MarkdownContent({ text }) {
   const lines = (text || '').split('\n')
@@ -407,22 +408,30 @@ export default function AIExecutiveAdvisor() {
 
   return (
     <div className="min-h-screen bg-[#F5F1E9] flex flex-col">
-      <div className="bg-[#171717] text-white px-6 py-4 flex items-center justify-between flex-shrink-0">
-        <div>
-          <div className="flex items-center gap-2 mb-0.5">
-            <Brain size={20} className="text-[#B8A0F0]" />
-            <h1 className="text-lg font-black uppercase tracking-wide">AI Executive Advisor</h1>
-            <span className="px-2 py-0.5 bg-[#B8A0F0] text-white text-[10px] font-black uppercase">P-F</span>
+      <PageHeader
+        title="AI EXECUTIVE ADVISOR"
+        subtitle="Penasihat strategis eksekutif berbasis AI dan analisis data bisnis PT Potensi Karya Mandiri."
+        tag="PENASIHAT AI"
+        badge="C-LEVEL INTELLIGENCE"
+        actions={
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <select
+              value={period}
+              onChange={e => handlePeriodChange(e.target.value)}
+              className="bg-white text-[#171717] text-xs font-bold px-3 py-2 border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] focus:outline-none focus:border-[#B8A0F0] cursor-pointer min-h-[38px]"
+            >
+              {PERIODS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+            <button
+              onClick={() => { loadContext(); loadInsights() }}
+              className="p-2 bg-white text-[#171717] border-1.5 border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717] hover:bg-[#F5F1E9] transition-colors cursor-pointer min-h-[38px] flex items-center justify-center"
+              title="Segarkan Analisis"
+            >
+              <RefreshCw size={15} />
+            </button>
           </div>
-          <p className="text-xs text-[#AAA]">Penasihat Strategis Berbasis AI — PT Potensi Karya Mandiri</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <select value={period} onChange={e => handlePeriodChange(e.target.value)} className="bg-[#333] text-white text-xs font-bold px-3 py-2 border border-[#555] focus:outline-none focus:border-[#B8A0F0]">
-            {PERIODS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-          </select>
-          <button onClick={() => { loadContext(); loadInsights() }} className="p-2 hover:bg-white/10 rounded transition-colors"><RefreshCw size={16} /></button>
-        </div>
-      </div>
+        }
+      />
 
       <div className="px-6 py-4 border-b-[3px] border-[#171717] bg-[#FAFAF8]">
         {healthLoading ? (
