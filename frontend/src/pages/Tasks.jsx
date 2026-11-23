@@ -6,7 +6,7 @@ import PageHeader from '../components/ui/PageHeader'
 import PageLoading from '../components/ui/PageLoading'
 import { useAuth } from '../contexts/AuthContext'
 import PmTaskDistributionBoard from './pm/PmTaskDistributionBoard'
-import MemberTodoList from './member/MemberTodoList'
+import MemberWorkspace from './member/MemberWorkspace'
 
 const PRIORITY_CONFIG = {
   high:   { label: 'Tinggi', bg: 'bg-[#FF2F92] text-white border-[#171717]' },
@@ -941,7 +941,7 @@ export default function Tasks() {
     return <PmTaskDistributionBoard />
   }
   if (user?.role === 'member') {
-    return <MemberTodoList />
+    return <MemberWorkspace />
   }
   return <AdminMemberTasksList />
 }

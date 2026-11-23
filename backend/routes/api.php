@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\LeadershipInitiativeController;
 use App\Http\Controllers\Api\LeadershipOkrController;
 use App\Http\Controllers\Api\LeadershipReportController;
 use App\Http\Controllers\Api\LeadershipRiskController;
+use App\Http\Controllers\Api\MemberWorkspaceController;
 use App\Http\Controllers\Api\MilestoneController;
 use App\Http\Controllers\Api\PmWorkspaceController;
 use App\Http\Controllers\Api\ProjectController;
@@ -141,6 +142,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:admin,pimpinan,project_manager')->group(function () {
         Route::get('/pm/workspace', [PmWorkspaceController::class, 'index']);
     });
+
+    // Tahap P-O: Member Workspace (Member role only — strict personal data scoping)
+    Route::get('/member/workspace', [MemberWorkspaceController::class, 'index']);
 
     // AI Analyst (Live LLM + Rule-Based fallback on DB context)
     Route::post('/ai/ask', [AiAnalystController::class, 'ask']);

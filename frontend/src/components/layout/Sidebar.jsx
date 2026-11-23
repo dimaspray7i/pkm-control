@@ -126,9 +126,9 @@ const ROLE_NAV_CONFIG = {
   ],
   member: [
     {
-      category: 'PEKERJAAN SAYA',
+      category: 'WORKSPACE SAYA',
       items: [
-        { path: '/tasks', label: 'Tugas Saya', icon: CheckSquare },
+        { path: '/tasks', label: 'Workspace Saya', icon: LayoutDashboard },
       ]
     },
     {

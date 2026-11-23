@@ -26,7 +26,7 @@ import NotFound from './pages/NotFound'
 
 function DashboardRoute() {
   const { user } = useAuth()
-  // Member tidak memiliki akses ke Dashboard eksekutif/operasional; arahkan langsung ke My Tasks
+  // Member memiliki Workspace pribadi di /tasks (MemberWorkspace); arahkan dari root
   if (user?.role === 'member') {
     return <Navigate to="/tasks" replace />
   }
