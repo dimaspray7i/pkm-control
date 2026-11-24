@@ -662,6 +662,16 @@ export default function MemberLearningCenter() {
               </button>
             )
           })}
+
+          {/* Quick Nav to Portofolio Saya (M-E) */}
+          <a
+            href="/member/portfolio"
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 min-h-[44px] bg-[#FAF7F2] text-[#171717] hover:bg-[#00E599]/30 border-2 border-[#171717] shadow-[1px_1px_0px_#171717] ml-auto"
+            title="Buka Portofolio Profesional Saya"
+          >
+            <Award size={16} className="text-[#00A86B]" />
+            <span>Portofolio Saya</span>
+          </a>
         </div>
       </div>
 

@@ -27,7 +27,9 @@ import {
   Inbox,
   Sparkles,
   ArrowRight,
-  ListTodo
+  ListTodo,
+  GraduationCap,
+  Award
 } from 'lucide-react'
 import PageHeader from '../../components/ui/PageHeader'
 import PageLoading from '../../components/ui/PageLoading'
@@ -82,6 +84,34 @@ const NOTIFICATION_TYPE_CONFIG = {
     badgeBg: 'bg-[#DC2626] text-white border-[#171717]',
     cardBorder: 'border-l-4 border-l-[#DC2626]',
     category: 'deadline'
+  },
+  development_feedback: {
+    label: 'Umpan Balik PM',
+    icon: GraduationCap,
+    badgeBg: 'bg-[#B8A0F0] text-[#171717] border-[#171717]',
+    cardBorder: 'border-l-4 border-l-[#B8A0F0]',
+    category: 'development'
+  },
+  portfolio_submission: {
+    label: 'Pengajuan Portofolio',
+    icon: Award,
+    badgeBg: 'bg-[#FFD83D] text-[#171717] border-[#171717]',
+    cardBorder: 'border-l-4 border-l-[#FFD83D]',
+    category: 'portfolio'
+  },
+  portfolio_verified: {
+    label: 'Portofolio Terverifikasi',
+    icon: Award,
+    badgeBg: 'bg-[#10B981] text-white border-[#171717]',
+    cardBorder: 'border-l-4 border-l-[#10B981]',
+    category: 'portfolio'
+  },
+  portfolio_revision: {
+    label: 'Revisi Portofolio',
+    icon: AlertTriangle,
+    badgeBg: 'bg-[#FF5722] text-white border-[#171717]',
+    cardBorder: 'border-l-4 border-l-[#FF5722]',
+    category: 'portfolio'
   }
 }
 
@@ -586,7 +616,9 @@ export default function MemberNotificationCenter() {
               { id: 'task', label: 'Tugas' },
               { id: 'approval', label: 'Persetujuan' },
               { id: 'revision', label: 'Revisi' },
-              { id: 'deadline', label: 'Deadline' }
+              { id: 'deadline', label: 'Deadline' },
+              { id: 'development', label: 'Pengembangan' },
+              { id: 'portfolio', label: 'Portofolio' }
             ].map(tab => {
               const active = categoryFilter === tab.id
               return (
@@ -718,14 +750,32 @@ export default function MemberNotificationCenter() {
                     const Icon = cfg.icon
                     const isUnread = !notif.is_read
 
+                    const isClickable = Boolean(
+                      notif.task_id ||
+                      notif.type === 'development_feedback' ||
+                      notif.type?.startsWith('portfolio_')
+                    )
+
+                    const handleCardClick = () => {
+                      if (notif.task_id) {
+                        handleOpenTaskDetail(notif.task_id, notif.id)
+                      } else if (notif.type === 'development_feedback') {
+                        if (!notif.is_read) handleToggleRead(notif)
+                        navigate('/member/learning')
+                      } else if (notif.type?.startsWith('portfolio_')) {
+                        if (!notif.is_read) handleToggleRead(notif)
+                        navigate('/member/portfolio')
+                      }
+                    }
+
                     return (
                       <div
                         key={notif.id}
-                        onClick={() => notif.task_id && handleOpenTaskDetail(notif.task_id, notif.id)}
+                        onClick={handleCardClick}
                         className={`group relative bg-white border-2 border-[#171717] rounded-xl p-3.5 sm:p-4.5 shadow-[3px_3px_0px_#171717] transition-all hover:shadow-[4px_4px_0px_#171717] hover:translate-x-0.5 hover:-translate-y-0.5 ${
                           cfg.cardBorder
                         } ${isUnread ? 'bg-[#FFFDF7]' : 'bg-white opacity-95'} ${
-                          notif.task_id ? 'cursor-pointer' : ''
+                          isClickable ? 'cursor-pointer' : ''
                         }`}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -812,6 +862,38 @@ export default function MemberNotificationCenter() {
                                 >
                                   <ExternalLink size={13} />
                                   <span className="hidden sm:inline">Tugas</span>
+                                </button>
+                              )}
+
+                              {/* Tombol Buka Pengembangan Diri */}
+                              {notif.type === 'development_feedback' && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    if (!notif.is_read) handleToggleRead(notif, e)
+                                    navigate('/member/learning')
+                                  }}
+                                  className="px-2.5 py-1.5 bg-[#FAF7F2] hover:bg-[#B8A0F0] text-[#171717] border border-[#171717] rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1 shadow-[1px_1px_0px_#171717] cursor-pointer transition-all min-h-[34px]"
+                                  title="Buka Pengembangan Diri"
+                                >
+                                  <GraduationCap size={13} />
+                                  <span className="hidden sm:inline">Lihat</span>
+                                </button>
+                              )}
+
+                              {/* Tombol Buka Portofolio */}
+                              {(notif.type === 'portfolio_submission' || notif.type === 'portfolio_verified' || notif.type === 'portfolio_revision') && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    if (!notif.is_read) handleToggleRead(notif, e)
+                                    navigate('/member/portfolio')
+                                  }}
+                                  className="px-2.5 py-1.5 bg-[#FAF7F2] hover:bg-[#10B981] hover:text-white text-[#171717] border border-[#171717] rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1 shadow-[1px_1px_0px_#171717] cursor-pointer transition-all min-h-[34px]"
+                                  title="Buka Portofolio"
+                                >
+                                  <Award size={13} />
+                                  <span className="hidden sm:inline">Portofolio</span>
                                 </button>
                               )}
 

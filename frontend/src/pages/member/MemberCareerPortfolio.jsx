@@ -1004,11 +1004,20 @@ export default function MemberCareerPortfolio() {
         {/* Tab 4: Competency Evidence (Bukti Kompetensi & M-D) */}
         {activeTab === 'competencies' && (
           <div className="mt-8 space-y-6">
-            <div className="bg-white border-3 border-[#171717] p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-              <h3 className="font-black text-lg text-[#171717]">Integrasi Bukti Kompetensi Nyata (Tahap M-D)</h3>
-              <p className="text-xs text-neutral-600 mt-1">
-                Menghubungkan keahlian pribadi dengan hasil kerja nyata, sertifikat pelatihan, dan pencapaian terverifikasi.
-              </p>
+            <div className="bg-white border-3 border-[#171717] p-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="font-black text-lg text-[#171717]">Integrasi Bukti Kompetensi Nyata (Tahap M-D)</h3>
+                <p className="text-xs text-neutral-600 mt-1">
+                  Menghubungkan keahlian pribadi dengan hasil kerja nyata, sertifikat pelatihan, dan pencapaian terverifikasi.
+                </p>
+              </div>
+              <a
+                href="/member/learning"
+                className="px-3.5 py-2 bg-[#FAF7F2] hover:bg-[#B8A0F0] border-2 border-[#171717] rounded-lg text-xs font-black uppercase tracking-wider text-[#171717] flex items-center gap-1.5 shadow-[2px_2px_0px_#171717] cursor-pointer transition-all shrink-0"
+              >
+                <GraduationCap className="w-4 h-4" />
+                <span>Pengembangan Diri</span>
+              </a>
             </div>
 
             {/* Grid Kompetensi */}

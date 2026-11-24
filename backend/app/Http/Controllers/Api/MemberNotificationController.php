@@ -67,6 +67,10 @@ class MemberNotificationController extends Controller
                 $query->where('type', 'review_revision');
             } elseif ($cat === 'work_progress') {
                 $query->whereIn('type', ['task_reopened', 'work_progress']);
+            } elseif ($cat === 'development') {
+                $query->where('type', 'development_feedback');
+            } elseif ($cat === 'portfolio') {
+                $query->whereIn('type', ['portfolio_submission', 'portfolio_verified', 'portfolio_revision']);
             }
         }
 
