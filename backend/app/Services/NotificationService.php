@@ -245,4 +245,89 @@ class NotificationService
             'is_read'    => false,
         ]);
     }
+
+    /**
+     * Notifikasi saat Member mengajukan pencapaian untuk diverifikasi (Tahap M-E)
+     */
+    public static function notifyAchievementSubmitted($achievement, User $member, bool $isResubmission = false): ?UserNotification
+    {
+        $recipientId = null;
+        if ($achievement->project && $achievement->project->pic_id) {
+            $recipientId = $achievement->project->pic_id;
+        } else {
+            // Jika tidak ada project_id, kirim notifikasi ke Admin pertama
+            $admin = User::where('role', 'admin')->first();
+            $recipientId = $admin?->id;
+        }
+
+        if (!$recipientId || $recipientId === $member->id) {
+            return null;
+        }
+
+        $actionWord = $isResubmission ? 'mengirim ulang' : 'mengajukan';
+        $titleWord = $isResubmission ? 'Pengiriman Ulang Pencapaian' : 'Pengajuan Verifikasi Pencapaian';
+
+        return UserNotification::create([
+            'user_id'    => $recipientId,
+            'actor_id'   => $member->id,
+            'project_id' => $achievement->project_id,
+            'type'       => 'portfolio_submission',
+            'title'      => "{$titleWord}: {$achievement->title}",
+            'message'    => "{$member->name} {$actionWord} pencapaian '{$achievement->title}' untuk diverifikasi.",
+            'data'       => [
+                'achievement_id' => $achievement->id,
+                'member_id'      => $member->id,
+                'member_name'    => $member->name,
+                'category'       => $achievement->category,
+                'is_resubmission'=> $isResubmission,
+            ],
+            'is_read'    => false,
+        ]);
+    }
+
+    /**
+     * Notifikasi saat PM/Admin menyetujui verifikasi pencapaian (Tahap M-E)
+     */
+    public static function notifyAchievementVerified($achievement, User $reviewer, ?string $notes = null): ?UserNotification
+    {
+        $noteSnippet = $notes ? ": \"{$notes}\"" : '.';
+
+        return UserNotification::create([
+            'user_id'    => $achievement->user_id,
+            'actor_id'   => $reviewer->id,
+            'project_id' => $achievement->project_id,
+            'type'       => 'portfolio_verified',
+            'title'      => 'Pencapaian Terverifikasi: ' . $achievement->title,
+            'message'    => "Pencapaian Anda '{$achievement->title}' telah berhasil diverifikasi oleh {$reviewer->name}{$noteSnippet}",
+            'data'       => [
+                'achievement_id' => $achievement->id,
+                'reviewer_id'    => $reviewer->id,
+                'reviewer_name'  => $reviewer->name,
+                'verification_notes' => $notes,
+            ],
+            'is_read'    => false,
+        ]);
+    }
+
+    /**
+     * Notifikasi saat PM/Admin meminta revisi pencapaian (Tahap M-E)
+     */
+    public static function notifyAchievementRevisionRequested($achievement, User $reviewer, string $notes): ?UserNotification
+    {
+        return UserNotification::create([
+            'user_id'    => $achievement->user_id,
+            'actor_id'   => $reviewer->id,
+            'project_id' => $achievement->project_id,
+            'type'       => 'portfolio_revision',
+            'title'      => 'Permintaan Revisi Pencapaian: ' . $achievement->title,
+            'message'    => "{$reviewer->name} meminta revisi atas pencapaian '{$achievement->title}': \"{$notes}\"",
+            'data'       => [
+                'achievement_id' => $achievement->id,
+                'reviewer_id'    => $reviewer->id,
+                'reviewer_name'  => $reviewer->name,
+                'revision_notes' => $notes,
+            ],
+            'is_read'    => false,
+        ]);
+    }
 }

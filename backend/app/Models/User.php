@@ -85,6 +85,21 @@ class User extends Authenticatable
         return $this->hasMany(MemberDevelopmentFeedback::class, 'user_id');
     }
 
+    public function portfolioAchievements()
+    {
+        return $this->hasMany(MemberPortfolioAchievement::class, 'user_id');
+    }
+
+    public function portfolioProfile()
+    {
+        return $this->hasOne(MemberPortfolioProfile::class, 'user_id');
+    }
+
+    public function portfolioVerifications()
+    {
+        return $this->hasMany(MemberPortfolioVerification::class, 'reviewer_id');
+    }
+
     // Helper untuk cek role
     public function isAdmin(): bool
     {

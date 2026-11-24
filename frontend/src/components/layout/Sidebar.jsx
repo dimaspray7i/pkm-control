@@ -24,7 +24,8 @@ import {
   CalendarDays,
   Bell,
   ChartNoAxesCombined,
-  GraduationCap
+  GraduationCap,
+  Award
 } from 'lucide-react'
 
 // Konfigurasi Navigasi Terpisah Berdasarkan Role (Tahap P-I: Full Indonesian Localization)
@@ -138,6 +139,7 @@ const ROLE_NAV_CONFIG = {
         { path: '/member/notifications', label: 'Notifikasi', icon: Bell, badgeKey: 'unread_notifications' },
         { path: '/member/performance', label: 'Performa Saya', icon: ChartNoAxesCombined },
         { path: '/member/learning', label: 'Pengembangan Diri', icon: GraduationCap },
+        { path: '/member/portfolio', label: 'Portofolio Saya', icon: Award },
       ]
     },
     {

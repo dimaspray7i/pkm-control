@@ -62,4 +62,9 @@ class MemberSkill extends Model
     {
         return $this->hasMany(MemberLearningActivity::class, 'skill_id');
     }
+
+    public function portfolioAchievements()
+    {
+        return $this->hasMany(MemberPortfolioAchievement::class, 'skill_id');
+    }
 }

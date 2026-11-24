@@ -56,6 +56,11 @@ class Project extends Model
         return $this->hasMany(ProjectReport::class);
     }
 
+    public function portfolioAchievements()
+    {
+        return $this->hasMany(MemberPortfolioAchievement::class);
+    }
+
     /**
      * Hitung progres aktual proyek berdasarkan penyelesaian tugas (tasks).
      * Rumus: (jumlah tugas selesai / total tugas) * 100%

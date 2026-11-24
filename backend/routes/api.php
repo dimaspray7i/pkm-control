@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\LeadershipRiskController;
 use App\Http\Controllers\Api\MemberLearningController;
 use App\Http\Controllers\Api\MemberNotificationController;
 use App\Http\Controllers\Api\MemberPerformanceController;
+use App\Http\Controllers\Api\MemberPortfolioController;
 use App\Http\Controllers\Api\MemberWorkspaceController;
 use App\Http\Controllers\Api\MilestoneController;
 use App\Http\Controllers\Api\PmWorkspaceController;
@@ -183,6 +184,26 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/member/learning/feedback', [MemberLearningController::class, 'indexFeedback']);
     Route::post('/member/learning/feedback', [MemberLearningController::class, 'storeFeedback']);
+
+    // Tahap M-E: Member Career & Achievement Portfolio Routes
+    Route::get('/member/portfolio/overview', [MemberPortfolioController::class, 'overview']);
+    Route::get('/member/portfolio/summary', [MemberPortfolioController::class, 'summary']);
+    Route::get('/member/portfolio/achievements', [MemberPortfolioController::class, 'achievements']);
+    Route::post('/member/portfolio/achievements', [MemberPortfolioController::class, 'storeAchievement']);
+    Route::get('/member/portfolio/achievements/{id}', [MemberPortfolioController::class, 'showAchievement']);
+    Route::put('/member/portfolio/achievements/{id}', [MemberPortfolioController::class, 'updateAchievement']);
+    Route::delete('/member/portfolio/achievements/{id}', [MemberPortfolioController::class, 'destroyAchievement']);
+    Route::post('/member/portfolio/achievements/{id}/submit', [MemberPortfolioController::class, 'submitAchievement']);
+    Route::get('/member/portfolio/project-contributions', [MemberPortfolioController::class, 'projectContributions']);
+    Route::get('/member/portfolio/competency-evidence', [MemberPortfolioController::class, 'competencyEvidence']);
+    Route::get('/member/portfolio/presentation', [MemberPortfolioController::class, 'presentation']);
+    Route::put('/member/portfolio/presentation/profile', [MemberPortfolioController::class, 'updateProfile']);
+    Route::patch('/member/portfolio/achievements/{id}/curate', [MemberPortfolioController::class, 'curateAchievement']);
+
+    // Tahap M-E: PM & Admin Portfolio Verification
+    Route::get('/pm/portfolio/verification-queue', [MemberPortfolioController::class, 'verificationQueue']);
+    Route::post('/pm/portfolio/achievements/{id}/verify', [MemberPortfolioController::class, 'verifyAchievement']);
+    Route::post('/pm/portfolio/achievements/{id}/revision', [MemberPortfolioController::class, 'requestRevision']);
 
     // AI Analyst (Live LLM + Rule-Based fallback on DB context)
     Route::post('/ai/ask', [AiAnalystController::class, 'ask']);
