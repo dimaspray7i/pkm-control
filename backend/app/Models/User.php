@@ -65,6 +65,26 @@ class User extends Authenticatable
         return $this->hasMany(ProjectReport::class, 'created_by');
     }
 
+    public function memberSkills()
+    {
+        return $this->hasMany(MemberSkill::class);
+    }
+
+    public function developmentGoals()
+    {
+        return $this->hasMany(MemberDevelopmentGoal::class);
+    }
+
+    public function learningActivities()
+    {
+        return $this->hasMany(MemberLearningActivity::class);
+    }
+
+    public function developmentFeedbacks()
+    {
+        return $this->hasMany(MemberDevelopmentFeedback::class, 'user_id');
+    }
+
     // Helper untuk cek role
     public function isAdmin(): bool
     {

@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\LeadershipInitiativeController;
 use App\Http\Controllers\Api\LeadershipOkrController;
 use App\Http\Controllers\Api\LeadershipReportController;
 use App\Http\Controllers\Api\LeadershipRiskController;
+use App\Http\Controllers\Api\MemberLearningController;
 use App\Http\Controllers\Api\MemberNotificationController;
 use App\Http\Controllers\Api\MemberPerformanceController;
 use App\Http\Controllers\Api\MemberWorkspaceController;
@@ -157,6 +158,31 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/member/notifications/{id}/unread', [MemberNotificationController::class, 'markAsUnread']);
     Route::post('/member/notifications/read-all', [MemberNotificationController::class, 'markAllAsRead']);
     Route::delete('/member/notifications/{id}', [MemberNotificationController::class, 'destroy']);
+
+    // Tahap M-D: Member Learning & Development Center Routes
+    Route::get('/member/learning/overview', [MemberLearningController::class, 'overview']);
+    Route::get('/member/learning/skills', [MemberLearningController::class, 'indexSkills']);
+    Route::post('/member/learning/skills', [MemberLearningController::class, 'storeSkill']);
+    Route::put('/member/learning/skills/{id}', [MemberLearningController::class, 'updateSkill']);
+    Route::delete('/member/learning/skills/{id}', [MemberLearningController::class, 'destroySkill']);
+
+    Route::get('/member/learning/goals', [MemberLearningController::class, 'indexGoals']);
+    Route::post('/member/learning/goals', [MemberLearningController::class, 'storeGoal']);
+    Route::get('/member/learning/goals/{id}', [MemberLearningController::class, 'showGoal']);
+    Route::put('/member/learning/goals/{id}', [MemberLearningController::class, 'updateGoal']);
+    Route::delete('/member/learning/goals/{id}', [MemberLearningController::class, 'destroyGoal']);
+
+    Route::post('/member/learning/goals/{id}/milestones', [MemberLearningController::class, 'storeMilestone']);
+    Route::put('/member/learning/milestones/{id}', [MemberLearningController::class, 'updateMilestone']);
+    Route::delete('/member/learning/milestones/{id}', [MemberLearningController::class, 'destroyMilestone']);
+
+    Route::get('/member/learning/activities', [MemberLearningController::class, 'indexActivities']);
+    Route::post('/member/learning/activities', [MemberLearningController::class, 'storeActivity']);
+    Route::put('/member/learning/activities/{id}', [MemberLearningController::class, 'updateActivity']);
+    Route::delete('/member/learning/activities/{id}', [MemberLearningController::class, 'destroyActivity']);
+
+    Route::get('/member/learning/feedback', [MemberLearningController::class, 'indexFeedback']);
+    Route::post('/member/learning/feedback', [MemberLearningController::class, 'storeFeedback']);
 
     // AI Analyst (Live LLM + Rule-Based fallback on DB context)
     Route::post('/ai/ask', [AiAnalystController::class, 'ask']);

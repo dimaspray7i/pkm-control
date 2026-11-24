@@ -223,4 +223,26 @@ class NotificationService
 
         return $generatedCount;
     }
+
+    /**
+     * Notifikasi saat PM memberikan feedback pengembangan diri kepada Member (Tahap M-D)
+     */
+    public static function notifyDevelopmentFeedback($feedback, User $reviewer): ?UserNotification
+    {
+        $preview = \Illuminate\Support\Str::limit($feedback->feedback, 120);
+
+        return UserNotification::create([
+            'user_id'    => $feedback->user_id,
+            'actor_id'   => $reviewer->id,
+            'type'       => 'development_feedback',
+            'title'      => 'Feedback Pengembangan dari ' . $reviewer->name,
+            'message'    => "{$reviewer->name} memberikan arahan pengembangan diri: \"{$preview}\"",
+            'data'       => [
+                'feedback_id' => $feedback->id,
+                'goal_id'     => $feedback->goal_id,
+                'reviewer'    => $reviewer->name,
+            ],
+            'is_read'    => false,
+        ]);
+    }
 }
