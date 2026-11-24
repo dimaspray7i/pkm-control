@@ -24,6 +24,7 @@ import StrategicInitiatives from './pages/leadership/StrategicInitiatives'
 import ExecutiveActionCenter from './pages/leadership/ExecutiveActionCenter'
 import MemberWorkCalendar from './pages/member/MemberWorkCalendar'
 import MemberNotificationCenter from './pages/member/MemberNotificationCenter'
+import MemberPerformanceCenter from './pages/member/MemberPerformanceCenter'
 import NotFound from './pages/NotFound'
 
 function DashboardRoute() {
@@ -153,6 +154,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={['member']}>
               <MemberNotificationCenter />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="member/performance"
+          element={
+            <ProtectedRoute allowedRoles={['member']}>
+              <MemberPerformanceCenter />
             </ProtectedRoute>
           }
         />

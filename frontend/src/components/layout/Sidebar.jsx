@@ -22,7 +22,8 @@ import {
   TrendingUp,
   Zap,
   CalendarDays,
-  Bell
+  Bell,
+  ChartNoAxesCombined
 } from 'lucide-react'
 
 // Konfigurasi Navigasi Terpisah Berdasarkan Role (Tahap P-I: Full Indonesian Localization)
@@ -134,6 +135,7 @@ const ROLE_NAV_CONFIG = {
         { path: '/tasks', label: 'Workspace Saya', icon: LayoutDashboard },
         { path: '/member/calendar', label: 'Kalender Kerja', icon: CalendarDays },
         { path: '/member/notifications', label: 'Notifikasi', icon: Bell, badgeKey: 'unread_notifications' },
+        { path: '/member/performance', label: 'Performa Saya', icon: ChartNoAxesCombined },
       ]
     },
     {

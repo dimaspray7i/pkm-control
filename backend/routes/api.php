@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\LeadershipOkrController;
 use App\Http\Controllers\Api\LeadershipReportController;
 use App\Http\Controllers\Api\LeadershipRiskController;
 use App\Http\Controllers\Api\MemberNotificationController;
+use App\Http\Controllers\Api\MemberPerformanceController;
 use App\Http\Controllers\Api\MemberWorkspaceController;
 use App\Http\Controllers\Api\MilestoneController;
 use App\Http\Controllers\Api\PmWorkspaceController;
@@ -144,9 +145,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/pm/workspace', [PmWorkspaceController::class, 'index']);
     });
 
-    // Tahap P-O, M-A, M-B: Member Workspace, Personal Work Calendar & Notification Center (Member role only)
+    // Tahap P-O, M-A, M-B, M-C: Member Workspace, Calendar, Notification & Performance Center (Member role only)
     Route::get('/member/workspace', [MemberWorkspaceController::class, 'index']);
     Route::get('/member/calendar', [MemberWorkspaceController::class, 'calendar']);
+    Route::get('/member/performance', [MemberPerformanceController::class, 'index']);
 
     // Tahap M-B: Member Notification Center Routes
     Route::get('/member/notifications', [MemberNotificationController::class, 'index']);
