@@ -322,7 +322,7 @@ class MemberWorkspaceController extends Controller
         // Query dasar terisolasi hanya untuk user yang sedang login
         $baseQuery = Task::with([
             'project:id,name,code,status',
-            'milestone:id,title,start_date,end_date',
+            'milestone:id,title,start_date,due_date',
             'checklists' => function ($q) {
                 $q->orderBy('position', 'asc');
             },

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -28,6 +29,18 @@ class Milestone extends Model
             'start_date' => 'date:Y-m-d',
             'due_date' => 'date:Y-m-d',
         ];
+    }
+
+    protected $appends = [
+        'end_date',
+    ];
+
+    /**
+     * Backward-compatible alias for due_date.
+     */
+    public function getEndDateAttribute(): ?string
+    {
+        return $this->due_date ? Carbon::parse($this->due_date)->format('Y-m-d') : null;
     }
 
     public function project()

@@ -6,18 +6,23 @@ import {
   Sparkles, Send, Loader2, TrendingUp, AlertTriangle, CheckCircle2,
   RotateCcw, Folder, ClipboardList, Clock, Brain, Cpu, MessageSquarePlus,
   Trash2, StopCircle, RefreshCw, AlertCircle, ArrowUpRight, ShieldAlert,
-  Users, BarChart3, ChevronRight, CheckSquare, X, ArrowLeft
+  Users, BarChart3, ChevronRight, CheckSquare, X, ArrowLeft, Globe,
+  ExternalLink, Compass, Search, Lightbulb, Zap
 } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
 import MarkdownRenderer from '../components/ui/MarkdownRenderer'
 
 const QUICK_PROMPTS = [
-  'Coba cek proyek yang lagi bermasalah.',
-  'Bagaimana progres sprint dan milestone saat ini?',
-  'Apa yang harus dikerjakan tim hari ini?',
+  'Apa tren bisnis & teknologi yang sedang berkembang saat ini?',
+  'Inovasi apa yang sebaiknya diprioritaskan agar PKM lebih unggul?',
+  'Teknologi AI apa yang layak diterapkan untuk meningkatkan efisiensi PKM?',
+  'Apa peluang layanan digital baru yang bisa dimasuki PKM di 2027?',
+  'Baca kondisi bisnis PKM sekarang dan harus ke mana melangkah?',
+  'Harus invest ke mana agar perusahaan bertumbuh?',
+  'Apa masalah terbesar PKM saat ini dan bagaimana solusinya?',
+  'Bagaimana analisis kesehatan keuangan dan profitabilitas saat ini?',
   'Siapa anggota tim yang punya beban kerja paling banyak?',
-  'Menurut kamu kondisi bisnis kita sekarang gimana?',
-  'Ada tugas yang sudah telat?',
+  'Coba cek proyek yang lagi bermasalah.',
 ]
 
 export default function AIAnalyst() {
@@ -128,11 +133,18 @@ export default function AIAnalyst() {
         type: 'ai',
         answer: res.data.reply || res.data.answer,
         summary: res.data.summary,
-        responseType: res.data.type || 'general_inquiry',
+        responseType: res.data.type || res.data.routing_mode || 'general_inquiry',
         findings: res.data.findings || [],
         recommendations: res.data.recommendations || [],
         dataPoints: res.data.data_points || [],
         mode: res.data.mode || engineInfo.mode,
+        sourceType: res.data.source_type,
+        routingMode: res.data.routing_mode,
+        hasGrounding: res.data.has_grounding,
+        sources: res.data.sources || [],
+        searchQueries: res.data.search_queries || [],
+        suggestedActions: res.data.suggested_actions || [],
+        note: res.data.note,
         timestamp: res.data.timestamp || timeStr,
       }
       setHistory(prev => [...prev, aiMsg])
@@ -218,6 +230,44 @@ export default function AIAnalyst() {
     setInput(e.target.value)
     e.target.style.height = 'auto'
     e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`
+  }
+
+  const renderSourceBadge = (msg) => {
+    if (msg.isError || msg.isSystemNote) return null
+
+    if (msg.hasGrounding || msg.sourceType === 'external_grounded') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 bg-[#0EA5E9] text-white rounded-md uppercase font-black shadow-[1px_1px_0px_#171717]">
+          <Globe size={10} /> Riset Eksternal (Google Search)
+        </span>
+      )
+    }
+    if (msg.sourceType === 'hybrid_grounded' || msg.routingMode === 'hybrid') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 bg-[#8B5CF6] text-white rounded-md uppercase font-black shadow-[1px_1px_0px_#171717]">
+          <Zap size={10} /> Analisis Hibrida (Eksternal + Internal)
+        </span>
+      )
+    }
+    if (msg.sourceType === 'innovation_grounded' || msg.routingMode === 'innovation') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 bg-[#F59E0B] text-white rounded-md uppercase font-black shadow-[1px_1px_0px_#171717]">
+          <Lightbulb size={10} /> Usulan Inovasi Terverifikasi
+        </span>
+      )
+    }
+    if (msg.sourceType === 'internal_database' || msg.routingMode === 'internal_only') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 bg-[#10B981] text-white rounded-md uppercase font-black shadow-[1px_1px_0px_#171717]">
+          <Cpu size={10} /> Data Internal PKM Real-Time
+        </span>
+      )
+    }
+    return (
+      <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 bg-[#171717] text-white rounded-md uppercase font-black shadow-[1px_1px_0px_#171717]">
+        <Brain size={10} /> Basis Pengetahuan AI
+      </span>
+    )
   }
 
   return (
@@ -358,7 +408,7 @@ export default function AIAnalyst() {
                         <div className={`flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 border-b border-[#171717]/15 ${
                           msg.isError ? 'bg-[#FFD83D]/30' : msg.isSystemNote ? 'bg-[#EAE4D8]/50' : 'bg-[#B8A0F0]/20'
                         }`}>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             {msg.isError
                               ? <AlertTriangle size={13} className="text-[#EF4444]" />
                               : msg.isSystemNote
@@ -368,6 +418,7 @@ export default function AIAnalyst() {
                             <span className="font-black text-[10px] uppercase tracking-wide text-[#171717]">
                               {msg.isError ? 'Terjadi Kendala' : msg.isSystemNote ? 'Sistem' : 'AI Business Analyst PKM'}
                             </span>
+                            {renderSourceBadge(msg)}
                             {msg.responseType && !msg.isError && !msg.isSystemNote && (
                               <span className="text-[9px] px-1.5 py-0.5 bg-[#171717] text-white rounded-md uppercase font-black">
                                 {msg.responseType.replace(/_/g, ' ')}
@@ -381,6 +432,27 @@ export default function AIAnalyst() {
 
                         {/* Bubble Content */}
                         <div className="p-3.5 space-y-3">
+                          {/* Alert / Offline Note */}
+                          {msg.note && (
+                            <div className="p-2.5 bg-[#FFFBEB] border border-[#F59E0B] rounded-lg text-xs font-semibold text-[#B45309] flex items-start gap-2 shadow-[2px_2px_0px_#171717]">
+                              <AlertTriangle size={14} className="shrink-0 mt-0.5 text-[#F59E0B]" />
+                              <span>{msg.note}</span>
+                            </div>
+                          )}
+
+                          {/* Search Queries */}
+                          {msg.searchQueries && msg.searchQueries.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5 p-2 bg-white/70 border border-[#171717]/20 rounded-lg text-[10px] font-bold text-[#171717]/80">
+                              <Search size={11} className="text-[#0EA5E9] shrink-0" />
+                              <span className="font-black text-[9px] uppercase tracking-wider text-[#171717]/60">Query Riset Web:</span>
+                              {msg.searchQueries.map((q, qi) => (
+                                <span key={qi} className="px-2 py-0.5 bg-[#FAF7F2] border border-[#171717]/30 rounded-md font-mono text-[9px] text-[#171717]">
+                                  "{q}"
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
                           {/* Summary Card */}
                           {msg.summary && (
                             <div className="p-2.5 bg-white border border-[#171717] rounded-lg shadow-[2px_2px_0px_#171717]">
@@ -421,6 +493,50 @@ export default function AIAnalyst() {
                                     <span className="text-[#10B981] font-black shrink-0">✓</span>
                                     <span className="leading-relaxed">{r}</span>
                                   </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Grounded Sources */}
+                          {msg.sources && msg.sources.length > 0 && (
+                            <div className="pt-2.5 border-t border-[#171717]/15 space-y-2">
+                              <p className="text-[10px] font-black uppercase tracking-wider text-[#0EA5E9] flex items-center gap-1">
+                                <Globe size={12} /> Sumber Riset &amp; Referensi Eksternal:
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {msg.sources.map((src, si) => (
+                                  <a
+                                    key={si}
+                                    href={src.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-[#FAF7F2] border border-[#171717] rounded-lg text-[10px] font-bold text-[#171717] shadow-[1px_1px_0px_#171717] transition hover:translate-y-[-1px] group cursor-pointer max-w-full"
+                                    title={src.title || src.url}
+                                  >
+                                    <span className="truncate max-w-[220px] sm:max-w-[280px]">{src.title || src.url}</span>
+                                    <ExternalLink size={11} className="shrink-0 text-[#0EA5E9] group-hover:text-[#FF2F92]" />
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Suggested Actions */}
+                          {msg.suggestedActions && msg.suggestedActions.length > 0 && (
+                            <div className="pt-2.5 border-t border-[#171717]/15 space-y-1.5">
+                              <p className="text-[10px] font-black uppercase tracking-wider text-[#FF2F92] flex items-center gap-1">
+                                <Compass size={12} /> Eksplorasi Langkah Lanjutan:
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {msg.suggestedActions.map((action, aiIdx) => (
+                                  <button
+                                    key={aiIdx}
+                                    onClick={() => handleSend(action)}
+                                    className="text-left px-2.5 py-1 bg-white hover:bg-[#FFD83D]/40 border border-[#171717] rounded-lg text-[10px] font-bold text-[#171717] shadow-[1px_1px_0px_#171717] transition cursor-pointer"
+                                  >
+                                    → {action}
+                                  </button>
                                 ))}
                               </div>
                             </div>

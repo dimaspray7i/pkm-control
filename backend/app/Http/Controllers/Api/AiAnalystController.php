@@ -61,9 +61,9 @@ class AiAnalystController extends Controller
     /**
      * Get system context snapshot for AI Analyst overview.
      */
-    public function context()
+    public function context(Request $request)
     {
-        $context = $this->aiService->getSystemContext();
+        $context = $this->aiService->getSystemContext($request->user());
         $apiKey = env('GEMINI_API_KEY') ?: env('AI_API_KEY');
         $model = env('AI_MODEL', 'gemini-3.8-flash');
         $hasKey = !empty($apiKey);
@@ -75,6 +75,15 @@ class AiAnalystController extends Controller
             'mode' => $hasKey ? "Google Gemini API ({$model})" : "Rule-Based Engine (Database Real-Time)",
             'is_llm_configured' => $hasKey,
             'is_llm_active' => $hasKey,
+            'google_search_grounding_supported' => true,
+            'supported_modes' => [
+                'external_only',
+                'internal_only',
+                'hybrid',
+                'innovation',
+                'investment_research',
+                'general_knowledge',
+            ],
             'engine_status' => $hasKey ? 'Gemini API Terkonfigurasi' : 'Rule-Based Engine Aktif',
             'context' => $context,
         ]);
