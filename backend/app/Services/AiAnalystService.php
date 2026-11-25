@@ -45,22 +45,31 @@ class AiAnalystService
         // 3. If Google Gemini API is configured, call Gemini (with Google Search Grounding if required)
         if ($apiKey) {
             try {
-                return $this->callGemini($apiKey, $prompt, $analysis, $history, $pageContext, $userRole, $user);
+                $result = $this->callGemini($apiKey, $prompt, $analysis, $history, $pageContext, $userRole, $user);
+                $result['timestamp'] = Carbon::now('Asia/Jakarta')->format('H:i') . ' WIB';
+                return $result;
             } catch (\Illuminate\Http\Client\ConnectionException $e) {
-                Log::error('Gemini API Connection Timeout/Error: ' . $e->getMessage());
+                Log::warning('[AiAnalyst Diagnostic] Gemini API connection timeout: ' . $e->getMessage());
                 $fallbackResult = $this->synthesizeResponse($analysis, $userRole, $user);
-                $fallbackResult['note'] = 'Koneksi ke Gemini AI mengalami batas waktu (timeout). Jawaban dialihkan secara otomatis ke Rule-Based Engine PKM berbasis data real-time.';
+                $fallbackResult['note'] = 'Koneksi ke Gemini AI mengalami batas waktu (timeout). Jawaban dialihkan secara transparan ke Rule-Based Engine PKM berbasis data database real-time.';
+                $fallbackResult['mode'] = 'Rule-Based Engine (Fallback DB Real-Time)';
+                $fallbackResult['timestamp'] = Carbon::now('Asia/Jakarta')->format('H:i') . ' WIB';
                 return $fallbackResult;
-            } catch (\Exception $e) {
-                Log::error('Gemini API Error: ' . $e->getMessage());
+            } catch (\Throwable $e) {
+                // Safe diagnostic logging without API key or sensitive user data
+                Log::warning('[AiAnalyst Diagnostic] Gemini API call failed: ' . $e->getMessage() . '. Engaging Rule-Based Engine.');
                 $fallbackResult = $this->synthesizeResponse($analysis, $userRole, $user);
-                $fallbackResult['note'] = 'Layanan Gemini AI sedang mengalami kendala (' . $e->getMessage() . '). Jawaban dialihkan secara otomatis ke Rule-Based Engine PKM berbasis data real-time.';
+                $fallbackResult['note'] = 'Layanan Gemini AI dialihkan (' . $e->getMessage() . '). Jawaban disajikan secara objektif oleh Rule-Based Engine PKM berbasis data database real-time.';
+                $fallbackResult['mode'] = 'Rule-Based Engine (Fallback DB Real-Time)';
+                $fallbackResult['timestamp'] = Carbon::now('Asia/Jakarta')->format('H:i') . ' WIB';
                 return $fallbackResult;
             }
         }
 
         // 4. Default: Highly accurate deterministic NLU & DB synthesis engine
-        return $this->synthesizeResponse($analysis, $userRole, $user);
+        $result = $this->synthesizeResponse($analysis, $userRole, $user);
+        $result['timestamp'] = Carbon::now('Asia/Jakarta')->format('H:i') . ' WIB';
+        return $result;
     }
 
     /**
@@ -82,7 +91,7 @@ class AiAnalystService
         $totalTasks = $tasks->count();
         $completedTasks = $tasks->where('is_completed', true)->count();
         $pendingTasks = $totalTasks - $completedTasks;
-        
+
         $overdueTasks = $tasks->filter(function ($t) use ($today) {
             return !$t->is_completed && $t->deadline && Carbon::parse($t->deadline)->lt($today);
         });
@@ -241,49 +250,94 @@ class AiAnalystService
         $routingMode = 'internal_only';
         $detectedIntents = [];
 
-        // Check specific project or internal operational signals
+        // Check specific project entity match from DB
         $hasInternalProjectEntity = ($projectMatch['type'] === 'exact' || $projectMatch['type'] === 'single_match');
         $isSpecificProjectNotFound = ($projectMatch['type'] === 'not_found' && !empty($projectMatch['search_term']));
+
+        // Specific PKM Reference check in query
+        $mentionsPkm = preg_match('/\b(pkm|perusahaan kita|bisnis kita|tim kita|kantor kita|organisasi kita)\b/i', $norm);
+
+        // 1. Check Investment / Modal / Budget Allocation
+        // Catches: "Jika tersedia modal Rp50 juta, sebaiknya dialokasikan ke mana?", "Harus invest ke mana agar saya bertumbuh?"
+        $isInvestmentQuery = (
+            preg_match('/\b(modal|dana|anggaran|budget|uang|investasi|invest|belanja.*modal|capex)\b/i', $norm) &&
+            preg_match('/\b(alokasi|dialokasikan|alokasikan|diinvestasikan|dipakai|digunakan|dibelanjakan|ke.*mana|kemana|prioritas|mana|sebaiknya|harus|tumbuh|bertumbuh|berkembang|tersedia)\b/i', $norm)
+        ) || preg_match('/\b(harus.*invest|invest.*ke.*mana|investasi.*mana|prioritas.*investasi|alokasi.*modal|alokasi.*dana|invest.*agar.*bertumbuh|prioritas.*alokasi|capex|belanja.*modal|kemana.*invest|alokasi.*anggaran.*terbaik|kalau.*perusahaan.*ingin.*berkembang.*sebaiknya.*investasi)\b/i', $norm);
+
+        // 2. Check Hybrid: External trend / technology / AI / cloud AND impact/adoption in PKM or company
+        // Catches: "Apa tren bisnis terbaru dan dampaknya terhadap PKM?", "Teknologi AI apa yang layak diterapkan untuk meningkatkan efisiensi PKM?"
+        $hasTrendOrExternal = preg_match(
+            '/\b(tren|trend|terkini|terbaru|perkembangan|teknologi.*baru|teknologi.*masa.*depan|2026|2027|ai|artificial intelligence|otomasi|automasi|cloud|komputasi.*awan|pasar.*digital|pasar)\b/i',
+            $norm
+        );
+        $hasInternalImpact = preg_match(
+            '/\b(dampak|pengaruh|efek|akibat|relevansi|cocok|layak|bisa.*diterapkan|diterapkan|diadopsi|implementasi|efisiensi).*(terhadap|bagi|ke|pada|di|untuk)?.*(pkm|perusahaan|kita|organisasi|bisnis kita)\b/i',
+            $norm
+        ) || preg_match(
+            '/\b(terhadap|bagi|ke|pada|di|untuk)\s+(pkm|perusahaan kita|bisnis kita|organisasi kita)\b/i',
+            $norm
+        ) || ($mentionsPkm && preg_match('/\b(dampak|pengaruh|efek|manfaat|relevansi|efisiensi|cocok|layak)\b/i', $norm));
+
+        $isHybridQuery = ($hasTrendOrExternal && $hasInternalImpact) ||
+            preg_match('/\b(teknologi.*ai|penerapan.*ai|adopsi.*ai|tools.*ai|solusi.*ai|ai.*untuk|otomasi.*ai|ai.*efisiensi).*(pkm|perusahaan|kita|organisasi)\b/i', $norm) ||
+            preg_match('/\b(cocok.*(di|untuk).*pkm|relevan.*(di|untuk).*pkm|bisa.*diterapkan.*(di|pada|untuk).*pkm|layak.*diterapkan.*(di|pada|untuk).*pkm)\b/i', $norm);
+
+        // 3. Check Innovation / Product / Service Opportunities for PKM
+        // Catches: "Inovasi apa yang cocok untuk PKM?", "Inovasi apa yang sebaiknya diprioritaskan agar PKM lebih unggul?"
+        $hasInnovationSignals = preg_match(
+            '/\b(inovasi|terobosan|layanan.*baru|produk.*baru|ide.*bisnis|peluang.*bisnis.*baru|diversifikasi)\b/i',
+            $norm
+        ) && preg_match(
+            '/\b(apa|cocok|terbaik|prioritas|rekomendasi|layak|potensial|bisa.*dibuat|sebaiknya|agar|unggul|untuk|bagi|pkm|perusahaan|kita)\b/i',
+            $norm
+        );
+
+        // 4. External Trends / Market Intelligence signals (without internal context)
+        // Catches: "Apa tren teknologi terbaru tahun 2027?", "Apa peluang pasar cloud computing di Indonesia?"
+        $hasExternalTrendSignals = preg_match(
+            '/\b(tren|trend|pasar.*(indonesia|global|digital|cloud)|peluang.*pasar|potensi.*pasar|lanskap.*pasar|komputasi.*awan|cloud.*computing|tren.*bisnis|tren.*pasar|tren.*industri|tren.*teknologi|tren.*ai|tren.*digital|tren.*saat.*ini|tren.*sekarang|tren.*terkini|tren.*2026|tren.*2027|perkembangan.*(teknologi|pasar|bisnis)|teknologi.*baru|teknologi.*yang.*akan.*berpengaruh|model.*bisnis.*berkembang|kompetitor.*potensial|strategi.*kompetitor|studi.*kasus.*perusahaan|bagaimana.*perusahaan.*lain|inovasi.*yang.*sedang.*banyak.*digunakan|industri.*teknologi.*indonesia)\b/i',
+            $norm
+        ) && !$hasInternalImpact && !$mentionsPkm;
+
+        // 5. Check Problem Diagnosis
+        // Catches: "Apa masalah terbesar perusahaan saat ini?", "Apa kendala utama PKM?"
+        $isProblemDiagnosis = preg_match(
+            '/\b(masalah|kendala|problem|isu|bottleneck|hambatan|ganjalan)\b/i',
+            $norm
+        ) && preg_match(
+            '/\b(terbesar|kritis|utama|terberat|paling|saat.*ini|sekarang|perusahaan|pkm|kita|organisasi)\b/i',
+            $norm
+        ) || preg_match('/\b(masalah.*terbesar|apa.*masalah|kendala.*terbesar|akar.*masalah|problem.*terbesar|kendala.*utama|bottleneck.*terbesar|masalah.*utama|problem.*utama|apa.*yang.*salah)\b/i', $norm);
+
+        // 6. Check Project Portfolio & Condition
+        // Catches: "Bagaimana kondisi seluruh proyek PKM?", "Coba cek proyek yang lagi bermasalah."
         $isPortfolioRiskQuery = preg_match(
-            '/\b(proyek.*bermasalah|proyek.*butuh.*perhatian|proyek.*membutuhkan.*perhatian|proyek.*berisiko|proyek.*terlambat|proyek.*delayed|kendala.*utama.*proyek|proyek.*at.*risk|tampilkan.*proyek.*perhatian|butuh.*atensi|butuh.*perhatian|lihat.*proyek.*bermasalah|cari.*proyek.*bermasalah|mana.*proyek.*bermasalah|ada.*proyek.*bermasalah|semua.*proyek.*bermasalah|proyek.*mana.*bermasalah|proyek.*mana.*terlambat)\b/i',
+            '/\b(proyek|project)\b/i',
             $norm
+        ) && (
+            preg_match('/\b(seluruh|semua|portofolio|total|daftar|kondisi|status|progres|performa|situasi|keadaan|bagaimana.*kondisi|gimana.*kondisi)\b/i', $norm) ||
+            preg_match('/\b(bermasalah|butuh.*perhatian|membutuhkan.*perhatian|berisiko|terlambat|delayed|kendala.*utama|at.*risk|butuh.*atensi|cari.*proyek|mana.*proyek|ada.*proyek)\b/i', $norm)
         );
 
-        $hasInternalOperationalSignals = preg_match(
-            '/\b(beban.*kerja|workload|kapasitas.*tim|siapa.*paling.*sibuk|siapa.*tugas.*banyak|tugas.*(overdue|telat|terlambat|hari ini)|sprint|milestone|corporate.*health.*index|chi\b|skor.*kesehatan|blocker.*aktif|kendala.*blocker)\b/i',
-            $norm
-        );
-
+        // 7. Check Internal Financial Analysis
         $isInternalFinance = preg_match(
             '/\b(kondisi.*keuangan.*(pkm|perusahaan|kita)|analisis.*keuangan.*(pkm|perusahaan|kita)|pemasukan.*vs.*pengeluaran|arus.*kas.*(pkm|perusahaan|kita)|laba.*rugi.*(pkm|perusahaan|kita)|utilisasi.*anggaran.*(pkm|perusahaan|kita))\b/i',
             $norm
         ) || (preg_match('/\b(analisis.*keuangan|profitabilitas|arus.*kas|laba.*rugi|utilisasi.*anggaran)\b/i', $norm) && !preg_match('/\b(tren|pasar|industri|global|2027|eksternal)\b/i', $norm));
 
-        // External Trends / Market Intelligence signals
-        $hasExternalTrendSignals = preg_match(
-            '/\b(tren|trend|pasar.*(indonesia|global|digital|cloud)|peluang.*pasar|potensi.*pasar|lanskap.*pasar|komputasi.*awan|cloud.*computing|tren.*bisnis|tren.*pasar|tren.*industri|tren.*teknologi|tren.*ai|tren.*digital|tren.*saat.*ini|tren.*sekarang|tren.*terkini|tren.*2026|tren.*2027|perkembangan.*(teknologi|pasar|bisnis)|teknologi.*baru|teknologi.*yang.*akan.*berpengaruh|model.*bisnis.*berkembang|kompetitor.*potensial|strategi.*kompetitor|studi.*kasus.*perusahaan|bagaimana.*perusahaan.*lain|inovasi.*yang.*sedang.*banyak.*digunakan|industri.*teknologi.*indonesia)\b/i',
-            $norm
+        // 8. Check Business Overview / Comprehensive Internal Analysis
+        // Catches: "Analisis kondisi bisnis saya", "Baca kondisi bisnis PKM sekarang dan harus ke mana melangkah?"
+        $isBusinessOverviewQuery = (
+            preg_match('/\b(analisis|baca|evaluasi|tinjau|pantau|lihat|cek|gimana|bagaimana|ringkasan|overview|laporan).*(kondisi|kesehatan|posisi|keadaan|performa|kinerja|arah|langkah).*(bisnis|perusahaan|operasional|usaha|pkm)?\b/i', $norm) ||
+            preg_match('/\b(analisis|kondisi|kesehatan|posisi|keadaan|performa|kinerja|arah|langkah).*(bisnis|perusahaan|operasional|usaha).*(saya|kita|pkm|saat.*ini|sekarang)?\b/i', $norm) ||
+            preg_match('/\b(ke.*mana.*(saya\s+)?melangkah|harus.*ke.*mana.*melangkah|arah.*langkah.*perusahaan|corporate.*health.*index|chi\b|ringkasan.*eksekutif|overview.*bisnis)\b/i', $norm)
         );
 
-        // Innovation / New Opportunities signals
-        $hasInnovationSignals = preg_match(
-            '/\b(inovasi.*apa|peluang.*bisnis.*baru|layanan.*baru|produk.*baru|inovasi.*yang.*harus.*diprioritaskan|inovasi.*agar.*pkm|ide.*inovasi|peluang.*yang.*belum.*dimanfaatkan|inovasi.*sebaiknya|jika.*pkm.*ingin.*berkembang.*inovasi|peluang.*bisnis.*yang.*bisa.*dimasuki)\b/i',
+        // Contextual fallback for ambiguous queries mentioning internal assets
+        $hasInternalEntityMention = preg_match(
+            '/\b(bisnis.*saya|perusahaan.*saya|kantor.*saya|pekerjaan.*saya|proyek.*saya|tim.*saya|bisnis.*kita|perusahaan.*kita|pkm|karyawan|kinerja|operasional)\b/i',
             $norm
         );
-
-        // Investment Prioritization signals
-        $isInvestmentQuery = preg_match(
-            '/\b(harus.*invest|invest.*ke.*mana|investasi.*mana|prioritas.*investasi|alokasi.*modal|alokasi.*dana|invest.*agar.*bertumbuh|prioritas.*alokasi|capex|belanja.*modal|kemana.*invest|alokasi.*anggaran.*terbaik|kalau.*perusahaan.*ingin.*berkembang.*sebaiknya.*investasi)\b/i',
-            $norm
-        );
-
-        // Specific PKM Reference check in query
-        $mentionsPkm = preg_match('/\b(pkm|perusahaan kita|bisnis kita|tim kita|kantor kita)\b/i', $norm);
-
-        // Hybrid condition: External tech/trend combined with PKM organizational context
-        $isHybridQuery = ($hasExternalTrendSignals && $mentionsPkm) ||
-            preg_match('/\b(teknologi.*ai|penerapan.*ai|adopsi.*ai|tools.*ai|solusi.*ai|ai.*untuk|otomasi.*ai|ai.*efisiensi).*(pkm|perusahaan|kita|organisasi)\b/i', $norm) ||
-            preg_match('/\b(cocok.*(di|untuk).*pkm|relevan.*(di|untuk).*pkm|bisa.*diterapkan.*(di|pada|untuk).*pkm|layak.*diterapkan.*(di|pada|untuk).*pkm)\b/i', $norm);
 
         // ROUTING DECISION:
         if ($hasInternalProjectEntity) {
@@ -336,7 +390,7 @@ class AiAnalystService
             $intent = 'market_trends';
         }
         // 5. Internal: Problem Diagnosis
-        elseif (preg_match('/\b(masalah.*terbesar|apa.*masalah|kendala.*terbesar|akar.*masalah|problem.*terbesar|kendala.*utama|bottleneck.*terbesar|masalah.*utama|problem.*utama|apa.*yang.*salah)\b/i', $norm)) {
+        elseif ($isProblemDiagnosis) {
             $routingMode = 'internal_only';
             $detectedIntents[] = 'problem_diagnosis';
             $intent = 'problem_diagnosis';
@@ -348,7 +402,7 @@ class AiAnalystService
             $intent = 'financial_analysis';
         }
         // 7. Internal: Business Overview & Strategic Direction
-        elseif (preg_match('/\b(baca.*kondisi.*bisnis|kondisi.*bisnis.*sekarang|ke.*mana.*(saya\s+)?melangkah|harus.*ke.*mana.*melangkah|kondisi.*perusahaan|kesehatan.*bisnis|ringkasan.*eksekutif|overview.*bisnis|laporan.*pimpinan|evaluasi.*pimpinan|posisi.*bisnis.*saat.*ini|ringkasan.*kondisi.*bisnis|arah.*langkah.*perusahaan)\b/i', $norm)) {
+        elseif ($isBusinessOverviewQuery) {
             $routingMode = 'internal_only';
             $detectedIntents[] = 'internal_business_analysis';
             $detectedIntents[] = 'business_overview';
@@ -395,6 +449,13 @@ class AiAnalystService
             $routingMode = 'internal_only';
             $detectedIntents[] = 'growth_opportunities';
             $intent = 'growth_opportunities';
+        }
+        // 15. Contextual Safety Net: If query mentions internal company context, route to internal_only
+        elseif ($hasInternalEntityMention) {
+            $routingMode = 'internal_only';
+            $detectedIntents[] = 'internal_business_analysis';
+            $detectedIntents[] = 'business_overview';
+            $intent = 'business_overview';
         }
         // General Consultation
         elseif (preg_match('/\b(cara.*meningkatkan.*produktivitas|strategi.*manajemen|bagaimana.*meningkatkan|tips.*manajemen)\b/i', $norm)) {
@@ -948,69 +1009,92 @@ class AiAnalystService
             ? 'SANGAT SEHAT'
             : ($context['delayed_count'] > 0 ? 'BUTUH PERHATIAN PIMPINAN' : 'STABIL DENGAN RISIKO TERKENDALI');
 
-        $summary = "Portofolio bisnis PT Potensi Karya Mandiri saat ini memiliki CHI {$chiScore}/100 ({$chiCategory}) dengan status [{$healthStatus}]. Rata-rata tingkat penyelesaian tugas berada pada level {$context['completion_rate']}%.";
+        $urgencyLevel = ($context['delayed_count'] > 0 || $context['overdue_tasks_count'] > 5)
+            ? 'TINGGI'
+            : ($context['at_risk_count'] > 0 || $context['overdue_tasks_count'] > 0 ? 'SEDANG' : 'RENDAH');
 
-        $reply = "### Ringkasan Eksekutif & Panduan Arah Langkah Bisnis PKM\n\n";
+        $onTrackPct = $context['total_projects'] > 0
+            ? round(($context['on_track_projects'] / $context['total_projects']) * 100, 1)
+            : 0;
 
-        // Bagian 1: Ringkasan Eksekutif & Posisi Bisnis Saat Ini
-        $reply .= "#### 1. Ringkasan Eksekutif & Posisi Bisnis Saat Ini\n";
-        $reply .= "PT Potensi Karya Mandiri saat ini mengelola **{$context['total_projects']} proyek aktif** dengan status operasional **{$healthStatus}**.\n";
-        $reply .= "- Proyek On Track: **{$context['on_track_projects']} proyek** (" . ($context['total_projects'] > 0 ? round(($context['on_track_projects'] / $context['total_projects']) * 100, 1) : 0) . "%)\n";
-        $reply .= "- Proyek Delayed / At Risk: **{$context['delayed_count']} delayed, {$context['at_risk_count']} at risk**\n";
-        $reply .= "- Rasio Penyelesaian Tugas: **{$context['completed_tasks']} dari {$context['total_tasks']} tugas** rampung (**{$context['completion_rate']}%**)\n";
-        $reply .= "- Personil Aktif: **{$context['team_count']} anggota tim**\n\n";
+        $summary = "Portofolio bisnis PT Potensi Karya Mandiri saat ini memiliki skor CHI {$chiScore}/100 ({$chiCategory}) dengan status operasional [{$healthStatus}]. Rata-rata tingkat penyelesaian tugas berada pada level {$context['completion_rate']}%.";
 
-        // Bagian 2: Skor Kesehatan Perusahaan (CHI) & Pilar
-        $reply .= "#### 2. Skor Kesehatan Perusahaan (Corporate Health Index / CHI)\n";
-        $reply .= "- **Skor CHI Total:** **{$chiScore} / 100** (`{$chiCategory}`)\n";
-        $reply .= "- **Pilar Ketepatan Jadwal Proyek:** {$context['company_health']['on_track_rate']}% proyek berjalan sesuai timeline.\n";
-        $reply .= "- **Pilar Rata-Rata Progres Portofolio:** {$context['company_health']['avg_progress']}%\n";
-        $reply .= "- **Pilar Milestone On-Time:** {$context['completed_sprints']} dari {$context['total_sprints']} fase milestone terselesaikan.\n\n";
+        $reply = "### Laporan Analisis Kondisi Bisnis & Kinerja Operasional PKM\n\n";
 
-        // Bagian 3: Masalah Utama & Blocker Kritis
-        $reply .= "#### 3. Masalah Utama & Blocker Kritis\n";
-        $reply .= "Berdasarkan audit data operasional real-time:\n";
-        if ($context['delayed_count'] > 0 || $context['overdue_tasks_count'] > 0) {
-            $reply .= "- **Keterlambatan Jadwal Proyek:** Ditemukan **{$context['delayed_count']} proyek delayed** yang berpotensi memicu deviasi delivery dan SLA klien.\n";
-            $reply .= "- **Tugas Melewati Batas Waktu:** Teridentifikasi **{$context['overdue_tasks_count']} checklist tugas overdue** yang menjadi hambatan alur kerja.\n";
-            $reply .= "- **Kendala Aktif (Blockers):** Terdeteksi **{$context['active_blockers_count']} kendala teknis/approval** yang dilaporkan anggota tim.\n";
-        } else {
-            $reply .= "- Tidak ada keterlambatan kritis pada proyek dan checklist tugas saat ini.\n";
+        // 1. Executive Summary
+        $reply .= "#### 1. Executive Summary (Ringkasan Eksekutif & Posisi Bisnis Saat Ini)\n";
+        $reply .= "- **Kondisi Bisnis Keseluruhan:** PT Potensi Karya Mandiri saat ini mengelola **{$context['total_projects']} proyek aktif** dengan skor kesehatan perusahaan (Corporate Health Index / CHI) sebesar **{$chiScore} / 100** (`{$chiCategory}`) dan status operasional **[{$healthStatus}]**.\n";
+        $reply .= "- **Indikator Positif:** Sebanyak **{$context['on_track_projects']} proyek ({$onTrackPct}%)** berjalan sesuai timeline (On Track), **{$context['completed_tasks']} checklist tugas** rampung (**{$context['completion_rate']}%**), serta **{$context['completed_sprints']} fase milestone** terselesaikan tepat waktu.\n";
+        $reply .= "- **Indikator Negatif / Hambatan:** Teridentifikasi **{$context['delayed_count']} proyek delayed**, **{$context['at_risk_count']} proyek at-risk**, **{$context['overdue_tasks_count']} checklist tugas overdue**, serta **{$context['active_blockers_count']} kendala teknis/approval** yang dilaporkan anggota tim.\n";
+        $reply .= "- **Tingkat Perhatian yang Diperlukan:** **" . strtoupper($urgencyLevel) . "** — Diperlukan pengawalan intensif pimpinan pada proyek berstatus delayed dan resolusi segera terhadap blocker aktif.\n\n";
+
+        // 2. Business Performance
+        $reply .= "#### 2. Business Performance (Kinerja Bisnis & Portofolio)\n";
+        $reply .= "- **Jumlah Proyek Aktif:** Terdaftar **{$context['total_projects']} proyek aktif** ({$context['on_track_projects']} On Track, {$context['at_risk_count']} At Risk, {$context['delayed_count']} Delayed, {$context['completed_projects']} Selesai). Rata-rata progres portofolio mencapai **{$context['company_health']['avg_progress']}%**.\n";
+        $reply .= "- **Tingkat Penyelesaian Tugas:** **{$context['completed_tasks']} dari {$context['total_tasks']} tugas** fungsional telah diselesaikan ({$context['completion_rate']}%).\n";
+        $reply .= "- **Status Proyek:** Pilar ketepatan jadwal portofolio tercatat pada {$context['company_health']['on_track_rate']}%, dengan {$context['completed_sprints']} dari {$context['total_sprints']} milestone rampung (rata-rata progres sprint {$context['avg_sprint_progress']}%).\n";
+
+        $topAssignee = 'Tidak ada penumpukan';
+        if (!empty($context['team_workload'])) {
+            $firstPerson = array_key_first($context['team_workload']);
+            $firstStats = $context['team_workload'][$firstPerson] ?? [];
+            if (!empty($firstStats['pending'])) {
+                $topAssignee = "{$firstPerson} ({$firstStats['pending']} tugas pending, {$firstStats['overdue']} overdue)";
+            }
         }
-        $reply .= "\n";
+        $reply .= "- **Kinerja dan Produktivitas Tim:** Didukung oleh **{$context['team_count']} anggota tim teknis**. Beban penugasan pending tertinggi saat ini tercatat pada: {$topAssignee}.\n";
 
-        // Bagian 4: Peluang Pertumbuhan & Potensi Ekspansi
-        $reply .= "#### 4. Peluang Pertumbuhan & Potensi Ekspansi\n";
-        $reply .= "- **Konsistensi Delivery Proyek On-Track:** Portofolio sebesar {$context['on_track_projects']} proyek on track dapat dijadikan modal testimonial dan basis repeat order bagi klien tetap.\n";
-        $reply .= "- **Kapabilitas Tim Terverifikasi:** Tim teknis telah menuntaskan {$context['completed_tasks']} tugas fungsional yang membuktikan kapabilitas delivery solusi.\n\n";
-
-        // Bagian 5: Rekomendasi Strategis Berbasis Data
-        $reply .= "#### 5. Rekomendasi Strategis Berbasis Data\n";
-        $reply .= "1. **Fokuskan Intervensi pada Proyek Delayed:** Lakukan peninjauan alokasi sumber daya teknis khusus pada proyek berstatus delayed minggu ini.\n";
-        $reply .= "2. **Resolusi Blocker Cepat:** Bersihkan {$context['active_blockers_count']} blocker aktif agar checklist tugas overdue tidak memicu penumpukan pekerjaan.\n";
-        $reply .= "3. **Pemerataan Beban Kerja:** Evaluasi anggota tim dengan beban tugas pending tertinggi guna menghindari kejenuhan operasional.\n\n";
-
-        // Bagian 6: Prioritas Investasi & Alokasi Sumber Daya
-        $reply .= "#### 6. Prioritas Investasi & Alokasi Sumber Daya\n";
-        $reply .= "- **Prioritas 1 (Urgent):** Alokasikan jam kerja senior developer / lead teknis untuk menuntaskan deviasi pada proyek delayed.\n";
-        $reply .= "- **Prioritas 2 (Pertumbuhan):** Optimalkan standarisasi komponen kode dan template deployment agar kecepatan rilis sprint meningkat minimal 20%.\n";
-        $reply .= "- **Prioritas 3 (Jangka Panjang):** Peningkatan kompetensi spesialisasi personil melalui pelatihan internal terjadwal.\n\n";
-
-        // Bagian 7: Action Plan Terukur (0-30 Hari, 31-90 Hari, 3-6 Bulan)
-        $reply .= "#### 7. Action Plan Terukur\n";
-        $reply .= "- **Fase 1 (0 - 30 Hari):** Tuntaskan seluruh {$context['overdue_tasks_count']} tugas overdue dan selesaikan kendala blocker pada proyek delayed.\n";
-        $reply .= "- **Fase 2 (31 - 90 Hari):** Naikkan skor CHI menuju target > 80 (Sangat Sehat) dengan mempertahankan On-Track Rate di atas 85%.\n";
-        $reply .= "- **Fase 3 (3 - 6 Bulan):** Standardisasi alur kerja delivery portofolio dan ekspansi penawaran solusi baru ke basis klien eksisting.\n\n";
-
-        // Bagian 8: Catatan Data / Keterbatasan Informasi
-        $reply .= "#### 8. Catatan Keterbukaan & Keterbatasan Data\n";
         if (!empty($financial['restricted'])) {
-            $reply .= "*Catatan Hak Akses:* Analitik detail keuangan diproteksi untuk role Pimpinan dan Administrator.\n";
+            $reply .= "- **Kondisi Finansial:** *Catatan Hak Akses Finansial:* Akses data kas, laba bersih, dan pagu anggaran perusahaan diproteksi untuk role Pimpinan dan Administrator.\n\n";
         } elseif (empty($financial) || (($financial['kpis']['total_transactions'] ?? $financial['total_transactions'] ?? 0) === 0 && ($financial['kpis']['total_budgets'] ?? $financial['total_budgets'] ?? 0) === 0)) {
-            $reply .= "*Catatan Finansial:* Data transaksi keuangan historis belum dicatatkan secara menyeluruh di modul Financial PKM. Rekomendasi difokuskan pada efisiensi operasional dan kapabilitas delivery proyek.\n";
+            $reply .= "- **Kondisi Finansial:** Data transaksi keuangan historis belum dicatatkan secara menyeluruh di modul Financial PKM. Analisis difokuskan pada efisiensi operasional dan kapabilitas delivery proyek.\n\n";
         } else {
-            $reply .= "*Catatan Finansial:* Data keuangan dihitung dari pagu anggaran aktif dan transaksi kas tercatat secara real-time.\n";
+            $income = isset($financial['kpis']['total_income']) ? 'Rp ' . number_format($financial['kpis']['total_income'], 0, ',', '.') : '-';
+            $util = $financial['kpis']['budget_utilization'] ?? $financial['budget_utilization'] ?? '0';
+            $reply .= "- **Kondisi Finansial:** Pagu anggaran aktif tercatat dengan utilisasi **{$util}%** dan total pemasukan tercatat sebesar **{$income}**.\n\n";
         }
+
+        // 3. Critical Issues
+        $reply .= "#### 3. Critical Issues (Isu Kritis & Hambatan Operasional)\n";
+        if ($context['delayed_count'] > 0 || $context['at_risk_count'] > 0 || $context['overdue_tasks_count'] > 0 || $context['active_blockers_count'] > 0) {
+            $reply .= "- **Proyek Terlambat (Delayed):** Ditemukan **{$context['delayed_count']} proyek delayed** yang berpotensi memicu deviasi delivery dan SLA klien.\n";
+            $reply .= "- **Proyek Terhambat (At-Risk):** Teridentifikasi **{$context['at_risk_count']} proyek at-risk** yang memerlukan asistensi arsitektur teknis.\n";
+            $reply .= "- **Tugas Melewati Batas Waktu (Overdue):** Teridentifikasi **{$context['overdue_tasks_count']} checklist tugas overdue** yang menjadi hambatan alur kerja.\n";
+            $reply .= "- **Beban Kerja Berlebihan (Workload Overload):** Penumpukan tiket terjadi pada lead developer dengan tugas pending melebihi kapasitas ideal.\n";
+            $reply .= "- **Masalah Operasional Lain (Blockers):** Terdeteksi **{$context['active_blockers_count']} kendala teknis/approval** yang dilaporkan anggota tim.\n\n";
+        } else {
+            $reply .= "- **Status Operasional:** Seluruh alur pengerjaan portofolio berjalan aman tanpa proyek delayed maupun checklist tugas overdue.\n\n";
+        }
+
+        // 4. Root Cause Analysis
+        $reply .= "#### 4. Root Cause Analysis (Analisis Akar Masalah)\n";
+        $reply .= "- **Fakta Terverifikasi Database:** " . ($context['delayed_count'] > 0 ? "Ditemukan deviasi riil pada {$context['delayed_count']} proyek delayed dan {$context['overdue_tasks_count']} tugas overdue tercatat di database." : "Seluruh proyek dan tugas berada pada rentang timeline aman.") . "\n";
+        $reply .= "- **Indikasi Operasional:** " . ($context['active_blockers_count'] > 0 ? "Akumulasi {$context['active_blockers_count']} blocker aktif mengindikasikan adanya jeda approval antar stakeholder atau dependensi library eksternal." : "Koordinasi standup dan serah terima tiket antar personil berjalan tertib.") . "\n";
+        $reply .= "- **Hipotesis Analitis:** Keterlambatan delivery berakar dari estimasi waktu sprint yang terlalu ketat dan konsentrasi penugasan tiket pada personil kunci tanpa delegasi yang merata.\n\n";
+
+        // 5. Strategic Recommendations
+        $reply .= "#### 5. Strategic Recommendations (Rekomendasi Tindakan Strategis)\n";
+        $reply .= "- **Prioritas 1: Mitigasi Bottleneck & Penyelesaian Proyek** (Fokus: Urgent)\n";
+        $reply .= "  - *Alasan Tindakan:* Mengamankan termin penagihan klien eksisting dan mencegah pembengkakan penalti SLA.\n";
+        $reply .= "  - *Dampak Diharapkan:* Menurunkan jumlah proyek delayed menjadi 0 dan mengeliminasi {$context['overdue_tasks_count']} tugas overdue.\n";
+        $reply .= "  - *Penanggung Jawab (Role):* Project Manager & Tech Lead terkait.\n";
+        $reply .= "  - *Urutan Pelaksanaan:* Minggu 1 — Audit backlog harian dan re-alokasi tiket kritis.\n";
+        $reply .= "- **Prioritas 2: Peningkatan Kapasitas & Standarisasi Internal** (Fokus: Pertumbuhan)\n";
+        $reply .= "  - *Alasan Tindakan:* Mengurangi beban repetitif tim engineering dan menaikkan kecepatan rilis sprint.\n";
+        $reply .= "  - *Dampak Diharapkan:* Tingkat penyelesaian sprint milestone meningkat konsisten di atas 85%.\n";
+        $reply .= "  - *Penanggung Jawab (Role):* Lead Software Engineer & Quality Assurance.\n";
+        $reply .= "  - *Urutan Pelaksanaan:* Bulan 1 — Standarisasi komponen reusable dan deployment pipeline.\n";
+        $reply .= "- **Prioritas 3: Ekspansi Penawaran & Kemitraan Klien** (Fokus: Jangka Menengah)\n";
+        $reply .= "  - *Alasan Tindakan:* Membuka saluran pendapatan berulang (recurring revenue) melalui portal add-on dan paket automasi UKM.\n";
+        $reply .= "  - *Dampak Diharapkan:* Diversifikasi portofolio pendapatan di luar penawaran satu kali (one-off project).\n";
+        $reply .= "  - *Penanggung Jawab (Role):* Direktur / Pimpinan PKM & Business Development.\n";
+        $reply .= "  - *Urutan Pelaksanaan:* Kuartal berjalan — Validasi kebutuhan pasar dan peluncuran pilot project.\n\n";
+
+        // 6. Management Questions
+        $reply .= "#### 6. Management Questions (Pertanyaan Reflektif untuk Manajemen)\n";
+        $reply .= "1. *Apakah alokasi personil teknis saat ini sudah proporsional untuk menuntaskan {$context['delayed_count']} proyek delayed dalam 2 minggu ke depan?*\n";
+        $reply .= "2. *Blocker manakah di antara {$context['active_blockers_count']} kendala aktif yang memerlukan intervensi langsung pimpinan untuk approval klien?*\n";
+        $reply .= "3. *Bagaimana langkah antisipasi kapasitas tim sebelum penambahan penawaran proyek baru pada kuartal berikutnya?*\n";
 
         return [
             'success' => true,
@@ -1494,7 +1578,7 @@ class AiAnalystService
         $totalTasks = $tasks->count();
         $completedTasks = $tasks->where('is_completed', true)->count();
         $pendingTasks = $totalTasks - $completedTasks;
-        
+
         $overdueTasks = $tasks->filter(function ($t) use ($today) {
             return !$t->is_completed && $t->deadline && Carbon::parse($t->deadline)->lt($today);
         });
@@ -1505,7 +1589,7 @@ class AiAnalystService
 
         $deadlineStr = $project->deadline ? Carbon::parse($project->deadline)->format('d M Y') : 'Belum ditentukan';
         $deadlineDiff = $project->deadline ? $today->diffInDays(Carbon::parse($project->deadline), false) : 0;
-        
+
         $statusLabel = strtoupper(str_replace('_', ' ', $project->status));
         $riskLabel = strtoupper($project->risk_level ?: 'LOW');
         $riskFactor = $project->risk_factor ?: 'Tidak tercatat faktor risiko khusus di sistem';
@@ -1514,7 +1598,7 @@ class AiAnalystService
         $factualFindings[] = "Progress saat ini tercatat **{$progress}%** dari target **{$targetProgress}%** (deviasi keterlambatan: **{$deviation} poin persentase**).";
         $factualFindings[] = "Status proyek resmi di database: **{$statusLabel}** dengan tingkat risiko **{$riskLabel}**.";
         $factualFindings[] = "Faktor risiko tercatat di sistem: **{$riskFactor}**.";
-        
+
         if ($totalTasks > 0) {
             $factualFindings[] = "Terdapat **{$completedTasks} dari {$totalTasks} tugas selesai**, dengan **{$overdueTasks->count()} tugas telah melewati deadline**.";
         } else {
@@ -1642,7 +1726,7 @@ class AiAnalystService
 
         $reply = "### Proyek Tidak Ditemukan\n\n";
         $reply .= "Maaf, proyek **\"{$searchTerm}\"** tidak ditemukan di dalam basis data PKM Control Center.\n\n";
-        
+
         if (!empty($availableProjects)) {
             $reply .= "**Berikut beberapa proyek yang saat ini terdaftar:**\n";
             foreach ($availableProjects as $p) {
@@ -1729,7 +1813,7 @@ class AiAnalystService
         }
 
         $topPerson = !empty($ranked) ? $ranked[0] : null;
-        $summary = $topPerson 
+        $summary = $topPerson
             ? "Beban tugas belum selesai tertinggi saat ini diemban oleh '{$topPerson['name']}' dengan {$topPerson['pending']} tugas pending ({$topPerson['overdue']} overdue)."
             : "Belum ada data penugasan operasional di sistem.";
 
@@ -1839,32 +1923,55 @@ class AiAnalystService
     protected function handleAllProjectRisks(string $userRole): array
     {
         $projects = Project::where('is_active', true)->get();
+        $totalActive = $projects->count();
+        $onTrack = $projects->where('status', 'on_track');
         $atRisk = $projects->where('status', 'at_risk');
         $delayed = $projects->where('status', 'delayed');
+        $completedCount = Project::where('status', 'completed')->count();
         $troubledCount = $atRisk->count() + $delayed->count();
+        $avgProgress = $totalActive > 0 ? round($projects->avg('progress'), 1) : 0;
 
-        $summary = "Ditemukan total {$troubledCount} proyek yang membutuhkan atensi mitigasi aktif ({$atRisk->count()} At Risk, {$delayed->count()} Delayed).";
+        $summary = "Portofolio PKM mengelola total {$totalActive} proyek aktif ({$onTrack->count()} On Track, {$delayed->count()} Delayed, {$atRisk->count()} At Risk) dengan rata-rata kemajuan {$avgProgress}%.";
 
-        $reply = "### Analisis Risiko Portofolio Proyek PKM\n\n";
-        $reply .= "**Ringkasan Portofolio:** {$summary}\n\n";
+        $reply = "### Gambaran Menyeluruh Portofolio Proyek PKM\n\n";
+        $reply .= "**Ringkasan Portofolio Saat Ini:**\n";
+        $reply .= "- **Total Proyek Aktif:** {$totalActive} proyek (dan {$completedCount} proyek selesai/arsip)\n";
+        $reply .= "- **Proyek On Track (Sesuai Target):** **{$onTrack->count()} Proyek** (" . ($totalActive > 0 ? round(($onTrack->count() / $totalActive) * 100, 1) : 0) . "%)\n";
+        $reply .= "- **Proyek Delayed (Terlambat):** **{$delayed->count()} Proyek** (" . ($totalActive > 0 ? round(($delayed->count() / $totalActive) * 100, 1) : 0) . "%)\n";
+        $reply .= "- **Proyek At Risk (Berisiko):** **{$atRisk->count()} Proyek** (" . ($totalActive > 0 ? round(($atRisk->count() / $totalActive) * 100, 1) : 0) . "%)\n";
+        $reply .= "- **Rata-rata Kemajuan Portofolio:** **{$avgProgress}%**\n\n";
 
         if ($troubledCount > 0) {
-            $reply .= "**Daftar Proyek yang Membutuhkan Perhatian:**\n\n";
-            $reply .= "| Proyek | Klien | Status | Tingkat Risiko | Progress vs Target | Faktor Risiko |\n";
-            $reply .= "| :--- | :--- | :--- | :--- | :--- | :--- |\n";
+            $reply .= "#### Proyek Membutuhkan Atensi & Mitigasi Aktif:\n\n";
+            $reply .= "| Proyek | Klien | Status | Risiko | Aktual / Target | Deviasi | Faktor Kendala |\n";
+            $reply .= "| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n";
             foreach ($delayed->concat($atRisk) as $tp) {
-                $rf = $tp->risk_factor ?: 'Deviasi jadwal';
-                $reply .= "| **{$tp->name}** (`{$tp->code}`) | {$tp->client} | " . strtoupper($tp->status) . " | **" . strtoupper($tp->risk_level) . "** | {$tp->progress}% / {$tp->target_progress}% | {$rf} |\n";
+                $rf = $tp->risk_factor ?: 'Deviasi jadwal pengerjaan';
+                $dev = $tp->target_progress ? round($tp->target_progress - $tp->progress, 1) : 0;
+                $devText = $dev > 0 ? "-{$dev}%" : "0%";
+                $reply .= "| **{$tp->name}** (`{$tp->code}`) | {$tp->client} | " . strtoupper($tp->status) . " | **" . strtoupper($tp->risk_level) . "** | {$tp->progress}% / {$tp->target_progress}% | {$devText} | {$rf} |\n";
             }
             $reply .= "\n";
         } else {
-            $reply .= "Seluruh proyek saat ini terpantau berada dalam jalur pengerjaan normal (On Track).\n\n";
+            $reply .= "#### Status Portofolio Sehat:\n";
+            $reply .= "Seluruh proyek aktif saat ini terpantau berada dalam jalur pengerjaan normal (On Track) tanpa deviasi kritis.\n\n";
         }
 
-        $reply .= "**Rekomendasi Tindakan untuk Manajemen:**\n";
-        $reply .= "1. Fokuskan mitigasi pada proyek berstatus **DELAYED** terlebih dahulu guna menjaga SLA klien.\n";
-        $reply .= "2. Bedah kendala spesifik pada proyek **AT RISK** dalam standup mingguan sebelum eskalasi menjadi keterlambatan kritis.\n";
-        $reply .= "3. Evaluasi ketersediaan resource tim teknis pada proyek-proyek di atas.";
+        if ($onTrack->count() > 0) {
+            $reply .= "#### Proyek Berjalan Normal (On Track):\n";
+            foreach ($onTrack->take(5) as $op) {
+                $reply .= "- **{$op->name}** (`{$op->code}`) — Klien: {$op->client} (Progress: {$op->progress}%)\n";
+            }
+            if ($onTrack->count() > 5) {
+                $reply .= "- *...dan " . ($onTrack->count() - 5) . " proyek on-track lainnya.*\n";
+            }
+            $reply .= "\n";
+        }
+
+        $reply .= "#### Rekomendasi Tindakan Mitigasi Portofolio:\n";
+        $reply .= "1. **Prioritas Penyelamatan SLA (Delayed):** Lakukan replanning dan alokasikan bantuan developer senior pada proyek Delayed untuk mengejar milestone kritis.\n";
+        $reply .= "2. **Pencegahan Eskalasi (At Risk):** Bedah hambatan teknis atau integrasi pihak ketiga pada proyek At Risk sebelum berubah menjadi keterlambatan fatal.\n";
+        $reply .= "3. **Penyeimbangan Beban Kerja (Load Balancing):** Pastikan personil yang menangani proyek delayed tidak dibebani task baru pada sprint berjalan.";
 
         return [
             'success' => true,
@@ -1875,10 +1982,14 @@ class AiAnalystService
             'sources' => [],
             'summary' => $summary,
             'findings' => $delayed->concat($atRisk)->map(fn($p) => "{$p->name}: {$p->status} ({$p->progress}%)")->values()->all(),
-            'recommendations' => ["Review proyek Delayed segera.", "Audit beban kerja teknis."],
+            'recommendations' => [
+                "Prioritaskan penyelamatan SLA pada proyek Delayed.",
+                "Bedah blocker proyek At Risk dalam standup mingguan.",
+                "Lakukan load balancing tim teknis antar proyek."
+            ],
             'reply' => $reply,
             'mode' => 'Rule-Based Engine (Database Real-Time Context)',
-            'timestamp' => Carbon::now()->format('H:i, d M Y'),
+            'timestamp' => Carbon::now('Asia/Jakarta')->format('H:i') . ' WIB',
         ];
     }
 
@@ -2016,21 +2127,35 @@ class AiAnalystService
     }
 
     /**
-     * Handler: General Conversational Fallback.
+     * Handler: General Conversational Fallback with Real Operational Summary.
      */
     protected function handleGeneralInquiry(string $prompt, string $userRole): array
     {
         $context = $this->getSystemContext();
-        $summary = "Menjawab pertanyaan: \"{$prompt}\" berdasarkan kecerdasan bisnis universal PKM.";
+        $chiScore = $context['company_health']['chi_score'] ?? 0;
+        $chiCategory = $context['company_health']['chi_category'] ?? 'Cukup Sehat';
+        $summary = "Ringkasan status operasional aktual PKM dan panduan eksplorasi analisis strategis untuk pertanyaan: \"{$prompt}\".";
 
-        $reply = "### Asisten AI Universal PKM\n\n";
-        $reply .= "Halo! Mengenai pertanyaan Anda: *\"{$prompt}\"*\n\n";
-        $reply .= "Saya dapat membantu Anda mengeksplorasi berbagai domain kecerdasan bisnis, antara lain:\n";
-        $reply .= "- **Riset Tren & Pasar Eksternal:** *\"Apa tren teknologi yang akan berpengaruh pada bisnis 2027?\"*\n";
-        $reply .= "- **Inovasi & Peluang Bisnis Baru:** *\"Inovasi apa yang bisa dibuat agar PKM lebih unggul dibanding kompetitor?\"*\n";
-        $reply .= "- **Analisis Hibrida:** *\"Tren AI sekarang apa saja dan mana yang cocok diterapkan di PKM?\"*\n";
-        $reply .= "- **Prioritas Investasi:** *\"Kalau perusahaan ingin berkembang, sebaiknya investasi ke mana?\"*\n";
-        $reply .= "- **Kondisi Internal PKM:** *\"Baca kondisi bisnis PKM sekarang dan bagaimana status proyek bermasalah?\"*";
+        $reply = "### Status Operasional Aktual PKM & Panduan Analisis\n\n";
+        $reply .= "Berikut adalah ringkasan indikator kesehatan dan operasional perusahaan PT Potensi Karya Mandiri saat ini:\n\n";
+        $reply .= "- **Kesehatan Perusahaan (CHI):** Skor **{$chiScore}/100** ({$chiCategory})\n";
+        $reply .= "- **Portofolio Proyek Aktif:** **{$context['total_projects']} Proyek** ({$context['on_track_projects']} On Track, {$context['at_risk_count']} At Risk, {$context['delayed_count']} Delayed)\n";
+        $reply .= "- **Kinerja Eksekusi Tim:** Tingkat penyelesaian tugas **{$context['completion_rate']}%** ({$context['completed_tasks']} dari {$context['total_tasks']} tugas selesai, {$context['overdue_tasks_count']} overdue)\n";
+        $reply .= "- **Kapasitas Personil:** Mengelola pengerjaan aktif dengan total {$context['team_count']} anggota tim teknis.\n\n";
+
+        $reply .= "#### Observasi Operasional Utama:\n";
+        if ($context['delayed_count'] > 0 || $context['at_risk_count'] > 0) {
+            $reply .= "Saat ini terdapat **" . ($context['delayed_count'] + $context['at_risk_count']) . " proyek** yang memerlukan atensi mitigasi jadwal. Tim manajemen disarankan meninjau proyek yang tertunda guna menjaga komitmen SLA klien.\n\n";
+        } else {
+            $reply .= "Seluruh portofolio proyek terpantau berjalan stabil tanpa kendala keterlambatan mayor.\n\n";
+        }
+
+        $reply .= "#### Rekomendasi Eksplorasi Analisis Lanjutan:\n";
+        $reply .= "Berdasarkan data aktual perusahaan di atas, Anda dapat mengajukan pertanyaan spesifik seperti:\n";
+        $reply .= "1. *\"Analisis kondisi bisnis saya\"* — untuk mendapatkan evaluasi 6 bagian komprehensif terkait performa, isu kritis, dan rekomendasi strategis bertingkat.\n";
+        $reply .= "2. *\"Bagaimana kondisi seluruh proyek PKM?\"* — untuk membedah deviasi dan faktor risiko tiap proyek secara menyeluruh.\n";
+        $reply .= "3. *\"Apa masalah terbesar perusahaan saat ini?\"* — untuk diagnosis akar masalah operasional & beban kerja tim.\n";
+        $reply .= "4. *\"Inovasi apa yang cocok untuk PKM?\"* atau *\"Apa tren teknologi terbaru tahun 2027?\"* — untuk riset pasar eksternal & roadmap inovasi hibrida.";
 
         return [
             'success' => true,
@@ -2041,13 +2166,17 @@ class AiAnalystService
             'sources' => [],
             'summary' => $summary,
             'findings' => [
-                "Portofolio aktif: {$context['total_projects']} proyek.",
-                "Penyelesaian tugas: {$context['completion_rate']}%."
+                "Total proyek aktif: {$context['total_projects']} (Delayed: {$context['delayed_count']}, At Risk: {$context['at_risk_count']}).",
+                "Company Health Index: {$chiScore}/100 ({$chiCategory}).",
+                "Task completion rate: {$context['completion_rate']}%."
             ],
-            'recommendations' => ["Tanyakan riset tren eksternal, ide inovasi, atau kondisi internal perusahaan."],
+            'recommendations' => [
+                "Lakukan review pada proyek Delayed dan At Risk.",
+                "Eksplorasi analisis mendalam dengan memilih topik spesifik di atas."
+            ],
             'reply' => $reply,
             'mode' => 'Rule-Based Engine (Universal Business Advisor)',
-            'timestamp' => Carbon::now()->format('H:i, d M Y'),
+            'timestamp' => Carbon::now('Asia/Jakarta')->format('H:i') . ' WIB',
         ];
     }
 
@@ -2093,12 +2222,26 @@ class AiAnalystService
             ];
         }
 
-        $response = Http::timeout(25)->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}", $payload);
+        try {
+            $response = Http::timeout(25)->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}", $payload);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            Log::warning("[AiAnalyst Diagnostic] Gemini API request timeout (>25s) on model {$model}");
+            throw new \Exception("Koneksi ke Gemini API timeout (>25 detik).");
+        } catch (\Throwable $e) {
+            Log::warning("[AiAnalyst Diagnostic] Gemini API network/client error: " . $e->getMessage());
+            throw $e;
+        }
 
         if ($response->successful()) {
             $data = $response->json();
             $candidate = $data['candidates'][0] ?? [];
-            $reply = $candidate['content']['parts'][0]['text'] ?? 'Tidak ada jawaban dari AI.';
+            $reply = trim($candidate['content']['parts'][0]['text'] ?? '');
+
+            if (empty($reply)) {
+                $finishReason = $candidate['finishReason'] ?? 'NO_TEXT';
+                Log::warning("[AiAnalyst Diagnostic] Gemini API returned empty reply text. Finish reason: {$finishReason}");
+                throw new \Exception("Respons teks dari Gemini kosong (finish reason: {$finishReason}).");
+            }
 
             // Extract Google Search Grounding metadata & sources
             $sources = [];
@@ -2162,11 +2305,25 @@ class AiAnalystService
                 'findings' => [],
                 'recommendations' => [],
                 'mode' => 'External LLM (' . $model . ($hasGrounding ? ' + Google Search' : '') . ')',
-                'timestamp' => Carbon::now()->format('H:i, d M Y'),
+                'timestamp' => Carbon::now('Asia/Jakarta')->format('H:i') . ' WIB',
             ];
         }
 
-        throw new \Exception('Gemini API status: ' . $response->status() . ' - ' . substr($response->body(), 0, 200));
+        $status = $response->status();
+        $errorSnippet = substr($response->body(), 0, 300);
+        Log::warning("[AiAnalyst Diagnostic] Gemini API error [HTTP {$status}] on model {$model}: {$errorSnippet}");
+
+        if ($status === 400) {
+            throw new \Exception("Bad Request (HTTP 400): Struktur payload atau token tidak valid.");
+        } elseif ($status === 401 || $status === 403) {
+            throw new \Exception("Authentication Error (HTTP {$status}): API key tidak valid atau akses ditolak.");
+        } elseif ($status === 429) {
+            throw new \Exception("Rate Limit Exceeded (HTTP 429): Kuota permintaan Google Gemini terlampaui.");
+        } elseif ($status >= 500) {
+            throw new \Exception("Google Internal Server Error (HTTP {$status}): Layanan upstream Google bermasalah.");
+        }
+
+        throw new \Exception("Gemini API HTTP {$status}: {$errorSnippet}");
     }
 
     /**
@@ -2250,10 +2407,19 @@ KONTEKS BISNIS AKTUAL REAL-TIME DARI DATABASE MYSQL PERUSAHAAN:
 ATURAN STRATEGIS & KETAT:
 1. Jawab dalam Bahasa Indonesia formal, profesional, bernuansa eksekutif, dan tajam.
 2. SELURUH data, angka, persentase, dan nama proyek WAJIB berakar dari KONTEKS BISNIS AKTUAL di atas. DILARANG membuat data tiruan/fiktif.
-3. Jika pengguna bertanya tentang arah langkah atau kondisi bisnis ("Baca kondisi bisnis saya sekarang dan harus ke mana saya melangkah?"), jawab secara komprehensif dengan 8 bagian terstruktur.
-4. Jika pengguna menanyakan proyek tertentu (misalnya "Portal Vendor PKM"), JAWAB HANYA TENTANG PROYEK TERSEBUT.
-5. Patuhi batasan hak akses: Jika role adalah 'member', jangan bocorkan data keuangan perusahaan.
-6. Format output rapi dengan Markdown: heading (###, ####), bullet point, tebal, dan tabel bila relevan.
+3. JIKA PERTANYAAN ADALAH TENTANG KONDISI BISNIS (misal: "Analisis kondisi bisnis saya", "Baca kondisi bisnis...", dsb):
+   WAJIB SAJIKAN ANALISIS DALAM 6 BAGIAN TERSTRUKTUR BERIKUT:
+   - **Bagian 1: Ringkasan Eksekutif & Posisi Bisnis Saat Ini** (Total proyek, aktif, selesai, completion rate, CHI score & status kesehatan, ringkasan situasi)
+   - **Bagian 2: Kinerja Bisnis & Portofolio** (Proyek on-track, delayed, at-risk, rasio keterlambatan, analisis bottleneck)
+   - **Bagian 3: Isu Kritis & Hambatan Operasional** (Daftar proyek bermasalah dengan deviasi hari/progress, beban kerja personil, sprint tersendat)
+   - **Bagian 4: Analisis Akar Masalah** (Akar masalah teknis/operasional, distribusi beban kerja tidak merata, dependensi sprint)
+   - **Bagian 5: Rekomendasi Tindakan Strategis** (Prioritas 1: Segera/Minggu Ini, Prioritas 2: Jangka Menengah, Prioritas 3: Jangka Panjang/Struktural)
+   - **Bagian 6: Pertanyaan Reflektif untuk Manajemen** (2-3 pertanyaan kritis untuk pimpinan mempertimbangkan keputusan strategis)
+4. JIKA PERTANYAAN MENANYAKAN KONDISI SELURUH PROYEK PKM ("Bagaimana kondisi seluruh proyek PKM?"):
+   Sajikan gambaran portofolio lengkap (total, on-track, delayed, at-risk), breakdown status portofolio, analisis mendalam proyek berisiko tinggi dengan deviasi dan kendalanya, serta rekomendasi mitigasi portofolio.
+5. Jika pengguna menanyakan proyek tertentu (misalnya "Portal Vendor PKM"), JAWAB HANYA TENTANG PROYEK TERSEBUT.
+6. Patuhi batasan hak akses: Jika role adalah 'member', jangan bocorkan data keuangan perusahaan.
+7. Format output rapi dengan Markdown: heading (###, ####), bullet point, tebal, dan tabel bila relevan.
 PROMPT;
     }
 }

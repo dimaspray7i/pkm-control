@@ -25,6 +25,41 @@ const QUICK_PROMPTS = [
   'Coba cek proyek yang lagi bermasalah.',
 ]
 
+const getWibTimestamp = (date = new Date()) => {
+  return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' WIB'
+}
+
+const getDomainBadgeLabel = (type) => {
+  if (!type || type === 'general_inquiry' || type === 'general_knowledge' || type === 'general_consultation') {
+    return null
+  }
+  const mapping = {
+    business_overview: 'Analisis Bisnis',
+    problem_diagnosis: 'Diagnosis Masalah',
+    all_project_risks: 'Portofolio Proyek',
+    single_project_analysis: 'Analisis Proyek',
+    project_clarification_needed: 'Klarifikasi Proyek',
+    project_not_found: 'Proyek Tidak Ditemukan',
+    employee_workload: 'Beban Kerja Tim',
+    task_management: 'Manajemen Tugas',
+    financial_analysis: 'Analisis Keuangan',
+    business_performance: 'Kinerja Bisnis (CHI)',
+    growth_opportunities: 'Peluang Pertumbuhan',
+    strategic_planning: 'Perencanaan Strategis',
+    risk_analysis: 'Manajemen Risiko',
+    operational_analysis: 'Operasional & Blocker',
+    market_trends: 'Riset Tren Bisnis',
+    technology_trends: 'Tren Teknologi',
+    hybrid_intelligence: 'Analisis Hibrida',
+    business_innovation: 'Inovasi Bisnis',
+    investment_prioritization: 'Komparasi Investasi',
+    data_comparison: 'Perbandingan Data',
+    sprint_performance: 'Performa Sprint',
+    forecast_scenario: 'Skenario Forecast',
+  }
+  return mapping[type] || type.replace(/_/g, ' ')
+}
+
 export default function AIAnalyst() {
   const { user } = useAuth()
   const location = useLocation()
@@ -100,8 +135,7 @@ export default function AIAnalyst() {
       textareaRef.current.style.height = 'auto'
     }
 
-    const now = new Date()
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    const timeStr = getWibTimestamp()
 
     const userMsg = {
       id: Date.now(),
@@ -212,7 +246,7 @@ export default function AIAnalyst() {
           'Minta rekomendasi prioritas tugas hari ini',
           'Cek beban kerja tim'
         ],
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        timestamp: getWibTimestamp()
       }
     ])
     setConfirmNewChat(false)
@@ -235,36 +269,43 @@ export default function AIAnalyst() {
   const renderSourceBadge = (msg) => {
     if (msg.isError || msg.isSystemNote) return null
 
-    if (msg.hasGrounding || msg.sourceType === 'external_grounded') {
+    if (msg.hasGrounding || msg.sourceType === 'external' || msg.sourceType === 'external_grounded') {
       return (
         <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 bg-[#0EA5E9] text-white rounded-md uppercase font-black shadow-[1px_1px_0px_#171717]">
           <Globe size={10} /> Riset Eksternal (Google Search)
         </span>
       )
     }
-    if (msg.sourceType === 'hybrid_grounded' || msg.routingMode === 'hybrid') {
+    if (msg.sourceType === 'hybrid' || msg.sourceType === 'hybrid_grounded' || msg.routingMode === 'hybrid') {
       return (
         <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 bg-[#8B5CF6] text-white rounded-md uppercase font-black shadow-[1px_1px_0px_#171717]">
-          <Zap size={10} /> Analisis Hibrida (Eksternal + Internal)
+          <Zap size={10} /> Analisis Hibrida
         </span>
       )
     }
-    if (msg.sourceType === 'innovation_grounded' || msg.routingMode === 'innovation') {
+    if (msg.sourceType === 'innovation' || msg.sourceType === 'innovation_grounded' || msg.routingMode === 'innovation') {
       return (
         <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 bg-[#F59E0B] text-white rounded-md uppercase font-black shadow-[1px_1px_0px_#171717]">
-          <Lightbulb size={10} /> Usulan Inovasi Terverifikasi
+          <Lightbulb size={10} /> Usulan Inovasi
         </span>
       )
     }
-    if (msg.sourceType === 'internal_database' || msg.routingMode === 'internal_only') {
+    if (msg.sourceType === 'investment' || msg.routingMode === 'investment_research') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 bg-[#059669] text-white rounded-md uppercase font-black shadow-[1px_1px_0px_#171717]">
+          <TrendingUp size={10} /> Riset Alokasi Modal
+        </span>
+      )
+    }
+    if (msg.sourceType === 'internal' || msg.sourceType === 'internal_database' || msg.routingMode === 'internal_only') {
       return (
         <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 bg-[#10B981] text-white rounded-md uppercase font-black shadow-[1px_1px_0px_#171717]">
-          <Cpu size={10} /> Data Internal PKM Real-Time
+          <Cpu size={10} /> Basis Data MySQL Real-Time
         </span>
       )
     }
     return (
-      <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 bg-[#171717] text-white rounded-md uppercase font-black shadow-[1px_1px_0px_#171717]">
+      <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 bg-[#475569] text-white rounded-md uppercase font-black shadow-[1px_1px_0px_#171717]">
         <Brain size={10} /> Basis Pengetahuan AI
       </span>
     )
@@ -408,25 +449,37 @@ export default function AIAnalyst() {
                         <div className={`flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 border-b border-[#171717]/15 ${
                           msg.isError ? 'bg-[#FFD83D]/30' : msg.isSystemNote ? 'bg-[#EAE4D8]/50' : 'bg-[#B8A0F0]/20'
                         }`}>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {msg.isError
-                              ? <AlertTriangle size={13} className="text-[#EF4444]" />
-                              : msg.isSystemNote
-                                ? <CheckCircle2 size={13} className="text-[#171717]/50" />
-                                : <Sparkles size={13} className="text-[#FF2F92]" />
-                            }
-                            <span className="font-black text-[10px] uppercase tracking-wide text-[#171717]">
-                              {msg.isError ? 'Terjadi Kendala' : msg.isSystemNote ? 'Sistem' : 'AI Business Analyst PKM'}
-                            </span>
-                            {renderSourceBadge(msg)}
-                            {msg.responseType && !msg.isError && !msg.isSystemNote && (
-                              <span className="text-[9px] px-1.5 py-0.5 bg-[#171717] text-white rounded-md uppercase font-black">
-                                {msg.responseType.replace(/_/g, ' ')}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex items-center gap-1.5">
+                              {msg.isError
+                                ? <AlertTriangle size={13} className="text-[#EF4444]" />
+                                : msg.isSystemNote
+                                  ? <CheckCircle2 size={13} className="text-[#171717]/50" />
+                                  : <Sparkles size={13} className="text-[#FF2F92]" />
+                              }
+                              <span className="font-black text-[10px] uppercase tracking-wide text-[#171717]">
+                                {msg.isError ? 'Terjadi Kendala' : msg.isSystemNote ? 'Sistem' : 'AI Business Analyst PKM'}
                               </span>
+                            </div>
+
+                            {!msg.isError && !msg.isSystemNote && (
+                              <>
+                                <span className="text-[#171717]/30 text-xs font-bold select-none">|</span>
+                                {renderSourceBadge(msg)}
+                                {(() => {
+                                  const domainLabel = getDomainBadgeLabel(msg.responseType)
+                                  if (!domainLabel) return null
+                                  return (
+                                    <span className="inline-flex items-center text-[9px] px-2 py-0.5 bg-[#171717] text-white rounded-md uppercase font-black tracking-wide shadow-[1px_1px_0px_#171717]">
+                                      {domainLabel}
+                                    </span>
+                                  )
+                                })()}
+                              </>
                             )}
                           </div>
                           {msg.timestamp && (
-                            <span className="text-[9.5px] text-[#171717]/50 font-semibold">{msg.timestamp}</span>
+                            <span className="text-[9.5px] text-[#171717]/60 font-bold tracking-tight">{msg.timestamp}</span>
                           )}
                         </div>
 

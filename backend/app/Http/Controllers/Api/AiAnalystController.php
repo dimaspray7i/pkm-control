@@ -53,7 +53,7 @@ class AiAnalystController extends Controller
         
         // Backward-compatible fields
         $result['answer'] = $result['reply'] ?? '';
-        $result['timestamp'] = $result['timestamp'] ?? Carbon::now()->format('H:i, d M Y');
+        $result['timestamp'] = $result['timestamp'] ?? (Carbon::now('Asia/Jakarta')->format('H:i') . ' WIB');
 
         return response()->json($result);
     }

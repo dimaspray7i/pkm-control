@@ -131,7 +131,9 @@ class AiBusinessAnalystTest extends TestCase
     }
 
     /**
-     * Skenario 1: Business Overview Query ("Baca kondisi bisnis saya sekarang dan harus ke mana saya melangkah?")
+     * Skenario 1: Business Overview Query - Tests 6-part structured analysis.
+     * Sections: Executive Summary, Business Performance, Critical Issues,
+     * Root Cause Analysis, Strategic Recommendations (3 priorities), Management Questions.
      */
     public function test_01_business_overview_query_contains_8_structured_sections(): void
     {
@@ -145,14 +147,22 @@ class AiBusinessAnalystTest extends TestCase
             ->assertJson(['success' => true, 'type' => 'business_overview']);
 
         $reply = $res->json('reply');
+        // Section 1 - Executive Summary
         $this->assertStringContainsString('Ringkasan Eksekutif & Posisi Bisnis Saat Ini', $reply);
-        $this->assertStringContainsString('Skor Kesehatan Perusahaan (Corporate Health Index / CHI)', $reply);
-        $this->assertStringContainsString('Masalah Utama & Blocker Kritis', $reply);
-        $this->assertStringContainsString('Peluang Pertumbuhan & Potensi Ekspansi', $reply);
-        $this->assertStringContainsString('Rekomendasi Strategis Berbasis Data', $reply);
-        $this->assertStringContainsString('Prioritas Investasi & Alokasi Sumber Daya', $reply);
-        $this->assertStringContainsString('Action Plan Terukur', $reply);
-        $this->assertStringContainsString('Catatan Keterbukaan & Keterbatasan Data', $reply);
+        $this->assertStringContainsString('Corporate Health Index / CHI', $reply);
+        // Section 2 - Business Performance
+        $this->assertStringContainsString('Kinerja Bisnis & Portofolio', $reply);
+        // Section 3 - Critical Issues
+        $this->assertStringContainsString('Isu Kritis & Hambatan Operasional', $reply);
+        // Section 4 - Root Cause Analysis
+        $this->assertStringContainsString('Analisis Akar Masalah', $reply);
+        // Section 5 - Strategic Recommendations with 3 priorities
+        $this->assertStringContainsString('Rekomendasi Tindakan Strategis', $reply);
+        $this->assertStringContainsString('Prioritas 1:', $reply);
+        $this->assertStringContainsString('Prioritas 2:', $reply);
+        $this->assertStringContainsString('Prioritas 3:', $reply);
+        // Section 6 - Management Questions
+        $this->assertStringContainsString('Pertanyaan Reflektif untuk Manajemen', $reply);
     }
 
     /**
