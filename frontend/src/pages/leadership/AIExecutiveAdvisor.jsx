@@ -308,7 +308,8 @@ export default function AIExecutiveAdvisor() {
   const [conversations, setConversations] = useState([])
   const [activeConvId, setActiveConvId] = useState(null)
   const [convLoading, setConvLoading] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 1024 : true)
+  const [showMobileInsights, setShowMobileInsights] = useState(false)
   const [rcaProject, setRcaProject] = useState(null)
   const [projects, setProjects] = useState([])
 
@@ -407,7 +408,7 @@ export default function AIExecutiveAdvisor() {
   const chiColor = ch ? (ch.chi_score >= 75 ? '#16A34A' : ch.chi_score >= 50 ? '#D97706' : '#DC2626') : '#171717'
 
   return (
-    <div className="min-h-screen bg-[#F5F1E9] flex flex-col">
+    <div className="w-full bg-[#F5F1E9] flex flex-col flex-1 min-h-0">
       <PageHeader
         title="AI EXECUTIVE ADVISOR"
         subtitle="Penasihat strategis eksekutif berbasis AI dan analisis data bisnis PT Potensi Karya Mandiri."
@@ -433,11 +434,11 @@ export default function AIExecutiveAdvisor() {
         }
       />
 
-      <div className="px-6 py-4 border-b-[3px] border-[#171717] bg-[#FAFAF8]">
+      <div className="px-3.5 sm:px-6 py-3 sm:py-4 border-b-[3px] border-[#171717] bg-[#FAFAF8]">
         {healthLoading ? (
           <PageLoading mode="component" text="Memuat data kondisi bisnis..." subtext="Mengagregasi Corporate Health Index, risiko, dan deviasi proyek." transparent />
         ) : ch ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
             <StatCard label="Corporate Health Index" value={`${ch.chi_score}/100`} sub={ch.chi_category} color={chiColor} bg={ch.chi_score >= 75 ? '#F0FDF4' : ch.chi_score >= 50 ? '#FFFBEB' : '#FEF2F2'} icon={Activity} />
             <StatCard label="Proyek Terlambat" value={ch.delayed_count} sub={`dari ${ch.total_projects} total proyek`} color={ch.delayed_count > 0 ? '#DC2626' : '#16A34A'} bg={ch.delayed_count > 0 ? '#FEF2F2' : '#F0FDF4'} icon={AlertTriangle} />
             <StatCard label="Risiko Aktif" value={risks?.total_active ?? '—'} sub={`${risks?.critical_count ?? 0} kritis, ${risks?.high_count ?? 0} tinggi`} color={risks?.critical_count > 0 ? '#DC2626' : '#171717'} bg={risks?.critical_count > 0 ? '#FEF2F2' : '#F5F1E9'} icon={ShieldAlert} />
@@ -448,67 +449,92 @@ export default function AIExecutiveAdvisor() {
         )}
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         {sidebarOpen && (
-          <div className="w-56 flex-shrink-0 border-r-[3px] border-[#171717] bg-[#F5F1E9] flex flex-col overflow-hidden">
-            <div className="p-3 border-b-[2px] border-[#171717] flex items-center justify-between">
-              <span className="text-xs font-black uppercase text-[#555]">Percakapan</span>
-              <div className="flex items-center gap-1">
-                <button onClick={createConversation} className="p-1.5 bg-[#171717] text-white hover:bg-[#333] transition-colors"><Plus size={12} /></button>
-                <button onClick={() => setSidebarOpen(false)} className="p-1.5 hover:bg-[#DDD] transition-colors"><X size={12} /></button>
+          <>
+            <div
+              className="fixed inset-0 bg-[#171717]/50 backdrop-blur-xs z-40 lg:hidden"
+              onClick={() => setSidebarOpen(false)}
+              aria-hidden="true"
+            />
+            <div className="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] shadow-2xl bg-[#F5F1E9] border-r-[3px] border-[#171717] flex flex-col overflow-hidden lg:static lg:z-auto lg:w-56 lg:shadow-none shrink-0">
+              <div className="p-3 border-b-[2px] border-[#171717] flex items-center justify-between">
+                <span className="text-xs font-black uppercase text-[#555]">Percakapan</span>
+                <div className="flex items-center gap-1">
+                  <button onClick={createConversation} className="p-1.5 bg-[#171717] text-white hover:bg-[#333] transition-colors" title="Percakapan Baru"><Plus size={12} /></button>
+                  <button onClick={() => setSidebarOpen(false)} className="p-1.5 hover:bg-[#DDD] transition-colors" title="Tutup Menu"><X size={12} /></button>
+                </div>
+              </div>
+              <button onClick={() => { clearChat(); if (window.innerWidth < 1024) setSidebarOpen(false) }} className={`flex items-center gap-2 px-3 py-2.5 text-xs font-bold border-b border-[#E5E5E5] hover:bg-[#EEE] transition-colors ${!activeConvId ? 'bg-[#FFD83D] border-l-4 border-l-[#171717]' : ''}`}>
+                <MessageSquare size={12} />Obrolan Baru (Tanpa Simpan)
+              </button>
+              <div className="flex-1 overflow-y-auto">
+                {convLoading ? (
+                  <div className="p-3 text-xs text-[#999] flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> Memuat…</div>
+                ) : conversations.length === 0 ? (
+                  <div className="p-3 text-xs text-[#999]">Belum ada percakapan tersimpan.</div>
+                ) : (
+                  conversations.map(conv => (
+                    <div key={conv.id} onClick={() => { openConversation(conv); if (window.innerWidth < 1024) setSidebarOpen(false) }} className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer border-b border-[#E5E5E5] hover:bg-[#EEE] transition-colors group ${activeConvId === conv.id ? 'bg-[#E8E0FF] border-l-4 border-l-[#B8A0F0]' : ''}`}>
+                      <MessageSquare size={11} className="text-[#999] flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold text-[#333] truncate">{conv.title}</div>
+                        <div className="text-[10px] text-[#999]">{conv.period}</div>
+                      </div>
+                      <button onClick={(e) => deleteConversation(conv.id, e)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded transition-all">
+                        <Trash2 size={10} className="text-red-500" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="border-t-[2px] border-[#171717] p-3">
+                <div className="text-xs font-black uppercase text-[#555] mb-2">Root Cause Analysis</div>
+                <select onChange={e => { const proj = projects.find(p => String(p.id) === e.target.value); if (proj) setRcaProject(proj); e.target.value = '' }} className="w-full text-xs border-[2px] border-[#171717] bg-white px-2 py-1.5 font-bold focus:outline-none" defaultValue="">
+                  <option value="">Pilih Proyek…</option>
+                  {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
+                </select>
               </div>
             </div>
-            <button onClick={clearChat} className={`flex items-center gap-2 px-3 py-2.5 text-xs font-bold border-b border-[#E5E5E5] hover:bg-[#EEE] transition-colors ${!activeConvId ? 'bg-[#FFD83D] border-l-4 border-l-[#171717]' : ''}`}>
-              <MessageSquare size={12} />Obrolan Baru (Tanpa Simpan)
-            </button>
-            <div className="flex-1 overflow-y-auto">
-              {convLoading ? (
-                <div className="p-3 text-xs text-[#999] flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> Memuat…</div>
-              ) : conversations.length === 0 ? (
-                <div className="p-3 text-xs text-[#999]">Belum ada percakapan tersimpan.</div>
-              ) : (
-                conversations.map(conv => (
-                  <div key={conv.id} onClick={() => openConversation(conv)} className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer border-b border-[#E5E5E5] hover:bg-[#EEE] transition-colors group ${activeConvId === conv.id ? 'bg-[#E8E0FF] border-l-4 border-l-[#B8A0F0]' : ''}`}>
-                    <MessageSquare size={11} className="text-[#999] flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold text-[#333] truncate">{conv.title}</div>
-                      <div className="text-[10px] text-[#999]">{conv.period}</div>
-                    </div>
-                    <button onClick={(e) => deleteConversation(conv.id, e)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded transition-all">
-                      <Trash2 size={10} className="text-red-500" />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="border-t-[2px] border-[#171717] p-3">
-              <div className="text-xs font-black uppercase text-[#555] mb-2">Root Cause Analysis</div>
-              <select onChange={e => { const proj = projects.find(p => String(p.id) === e.target.value); if (proj) setRcaProject(proj); e.target.value = '' }} className="w-full text-xs border-[2px] border-[#171717] bg-white px-2 py-1.5 font-bold focus:outline-none" defaultValue="">
-                <option value="">Pilih Proyek…</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-              </select>
-            </div>
-          </div>
+          </>
         )}
 
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          <div className="flex items-center gap-2 px-4 py-2 border-b-[2px] border-[#171717] bg-[#FAFAF8] flex-shrink-0">
-            {!sidebarOpen && (
-              <button onClick={() => setSidebarOpen(true)} className="p-1.5 border-[2px] border-[#171717] bg-white hover:bg-[#F5F1E9] transition-colors">
+          <div className="flex items-center justify-between gap-2 px-3 sm:px-4 py-2 border-b-[2px] border-[#171717] bg-[#FAFAF8] shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="p-1.5 border-[2px] border-[#171717] bg-white hover:bg-[#F5F1E9] transition-colors rounded shrink-0 cursor-pointer"
+                title={sidebarOpen ? "Tutup Riwayat Percakapan" : "Buka Riwayat Percakapan"}
+              >
                 <MessageSquare size={14} />
               </button>
-            )}
-            <div className="flex items-center gap-2 flex-1">
-              <Brain size={14} className="text-[#B8A0F0]" />
-              <span className="text-xs font-black text-[#555] uppercase">
-                {activeConvId ? conversations.find(c => c.id === activeConvId)?.title || 'Percakapan Aktif' : 'Obrolan Langsung'}
-              </span>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Brain size={14} className="text-[#B8A0F0] shrink-0" />
+                <span className="text-xs font-black text-[#555] uppercase truncate">
+                  {activeConvId ? conversations.find(c => c.id === activeConvId)?.title || 'Percakapan Aktif' : 'Obrolan Langsung'}
+                </span>
+              </div>
             </div>
-            {activeConvId && (
-              <button onClick={createConversation} className="text-xs font-bold px-2 py-1 border-[2px] border-[#171717] bg-white hover:bg-[#F5F1E9] transition-colors flex items-center gap-1">
-                <Plus size={11} /> Baru
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => setShowMobileInsights(!showMobileInsights)}
+                className="xl:hidden text-xs font-bold px-2 py-1 border-[2px] border-[#171717] bg-[#FFD83D] hover:bg-[#ffe26e] transition-colors flex items-center gap-1 shrink-0 rounded cursor-pointer"
+                title="Lihat Priority Insights"
+              >
+                <Sparkles size={12} />
+                <span className="hidden sm:inline">Insights</span>
+                {insights.length > 0 && (
+                  <span className="bg-[#FF2F92] text-white text-[9px] font-black px-1.5 rounded-full">{insights.length}</span>
+                )}
               </button>
-            )}
+              {activeConvId && (
+                <button onClick={createConversation} className="text-xs font-bold px-2 py-1 border-[2px] border-[#171717] bg-white hover:bg-[#F5F1E9] transition-colors flex items-center gap-1 rounded cursor-pointer">
+                  <Plus size={11} /> <span className="hidden sm:inline">Baru</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 py-4">
@@ -560,16 +586,39 @@ export default function AIExecutiveAdvisor() {
           </div>
         </div>
 
-        <div className="w-72 flex-shrink-0 border-l-[3px] border-[#171717] bg-[#F5F1E9] flex flex-col overflow-hidden">
-          <div className="p-3 border-b-[2px] border-[#171717] flex items-center gap-2">
-            <Sparkles size={14} className="text-[#FFD83D]" />
-            <span className="text-xs font-black uppercase text-[#171717]">Priority Insights</span>
-            {insights.length > 0 && <span className="ml-auto text-[10px] font-black bg-[#FF2F92] text-white px-1.5 py-0.5">{insights.length}</span>}
+        {/* Priority Insights Sidebar: Desktop Fixed, Mobile/Tablet Drawer */}
+        {showMobileInsights && (
+          <div
+            className="fixed inset-0 bg-[#171717]/50 backdrop-blur-xs z-40 xl:hidden"
+            onClick={() => setShowMobileInsights(false)}
+            aria-hidden="true"
+          />
+        )}
+        <div className={`border-l-[3px] border-[#171717] bg-[#F5F1E9] flex-col overflow-hidden shrink-0 ${
+          showMobileInsights
+            ? 'fixed inset-y-0 right-0 z-50 w-80 max-w-[90vw] shadow-2xl flex'
+            : 'hidden xl:flex w-72'
+        }`}>
+          <div className="p-3 border-b-[2px] border-[#171717] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles size={14} className="text-[#FFD83D]" />
+              <span className="text-xs font-black uppercase text-[#171717]">Priority Insights</span>
+              {insights.length > 0 && <span className="text-[10px] font-black bg-[#FF2F92] text-white px-1.5 py-0.5 rounded">{insights.length}</span>}
+            </div>
+            {showMobileInsights && (
+              <button
+                onClick={() => setShowMobileInsights(false)}
+                className="xl:hidden p-1 hover:bg-[#171717]/10 rounded cursor-pointer transition-colors"
+                title="Tutup Insights"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
           <div className="px-3 py-2 border-b border-[#E5E5E5] overflow-x-auto">
             <div className="flex gap-1 min-w-max">
               {insightCategories.map(cat => (
-                <button key={cat} onClick={() => setInsightFilter(cat)} className={`px-2 py-1 text-[10px] font-black uppercase border transition-colors whitespace-nowrap ${insightFilter === cat ? 'bg-[#171717] text-white border-[#171717]' : 'bg-white text-[#555] border-[#DDD] hover:border-[#171717]'}`}>
+                <button key={cat} onClick={() => setInsightFilter(cat)} className={`px-2 py-1 text-[10px] font-black uppercase border transition-colors whitespace-nowrap cursor-pointer ${insightFilter === cat ? 'bg-[#171717] text-white border-[#171717]' : 'bg-white text-[#555] border-[#DDD] hover:border-[#171717]'}`}>
                   {cat === 'all' ? 'Semua' : cat}
                 </button>
               ))}

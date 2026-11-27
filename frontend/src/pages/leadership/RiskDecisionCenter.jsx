@@ -549,7 +549,7 @@ export default function RiskDecisionCenter() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F1E9] p-4 sm:p-6 lg:p-8 space-y-6">
+    <div className="w-full bg-[#F5F1E9] p-4 sm:p-6 lg:p-8 space-y-6">
       {/* Toast Notification */}
       {successToast && (
         <div className="fixed top-6 right-6 z-50 flex items-center gap-3 bg-[#10B981] text-white px-5 py-3 border-[3px] border-[#171717] shadow-[6px_6px_0px_#171717] animate-bounce">
@@ -855,7 +855,7 @@ export default function RiskDecisionCenter() {
                   <tr className="bg-[#EAE4D8] border-b-[2px] border-[#171717]">
                     <th className="p-3 font-black text-[#171717] uppercase tracking-wider">Kode & Judul Risiko</th>
                     <th className="p-3 font-black text-[#171717] uppercase tracking-wider">Proyek & Kategori</th>
-                    <th className="p-3 font-black text-[#171717] uppercase tracking-wider text-center">L × I</th>
+                    <th className="p-3 font-black text-[#171717] uppercase tracking-wider text-center">L Ã— I</th>
                     <th className="p-3 font-black text-[#171717] uppercase tracking-wider text-center">Score</th>
                     <th className="p-3 font-black text-[#171717] uppercase tracking-wider text-center">Severity</th>
                     <th className="p-3 font-black text-[#171717] uppercase tracking-wider">Owner / PIC</th>
@@ -891,7 +891,7 @@ export default function RiskDecisionCenter() {
                           </span>
                         </td>
                         <td className="p-3 text-center font-mono font-bold">
-                          {r.likelihood} × {r.impact}
+                          {r.likelihood} Ã— {r.impact}
                         </td>
                         <td className="p-3 text-center">
                           <span className="font-black text-base px-2 py-1 bg-[#171717] text-white">
@@ -1601,7 +1601,7 @@ export default function RiskDecisionCenter() {
               </div>
               <div>
                 <span className="text-[#737373] text-[10px] font-bold uppercase block">Nilai Risiko</span>
-                <span className="font-black text-[#171717]">{selectedRisk.likelihood} × {selectedRisk.impact} = {selectedRisk.risk_score}</span>
+                <span className="font-black text-[#171717]">{selectedRisk.likelihood} Ã— {selectedRisk.impact} = {selectedRisk.risk_score}</span>
               </div>
               <div>
                 <span className="text-[#737373] text-[10px] font-bold uppercase block">Tingkat Severity</span>
@@ -1940,7 +1940,7 @@ export default function RiskDecisionCenter() {
                         <div className="mt-1 text-[10px] bg-white p-1 border font-mono">
                           {Object.entries(a.changes).map(([k, v]) => (
                             <div key={k}>
-                              <strong>{k}:</strong> {typeof v === 'object' ? `${v.from || 'null'} → ${v.to || 'null'}` : JSON.stringify(v)}
+                              <strong>{k}:</strong> {typeof v === 'object' ? `${v.from || 'null'} â†’ ${v.to || 'null'}` : JSON.stringify(v)}
                             </div>
                           ))}
                         </div>

@@ -14,6 +14,7 @@ use App\Services\FinancialIntelligenceService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class AiAnalystService
 {
@@ -31,9 +32,11 @@ class AiAnalystService
     /**
      * Main entry point to process questions.
      */
-    public function ask(string $prompt, ?string $category = 'general', array $history = [], ?string $pageContext = null, ?User $user = null): array
+    public function ask(string $prompt, ?string $category = 'general', array $history = [], ?string $pageContext = null, ?User $user = null, ?string $requestId = null): array
     {
-        $prompt = substr(trim($prompt), 0, 1000);
+        $requestId = $requestId ?? (string) Str::uuid();
+        $startTime = microtime(true);
+        $prompt = substr(trim($prompt), 0, 2000);
         $userRole = $user ? $user->role : 'member';
 
         // 1. Check for external LLM configuration (Google Gemini Free Tier)
@@ -47,21 +50,51 @@ class AiAnalystService
             try {
                 $result = $this->callGemini($apiKey, $prompt, $analysis, $history, $pageContext, $userRole, $user);
                 $result['timestamp'] = Carbon::now('Asia/Jakarta')->format('H:i') . ' WIB';
+                $result['request_id'] = $requestId;
+
+                $durationMs = round((microtime(true) - $startTime) * 1000, 2);
+                Log::info("[AiAnalyst Safe Audit] LLM query completed", [
+                    'request_id' => $requestId,
+                    'model' => env('AI_MODEL', 'gemini-3.8-flash'),
+                    'routing_mode' => $analysis['routing_mode'],
+                    'intent' => $analysis['intent'],
+                    'duration_ms' => $durationMs,
+                    'has_grounding' => $analysis['requires_grounding'] ?? false,
+                    'is_fallback' => false,
+                    'status' => 'success'
+                ]);
+
                 return $result;
             } catch (\Illuminate\Http\Client\ConnectionException $e) {
-                Log::warning('[AiAnalyst Diagnostic] Gemini API connection timeout: ' . $e->getMessage());
+                $durationMs = round((microtime(true) - $startTime) * 1000, 2);
+                Log::warning("[AiAnalyst Safe Audit] Gemini timeout", [
+                    'request_id' => $requestId,
+                    'duration_ms' => $durationMs,
+                    'error_type' => 'timeout',
+                    'is_fallback' => true
+                ]);
+
                 $fallbackResult = $this->synthesizeResponse($analysis, $userRole, $user);
                 $fallbackResult['note'] = 'Koneksi ke Gemini AI mengalami batas waktu (timeout). Jawaban dialihkan secara transparan ke Rule-Based Engine PKM berbasis data database real-time.';
                 $fallbackResult['mode'] = 'Rule-Based Engine (Fallback DB Real-Time)';
                 $fallbackResult['timestamp'] = Carbon::now('Asia/Jakarta')->format('H:i') . ' WIB';
+                $fallbackResult['request_id'] = $requestId;
                 return $fallbackResult;
             } catch (\Throwable $e) {
-                // Safe diagnostic logging without API key or sensitive user data
-                Log::warning('[AiAnalyst Diagnostic] Gemini API call failed: ' . $e->getMessage() . '. Engaging Rule-Based Engine.');
+                $durationMs = round((microtime(true) - $startTime) * 1000, 2);
+                Log::warning("[AiAnalyst Safe Audit] Gemini call failed, engaging fallback", [
+                    'request_id' => $requestId,
+                    'duration_ms' => $durationMs,
+                    'error_type' => get_class($e),
+                    'error_message' => $e->getMessage(),
+                    'is_fallback' => true
+                ]);
+
                 $fallbackResult = $this->synthesizeResponse($analysis, $userRole, $user);
                 $fallbackResult['note'] = 'Layanan Gemini AI dialihkan (' . $e->getMessage() . '). Jawaban disajikan secara objektif oleh Rule-Based Engine PKM berbasis data database real-time.';
                 $fallbackResult['mode'] = 'Rule-Based Engine (Fallback DB Real-Time)';
                 $fallbackResult['timestamp'] = Carbon::now('Asia/Jakarta')->format('H:i') . ' WIB';
+                $fallbackResult['request_id'] = $requestId;
                 return $fallbackResult;
             }
         }
@@ -69,6 +102,19 @@ class AiAnalystService
         // 4. Default: Highly accurate deterministic NLU & DB synthesis engine
         $result = $this->synthesizeResponse($analysis, $userRole, $user);
         $result['timestamp'] = Carbon::now('Asia/Jakarta')->format('H:i') . ' WIB';
+        $result['request_id'] = $requestId;
+
+        $durationMs = round((microtime(true) - $startTime) * 1000, 2);
+        Log::info("[AiAnalyst Safe Audit] Rule-based query completed", [
+            'request_id' => $requestId,
+            'model' => 'rule-based-engine',
+            'routing_mode' => $analysis['routing_mode'],
+            'intent' => $analysis['intent'],
+            'duration_ms' => $durationMs,
+            'is_fallback' => false,
+            'status' => 'success'
+        ]);
+
         return $result;
     }
 
@@ -197,7 +243,12 @@ class AiAnalystService
         // 1. Resolve pronoun / contextual references from history
         $contextualProjectName = null;
         $isFollowUp = preg_match(
-            '/\b(proyek\s+itu|proyek\s+tersebut|proyek\s+tadi|proyek\s+ini\b|pekerjaan\s+itu|tugas\s+itu|tugas\s+tadi|tim\s+tersebut|kenapa\s+terlambat|lalu\s+solusinya|apa\s+dampaknya|proyek\s+yang\s+sama|proyek\s+di\s+atas|itu\s+kenapa|kenapa\s+itu)\b/i',
+            '/\b(proyek\s+itu|proyek\s+tersebut|proyek\s+tadi|proyek\s+ini\b|pekerjaan\s+itu|tugas\s+itu|tugas\s+tadi|tim\s+tersebut|kenapa\s+terlambat|lalu\s+solusinya|apa\s+dampaknya|proyek\s+yang\s+sama|proyek\s+di\s+atas|itu\s+kenapa|kenapa\s+itu|apa\s+maksudnya|maksudnya\s+apa|apa\s+maksud|maksudnya\b|maksud\s+dari|apa\s+artinya|jelaskan\s+lagi|jelaskan\s+lebih\s+detail|lanjutkan\s+analisis|lanjutkan|lanjut\b|kenapa\s+begitu|bagaimana\s+caranya)\b/i',
+            $norm
+        );
+
+        $isSummaryQuery = preg_match(
+            '/\b(buatkan\s+ringkasan\s+sederhana|ringkasan\s+sederhana|rangkum\s+data\s+ini|ringkas\s+data\s+ini|rangkumkan|buatkan\s+summary|ringkasan\s+singkat|rangkuman\s+singkat|buatkan\s+ringkasan)\b/i',
             $norm
         );
 
@@ -300,30 +351,27 @@ class AiAnalystService
         ) && !$hasInternalImpact && !$mentionsPkm;
 
         // 5. Check Problem Diagnosis
-        // Catches: "Apa masalah terbesar perusahaan saat ini?", "Apa kendala utama PKM?"
-        $isProblemDiagnosis = preg_match(
-            '/\b(masalah|kendala|problem|isu|bottleneck|hambatan|ganjalan)\b/i',
-            $norm
-        ) && preg_match(
-            '/\b(terbesar|kritis|utama|terberat|paling|saat.*ini|sekarang|perusahaan|pkm|kita|organisasi)\b/i',
-            $norm
-        ) || preg_match('/\b(masalah.*terbesar|apa.*masalah|kendala.*terbesar|akar.*masalah|problem.*terbesar|kendala.*utama|bottleneck.*terbesar|masalah.*utama|problem.*utama|apa.*yang.*salah)\b/i', $norm);
+        // Catches: "Apa masalah terbesar perusahaan saat ini?", "Apa yang paling perlu diperbaiki perusahaan saat ini?", "Apa kendala utama PKM?"
+        $isProblemDiagnosis = (
+            preg_match('/\b(masalah|kendala|problem|isu|bottleneck|hambatan|ganjalan|diperbaiki|perbaikan|kelemahan|titik\s+lemah|dibenahi)\b/i', $norm) &&
+            preg_match('/\b(terbesar|kritis|utama|terberat|paling|perlu|saat.*ini|sekarang|perusahaan|pkm|kita|organisasi)\b/i', $norm)
+        ) || preg_match('/\b(masalah.*terbesar|apa.*masalah|kendala.*terbesar|akar.*masalah|problem.*terbesar|kendala.*utama|bottleneck.*terbesar|masalah.*utama|problem.*utama|apa.*yang.*salah|perlu.*diperbaiki|paling.*perlu.*diperbaiki|titik.*lemah|kelemahan.*perusahaan)\b/i', $norm);
 
         // 6. Check Project Portfolio & Condition
-        // Catches: "Bagaimana kondisi seluruh proyek PKM?", "Coba cek proyek yang lagi bermasalah."
-        $isPortfolioRiskQuery = preg_match(
-            '/\b(proyek|project)\b/i',
-            $norm
-        ) && (
-            preg_match('/\b(seluruh|semua|portofolio|total|daftar|kondisi|status|progres|performa|situasi|keadaan|bagaimana.*kondisi|gimana.*kondisi)\b/i', $norm) ||
-            preg_match('/\b(bermasalah|butuh.*perhatian|membutuhkan.*perhatian|berisiko|terlambat|delayed|kendala.*utama|at.*risk|butuh.*atensi|cari.*proyek|mana.*proyek|ada.*proyek)\b/i', $norm)
-        );
+        // Catches: "Bagaimana kondisi seluruh proyek PKM?", "Jelaskan risiko terbesar dari proyek yang sedang berjalan."
+        $isPortfolioRiskQuery = (
+            preg_match('/\b(proyek|project)\b/i', $norm) && (
+                preg_match('/\b(seluruh|semua|portofolio|total|daftar|kondisi|status|progres|performa|situasi|keadaan|bagaimana.*kondisi|gimana.*kondisi)\b/i', $norm) ||
+                preg_match('/\b(bermasalah|butuh.*perhatian|membutuhkan.*perhatian|berisiko|terlambat|delayed|kendala.*utama|at.*risk|butuh.*atensi|cari.*proyek|mana.*proyek|ada.*proyek|risiko|resiko|risiko.*terbesar|sedang.*berjalan|aktif)\b/i', $norm)
+            )
+        ) || preg_match('/\b(risiko|resiko)\s+terbesar.*(proyek|pekerjaan)\b/i', $norm)
+          || preg_match('/\b(proyek.*sedang.*berjalan|proyek.*aktif).*(risiko|resiko|kendala|masalah)\b/i', $norm);
 
         // 7. Check Internal Financial Analysis
         $isInternalFinance = preg_match(
             '/\b(kondisi.*keuangan.*(pkm|perusahaan|kita)|analisis.*keuangan.*(pkm|perusahaan|kita)|pemasukan.*vs.*pengeluaran|arus.*kas.*(pkm|perusahaan|kita)|laba.*rugi.*(pkm|perusahaan|kita)|utilisasi.*anggaran.*(pkm|perusahaan|kita))\b/i',
             $norm
-        ) || (preg_match('/\b(analisis.*keuangan|profitabilitas|arus.*kas|laba.*rugi|utilisasi.*anggaran)\b/i', $norm) && !preg_match('/\b(tren|pasar|industri|global|2027|eksternal)\b/i', $norm));
+        ) || (preg_match('/\b(analisis.*keuangan|profitabilitas|arus.*kas|laba.*rugi|laba.*bersih|margin.*profit|margin|keuangan|pengeluaran|pendapatan|utilisasi.*anggaran|total.*laba)\b/i', $norm) && !preg_match('/\b(tren|pasar|industri|global|2027|eksternal)\b/i', $norm));
 
         // 8. Check Business Overview / Comprehensive Internal Analysis
         // Catches: "Analisis kondisi bisnis saya", "Baca kondisi bisnis PKM sekarang dan harus ke mana melangkah?"
@@ -427,10 +475,37 @@ class AiAnalystService
             $intent = 'business_performance';
         }
         // 11. Internal: Strategic Planning
-        elseif (preg_match('/\b(rencana.*strategis|roadmap|arah.*bisnis|langkah.*strategis|strategi.*jangka.*panjang|rencana.*ke.*depan|strategic.*plan|rencana.*tindakan)\b/i', $norm)) {
+        elseif (preg_match('/\b(rencana.*strategis|roadmap|arah.*bisnis|langkah.*strategis|strategi.*jangka.*panjang|rencana.*ke.*depan|strategic.*plan|rencana.*tindakan|menyusun.*strategi|susun.*strategi|bantu.*(saya\s*)?menyusun.*strategi|bantu.*susun.*strategi|rekomendasi.*strategi)\b/i', $norm)) {
             $routingMode = 'internal_only';
             $detectedIntents[] = 'strategic_planning';
             $intent = 'strategic_planning';
+        }
+        // 11b. Summary / Simplification Query
+        elseif ($isSummaryQuery) {
+            $routingMode = 'internal_only';
+            $detectedIntents[] = 'summary_simplification';
+            $detectedIntents[] = 'business_overview';
+            $intent = 'business_overview';
+        }
+        // 11c. Conversational Follow-up with Context Inheritance
+        elseif ($isFollowUp && !empty($history)) {
+            $lastItem = end($history);
+            $lastUser = strtolower($lastItem['user'] ?? '');
+            $lastReply = strtolower($lastItem['reply'] ?? $lastItem['text'] ?? '');
+            
+            if (preg_match('/\b(tren|trend|pasar|teknologi|ai|cloud)\b/i', $lastUser . ' ' . $lastReply)) {
+                $routingMode = 'hybrid';
+                $detectedIntents[] = 'hybrid_intelligence';
+                $intent = 'hybrid_intelligence';
+            } elseif (preg_match('/\b(rencana|strategi|roadmap)\b/i', $lastUser . ' ' . $lastReply)) {
+                $routingMode = 'internal_only';
+                $detectedIntents[] = 'strategic_planning';
+                $intent = 'strategic_planning';
+            } else {
+                $routingMode = 'internal_only';
+                $detectedIntents[] = 'business_overview';
+                $intent = 'business_overview';
+            }
         }
         // 12. Internal: Sprint Performance
         elseif (preg_match('/\b(sprint|milestone|fase.*pengembangan|tahapan.*proyek|progres.*sprint|target.*sprint|kinerja.*sprint)\b/i', $norm)) {
@@ -2122,7 +2197,7 @@ class AiAnalystService
             ],
             'reply' => $reply,
             'mode' => 'Rule-Based Engine (Database Real-Time Context)',
-            'timestamp' => Carbon::now()->format('H:i, d M Y'),
+            'timestamp' => Carbon::now('Asia/Jakarta')->format('H:i') . ' WIB',
         ];
     }
 
@@ -2150,12 +2225,8 @@ class AiAnalystService
             $reply .= "Seluruh portofolio proyek terpantau berjalan stabil tanpa kendala keterlambatan mayor.\n\n";
         }
 
-        $reply .= "#### Rekomendasi Eksplorasi Analisis Lanjutan:\n";
-        $reply .= "Berdasarkan data aktual perusahaan di atas, Anda dapat mengajukan pertanyaan spesifik seperti:\n";
-        $reply .= "1. *\"Analisis kondisi bisnis saya\"* — untuk mendapatkan evaluasi 6 bagian komprehensif terkait performa, isu kritis, dan rekomendasi strategis bertingkat.\n";
-        $reply .= "2. *\"Bagaimana kondisi seluruh proyek PKM?\"* — untuk membedah deviasi dan faktor risiko tiap proyek secara menyeluruh.\n";
-        $reply .= "3. *\"Apa masalah terbesar perusahaan saat ini?\"* — untuk diagnosis akar masalah operasional & beban kerja tim.\n";
-        $reply .= "4. *\"Inovasi apa yang cocok untuk PKM?\"* atau *\"Apa tren teknologi terbaru tahun 2027?\"* — untuk riset pasar eksternal & roadmap inovasi hibrida.";
+        $reply .= "#### Rekomendasi Langkah Selanjutnya:\n";
+        $reply .= "Anda dapat menanyakan analisis terperinci mengenai proyek tertentu, evaluasi beban kerja tim, atau meminta rekomendasi strategi bertingkat sesuai konteks operasional yang ingin Anda perdalam.\n";
 
         return [
             'success' => true,
@@ -2172,7 +2243,7 @@ class AiAnalystService
             ],
             'recommendations' => [
                 "Lakukan review pada proyek Delayed dan At Risk.",
-                "Eksplorasi analisis mendalam dengan memilih topik spesifik di atas."
+                "Eksplorasi data proyek atau kapasitas tim spesifik sesuai kebutuhan analisis Anda."
             ],
             'reply' => $reply,
             'mode' => 'Rule-Based Engine (Universal Business Advisor)',
@@ -2384,7 +2455,27 @@ ATURAN STRATEGIS:
 PROMPT;
         }
 
-        // 3. Internal-Only Persona (Database Grounded in MySQL snapshot)
+        // 3. General Knowledge / Universal Advisor Persona (NO internal MySQL clutter)
+        if ($routingMode === 'general_knowledge') {
+            return <<<PROMPT
+Anda adalah Universal Business & Technology Expert AI Advisor.
+Role pengguna: {$userRole}.
+Intent terdeteksi: {$analysis['intent']}.
+
+PANDUAN JAWABAN:
+1. Jawab pertanyaan pengguna secara cerdas, objektif, berstruktur, dan mudah dipahami dalam Bahasa Indonesia profesional.
+2. Pertanyaan ini adalah pertanyaan konseptual / umum di luar basis data internal perusahaan. Jawab langsung tanpa memaksakan mengaitkannya dengan data internal MySQL atau PT Potensi Karya Mandiri kecuali jika pengguna secara eksplisit memintanya.
+3. Berikan penjelasan yang komprehensif, terstruktur dengan Markdown rapi:
+   - Definisi & Konsep Inti
+   - Karakteristik Utama / Perbandingan (Gunakan tabel bila relevan)
+   - Kelebihan & Kekurangan / Praktik Terbaik (Best Practices)
+   - Panduan Implementasi / Rekomendasi Taktis
+4. Jika pengguna menanyakan konsep umum (misalnya metodologi Agile/Scrum, arsitektur software, cloud computing, database, manajemen tim, dsb.), sajikan jawaban standar industri kelas dunia.
+5. Gunakan gaya bahasa profesional, ramah, dan solutif.
+PROMPT;
+        }
+
+        // 4. Internal-Only Persona (Database Grounded in MySQL snapshot)
         $targetedProjectJson = '';
         if ($analysis['intent'] === 'single_project_analysis' && !empty($analysis['project_match']['project'])) {
             $p = $analysis['project_match']['project'];
@@ -2417,9 +2508,23 @@ ATURAN STRATEGIS & KETAT:
    - **Bagian 6: Pertanyaan Reflektif untuk Manajemen** (2-3 pertanyaan kritis untuk pimpinan mempertimbangkan keputusan strategis)
 4. JIKA PERTANYAAN MENANYAKAN KONDISI SELURUH PROYEK PKM ("Bagaimana kondisi seluruh proyek PKM?"):
    Sajikan gambaran portofolio lengkap (total, on-track, delayed, at-risk), breakdown status portofolio, analisis mendalam proyek berisiko tinggi dengan deviasi dan kendalanya, serta rekomendasi mitigasi portofolio.
-5. Jika pengguna menanyakan proyek tertentu (misalnya "Portal Vendor PKM"), JAWAB HANYA TENTANG PROYEK TERSEBUT.
-6. Patuhi batasan hak akses: Jika role adalah 'member', jangan bocorkan data keuangan perusahaan.
-7. Format output rapi dengan Markdown: heading (###, ####), bullet point, tebal, dan tabel bila relevan.
+5. JIKA PERTANYAAN ADALAH TENTANG APA YANG PERLU DIPERBAIKI ("Apa yang paling perlu diperbaiki perusahaan saat ini?"):
+   Identifikasi dan analisis 3 area kritis:
+   - Proyek dengan deviasi keterlambatan tertinggi atau status delayed/at_risk.
+   - Distribusi beban kerja anggota tim (workload overload atau tugas overdue).
+   - Hambatan/blockers operasional yang menahan laju milestone.
+   Berikan langkah perbaikan konkret untuk 7 hari ke depan.
+6. JIKA PERTANYAAN ADALAH TENTANG RISIKO PROYEK BERJALAN ("Jelaskan risiko terbesar dari proyek yang sedang berjalan"):
+   Fokuskan pada proyek aktif berstatus delayed atau at_risk, jabarkan faktor pemicu risiko (timeline, dependensi, kapasitas SDM), dan mitigasi taktis.
+7. JIKA PERTANYAAN MEMINTA RINGKASAN SEDERHANA ("Buatkan ringkasan sederhana dari data ini"):
+   Sajikan ringkasan singkat dalam 3-4 bullet point bahasa Indonesia sederhana tanpa jargon rumit: status kesehatan CHI, kondisi proyek lancar vs terhambat, dan tindakan utama minggu ini.
+8. JIKA PERTANYAAN ADALAH PERTANYAAN LANJUTAN ("Apa maksudnya?", "Lanjutkan analisis sebelumnya"):
+   Gunakan Riwayat Percakapan Terakhir untuk memberikan klarifikasi mendalam terhadap poin atau metrik sebelumnya, atau melanjutkan rekomendasi ke rencana kerja yang lebih detail.
+9. JIKA PERTANYAAN MEMINTA BANTUAN STRATEGI ("Bantu saya menyusun strategi"):
+   Sajikan rencana aksi strategis 3 fase: Fase 1 (Immediate / Minggu Ini: Stabilisasi proyek tertunda & overdue), Fase 2 (Medium-Term / Bulan Depan: Rebalancing beban kerja & optimasi sprint), Fase 3 (Long-Term / Kuartal: Inisiatif pertumbuhan baru).
+10. Jika pengguna menanyakan proyek tertentu (misalnya "Portal Vendor PKM"), JAWAB HANYA TENTANG PROYEK TERSEBUT.
+11. Patuhi batasan hak akses: Jika role adalah 'member', jangan bocorkan data keuangan perusahaan.
+12. Format output rapi dengan Markdown: heading (###, ####), bullet point, tebal, dan tabel bila relevan.
 PROMPT;
     }
 }

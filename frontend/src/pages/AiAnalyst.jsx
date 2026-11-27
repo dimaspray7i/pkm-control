@@ -414,8 +414,7 @@ export default function AIAnalyst() {
           {/* Message Thread */}
           <div
             ref={chatContainerRef}
-            className="bg-white border-2 border-[#171717] rounded-xl shadow-[4px_4px_0px_#171717] overflow-y-auto"
-            style={{ height: '520px' }}
+            className="bg-white border-2 border-[#171717] rounded-xl shadow-[4px_4px_0px_#171717] overflow-y-auto h-[55vh] min-h-[380px] max-h-[640px] sm:h-[540px]"
           >
             <div className="p-4 sm:p-5 space-y-5">
               {history.map((msg, idx) => {

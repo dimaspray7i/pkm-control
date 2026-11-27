@@ -447,7 +447,7 @@ export default function MemberLearningCenter() {
 
   if (loading && !refreshing && !overview) {
     return (
-      <div className="min-h-screen bg-[#F5F1E9] p-4 sm:p-6 lg:p-8">
+      <div className="w-full bg-[#F5F1E9] p-4 sm:p-6 lg:p-8">
         <PageLoading message="Memuat Pusat Pengembangan Diri & Pembelajaran..." />
       </div>
     )
@@ -464,7 +464,7 @@ export default function MemberLearningCenter() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F1E9] text-[#171717] p-3 sm:p-5 lg:p-7 space-y-6">
+    <div className="w-full bg-[#F5F1E9] text-[#171717] p-3 sm:p-5 lg:p-7 space-y-6">
       {/* Toast Feedback */}
       {feedbackMsg && (
         <div
@@ -814,7 +814,7 @@ export default function MemberLearningCenter() {
                         </div>
                         <div className="text-right">
                           <span className="text-[10px] font-mono px-2 py-0.5 bg-white border border-[#171717] rounded">
-                            L{s.current_level} → L{s.target_level}
+                            L{s.current_level} â†’ L{s.target_level}
                           </span>
                         </div>
                       </div>
@@ -1413,7 +1413,7 @@ export default function MemberLearningCenter() {
                   >
                     {[1, 2, 3, 4, 5].map(lvl => (
                       <option key={lvl} value={lvl}>
-                        Level {lvl} — {LEVEL_CONFIG[lvl].label}
+                        Level {lvl} â€” {LEVEL_CONFIG[lvl].label}
                       </option>
                     ))}
                   </select>
@@ -1430,7 +1430,7 @@ export default function MemberLearningCenter() {
                   >
                     {[1, 2, 3, 4, 5].map(lvl => (
                       <option key={lvl} value={lvl}>
-                        Level {lvl} — {LEVEL_CONFIG[lvl].label}
+                        Level {lvl} â€” {LEVEL_CONFIG[lvl].label}
                       </option>
                     ))}
                   </select>

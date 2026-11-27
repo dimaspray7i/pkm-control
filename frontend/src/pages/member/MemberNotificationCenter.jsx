@@ -421,14 +421,14 @@ export default function MemberNotificationCenter() {
   // Jika sedang initial loading
   if (loading && !refreshing && notifications.length === 0) {
     return (
-      <div className="min-h-screen bg-[#F5F1E9] p-4 sm:p-6 lg:p-8">
+      <div className="w-full bg-[#F5F1E9] p-4 sm:p-6 lg:p-8">
         <PageLoading message="Memuat Pusat Notifikasi Personal..." />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F1E9] text-[#171717] p-3 sm:p-5 lg:p-7 space-y-6">
+    <div className="w-full bg-[#F5F1E9] text-[#171717] p-3 sm:p-5 lg:p-7 space-y-6">
       {/* Toast Feedback */}
       {feedback && (
         <div

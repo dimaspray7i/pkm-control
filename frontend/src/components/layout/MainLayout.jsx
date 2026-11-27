@@ -26,12 +26,12 @@ export default function MainLayout() {
   }, [mobileOpen])
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#F5F1E9] font-body selection:bg-[#FF2F92]/20">
+    <div className="flex h-[100dvh] min-h-[100dvh] w-full max-w-full overflow-hidden bg-[#F5F1E9] font-body selection:bg-[#FF2F92]/20">
       {/* Sidebar with Desktop Sticky & Mobile Drawer support */}
       <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
 
       {/* Main Content Column */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Topbar sticky header */}
         <Topbar onToggleMobile={() => setMobileOpen(!mobileOpen)} />
 

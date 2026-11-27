@@ -13,7 +13,7 @@ import PageLoading from '../../components/ui/PageLoading'
 import PageHeader from '../../components/ui/PageHeader'
 
 const formatDateIndo = (d) => {
-  if (!d) return '—'
+  if (!d) return 'â€”'
   const s = String(d).includes('T') ? String(d).split('T')[0] : String(d)
   const parts = s.split('-')
   if (parts.length < 3) return s
@@ -184,7 +184,7 @@ export default function ExecutiveReports() {
       report_type: type,
       period_start: toYMD(start),
       period_end: toYMD(end),
-      title: prev.title || `Laporan Eksekutif ${REPORT_TYPE_LABELS[type]} — ${start.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`
+      title: prev.title || `Laporan Eksekutif ${REPORT_TYPE_LABELS[type]} â€” ${start.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`
     }))
   }
 
@@ -259,7 +259,7 @@ export default function ExecutiveReports() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F1E9] p-4 md:p-8 space-y-6">
+    <div className="w-full bg-[#F5F1E9] p-4 md:p-8 space-y-6">
 
       {/* HEADER SECTION */}
       <PageHeader
@@ -329,9 +329,9 @@ export default function ExecutiveReports() {
         </button>
       </div>
 
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {/* TAB 1: EXECUTIVE REPORTS HUB */}
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {activeTab === 'reports' && (
         <div className="space-y-6">
 
@@ -496,7 +496,7 @@ export default function ExecutiveReports() {
                                 {chiScore}/100 {chiCategory ? `(${chiCategory})` : ''}
                               </span>
                             ) : (
-                              <span className="text-[#888] font-bold">—</span>
+                              <span className="text-[#888] font-bold">â€”</span>
                             )}
                           </td>
                           <td className="py-3 px-4 text-right">
@@ -518,9 +518,9 @@ export default function ExecutiveReports() {
         </div>
       )}
 
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {/* TAB 2: STRATEGIC DECISION FOLLOW-UP & ACTION TRACKER */}
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {activeTab === 'decisions' && (
         <div className="space-y-6">
 
@@ -544,7 +544,7 @@ export default function ExecutiveReports() {
                 <div className="text-2xl font-black text-[#1E40AF]">{decisionSummary.approved_count}</div>
               </div>
               <div className="border-[3px] border-[#171717] bg-red-100 shadow-[4px_4px_0px_#171717] p-3 text-center">
-                <div className="text-[11px] font-black uppercase text-red-700">🚨 Overdue</div>
+                <div className="text-[11px] font-black uppercase text-red-700">ðŸš¨ Overdue</div>
                 <div className="text-2xl font-black text-red-700">{decisionSummary.overdue_count}</div>
               </div>
               <div className="border-[3px] border-[#171717] bg-[#F3E8FF] shadow-[4px_4px_0px_#171717] p-3 text-center">
@@ -679,11 +679,11 @@ export default function ExecutiveReports() {
                           <td className="py-3 px-4">
                             <div className="font-black text-sm text-[#171717]">{d.title}</div>
                             <div className="text-[11px] text-[#666] font-semibold mt-0.5">
-                              Kategori: {d.category} {d.project ? `· Proyek: ${d.project.name}` : ''}
+                              Kategori: {d.category} {d.project ? `Â· Proyek: ${d.project.name}` : ''}
                             </div>
                           </td>
                           <td className="py-3 px-4">
-                            <div className="font-bold text-[#171717]">{d.pic?.name || '— Belum Ditugaskan —'}</div>
+                            <div className="font-bold text-[#171717]">{d.pic?.name || 'â€” Belum Ditugaskan â€”'}</div>
                             {d.pic?.role && (
                               <div className="text-[10px] text-[#777] font-semibold uppercase">{d.pic.role}</div>
                             )}
@@ -736,9 +736,9 @@ export default function ExecutiveReports() {
         </div>
       )}
 
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {/* MODAL: BUAT LAPORAN EKSEKUTIF BARU */}
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-[#F5F1E9] border-[3px] border-[#171717] shadow-[8px_8px_0px_#171717] w-full max-w-2xl max-h-[90vh] overflow-y-auto my-auto">
@@ -816,7 +816,7 @@ export default function ExecutiveReports() {
                   type="text"
                   value={createForm.title}
                   onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
-                  placeholder="Contoh: Laporan Kinerja Bisnis & Portofolio — November 2026"
+                  placeholder="Contoh: Laporan Kinerja Bisnis & Portofolio â€” November 2026"
                   className="w-full border-[2px] border-[#171717] px-3 py-2 text-xs font-bold bg-white focus:outline-none"
                   required
                 />
@@ -873,7 +873,7 @@ export default function ExecutiveReports() {
               </div>
 
               <div className="bg-[#FFFDE7] border-[2px] border-[#171717] p-3 text-xs text-[#555] font-semibold">
-                ℹ️ Sistem akan mengumpulkan snapshot data operasional secara otomatis saat draft dibuat (CHI, Proyek, Risiko, Blocker, Keputusan).
+                â„¹ï¸ Sistem akan mengumpulkan snapshot data operasional secara otomatis saat draft dibuat (CHI, Proyek, Risiko, Blocker, Keputusan).
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t-[2px] border-[#171717]">
@@ -897,9 +897,9 @@ export default function ExecutiveReports() {
         </div>
       )}
 
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {/* MODAL: DETAIL & PRINT-READY VIEW LAPORAN EKSEKUTIF */}
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {selectedReport && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 md:p-4 overflow-y-auto print:p-0 print:bg-white">
           <div className="bg-white border-[3px] border-[#171717] shadow-[8px_8px_0px_#171717] w-full max-w-4xl max-h-[92vh] overflow-y-auto my-auto print:border-none print:shadow-none print:max-h-full print:m-0">
@@ -954,7 +954,7 @@ export default function ExecutiveReports() {
                     Executive Management & Business Control Center
                   </div>
                   <div className="text-[11px] text-[#777] mt-0.5">
-                    Gedung PKM Center, Jakarta · Dokumen Pengawasan dan Evaluasi Manajemen
+                    Gedung PKM Center, Jakarta Â· Dokumen Pengawasan dan Evaluasi Manajemen
                   </div>
                 </div>
                 <div className="text-right">
@@ -976,7 +976,7 @@ export default function ExecutiveReports() {
                   {selectedReport.title}
                 </h2>
                 <div className="text-xs font-semibold text-[#555] mt-1">
-                  Status Dokumen: {selectedReport.status === 'published' ? 'ARSIP RESMI DITERBITKAN' : 'DRAFT LAPORAN (DALAM PENINJAUAN)'} · Disusun oleh: {selectedReport.generated_by_user?.name || selectedReport.generated_by?.name || 'Pimpinan'}
+                  Status Dokumen: {selectedReport.status === 'published' ? 'ARSIP RESMI DITERBITKAN' : 'DRAFT LAPORAN (DALAM PENINJAUAN)'} Â· Disusun oleh: {selectedReport.generated_by_user?.name || selectedReport.generated_by?.name || 'Pimpinan'}
                 </div>
               </div>
 

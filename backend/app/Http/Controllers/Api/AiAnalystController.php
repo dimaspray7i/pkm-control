@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Services\AiAnalystService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class AiAnalystController extends Controller
 {
@@ -21,6 +23,8 @@ class AiAnalystController extends Controller
      */
     public function ask(Request $request)
     {
+        $requestId = (string) Str::uuid();
+
         $validated = $request->validate([
             'prompt' => 'required_without:question|nullable|string|min:2|max:1000',
             'question' => 'nullable|string|min:2|max:1000',
@@ -34,6 +38,7 @@ class AiAnalystController extends Controller
         if (empty(trim($prompt)) || strlen(trim($prompt)) < 2) {
             return response()->json([
                 'success' => false,
+                'request_id' => $requestId,
                 'message' => 'Pertanyaan atau prompt analisis wajib diisi minimal 2 karakter.',
             ], 422);
         }
@@ -43,19 +48,38 @@ class AiAnalystController extends Controller
         $pageContext = $validated['page_context'] ?? null;
         $user = $request->user();
 
-        $result = $this->aiService->ask(
-            $prompt,
-            $category,
-            is_array($history) ? $history : [],
-            $pageContext,
-            $user
-        );
-        
-        // Backward-compatible fields
-        $result['answer'] = $result['reply'] ?? '';
-        $result['timestamp'] = $result['timestamp'] ?? (Carbon::now('Asia/Jakarta')->format('H:i') . ' WIB');
+        try {
+            $result = $this->aiService->ask(
+                $prompt,
+                $category,
+                is_array($history) ? $history : [],
+                $pageContext,
+                $user,
+                $requestId
+            );
+            
+            // Backward-compatible fields
+            $result['request_id'] = $requestId;
+            $result['answer'] = $result['reply'] ?? '';
+            $result['timestamp'] = $result['timestamp'] ?? (Carbon::now('Asia/Jakarta')->format('H:i') . ' WIB');
 
-        return response()->json($result);
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            Log::error("[AiAnalyst] Request {$requestId} failed: " . $e->getMessage(), [
+                'request_id' => $requestId,
+                'prompt_snippet' => substr($prompt, 0, 100),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'request_id' => $requestId,
+                'message' => 'Maaf, terjadi kendala saat memproses analisis: ' . $e->getMessage(),
+                'reply' => 'Maaf, terjadi kendala teknis pada engine analitik. Silakan coba beberapa saat lagi.',
+                'answer' => 'Maaf, terjadi kendala teknis pada engine analitik. Silakan coba beberapa saat lagi.',
+                'timestamp' => Carbon::now('Asia/Jakarta')->format('H:i') . ' WIB',
+            ], 500);
+        }
     }
 
     /**

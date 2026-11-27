@@ -452,7 +452,7 @@ function BusinessReportsDirectory() {
             <p className="font-display text-3xl leading-none mt-1">{(kpi.at_risk_projects ?? 0) + (kpi.delayed_projects ?? 0)}</p>
           </div>
           <p className="text-[10px] font-bold text-[#171717]/80 mt-2 truncate">
-            {kpi.at_risk_projects ?? 0} At Risk · {kpi.delayed_projects ?? 0} Delayed
+            {kpi.at_risk_projects ?? 0} At Risk Â· {kpi.delayed_projects ?? 0} Delayed
           </p>
         </div>
 
@@ -488,7 +488,7 @@ function BusinessReportsDirectory() {
             <p className="font-display text-2xl text-[#171717]">{(kpi.in_progress_tasks ?? 0) + (kpi.pending_tasks ?? 0)}</p>
           </div>
           <p className="text-[10px] font-bold text-[#171717]/70 truncate">
-            {kpi.in_progress_tasks ?? 0} Berjalan · {kpi.pending_tasks ?? 0} Pending
+            {kpi.in_progress_tasks ?? 0} Berjalan Â· {kpi.pending_tasks ?? 0} Pending
           </p>
         </div>
 
@@ -499,7 +499,7 @@ function BusinessReportsDirectory() {
             <p className="font-display text-2xl text-[#2563EB]">{kpi.total_sprints ?? 0}</p>
           </div>
           <p className="text-[10px] font-bold text-[#171717]/70 truncate">
-            {kpi.completed_sprints ?? 0} Selesai · {kpi.in_progress_sprints ?? 0} Berjalan
+            {kpi.completed_sprints ?? 0} Selesai Â· {kpi.in_progress_sprints ?? 0} Berjalan
           </p>
         </div>
 
@@ -549,7 +549,7 @@ function BusinessReportsDirectory() {
               {insights.findings?.length > 0 ? (
                 insights.findings.map((f, i) => (
                   <li key={i} className="flex items-start gap-1.5">
-                    <span className="text-[#FF2F92] font-black shrink-0">•</span>
+                    <span className="text-[#FF2F92] font-black shrink-0">â€¢</span>
                     <span>{f}</span>
                   </li>
                 ))
@@ -569,7 +569,7 @@ function BusinessReportsDirectory() {
               {insights.causes?.length > 0 ? (
                 insights.causes.map((c, i) => (
                   <li key={i} className="flex items-start gap-1.5">
-                    <span className="text-[#F59E0B] font-black shrink-0">•</span>
+                    <span className="text-[#F59E0B] font-black shrink-0">â€¢</span>
                     <span>{c}</span>
                   </li>
                 ))
@@ -589,7 +589,7 @@ function BusinessReportsDirectory() {
               {insights.impacts?.length > 0 ? (
                 insights.impacts.map((imp, i) => (
                   <li key={i} className="flex items-start gap-1.5">
-                    <span className="text-[#EF4444] font-black shrink-0">•</span>
+                    <span className="text-[#EF4444] font-black shrink-0">â€¢</span>
                     <span>{imp}</span>
                   </li>
                 ))
@@ -609,7 +609,7 @@ function BusinessReportsDirectory() {
               {insights.recommendations?.length > 0 ? (
                 insights.recommendations.map((r, i) => (
                   <li key={i} className="flex items-start gap-1.5">
-                    <span className="text-[#3B82F6] font-black shrink-0">✓</span>
+                    <span className="text-[#3B82F6] font-black shrink-0">âœ“</span>
                     <span>{r}</span>
                   </li>
                 ))
@@ -839,7 +839,7 @@ function BusinessReportsDirectory() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <span className="text-[9.5px] font-mono font-bold text-[#171717]/60 uppercase">
-                          {p.code} · Klien: {p.client}
+                          {p.code} Â· Klien: {p.client}
                         </span>
                         <h4 className="font-bold text-xs text-[#171717] truncate leading-tight mt-0.5">
                           {p.name}
@@ -861,7 +861,7 @@ function BusinessReportsDirectory() {
                     {/* Progress Bar & Details */}
                     <div>
                       <div className="flex justify-between text-[10px] font-black mb-1">
-                        <span className="text-[#171717]/60">PIC: <strong>{p.pic_name || '—'}</strong></span>
+                        <span className="text-[#171717]/60">PIC: <strong>{p.pic_name || 'â€”'}</strong></span>
                         <span className="text-[#FF2F92]">{p.progress}%</span>
                       </div>
                       <div className="w-full bg-[#FAF7F2] border border-[#171717]/20 rounded-full h-2 overflow-hidden">
@@ -878,7 +878,7 @@ function BusinessReportsDirectory() {
                           <span className="text-[#10B981]">0 Overdue</span>
                         )}
                       </span>
-                      <span>Deadline: <strong>{p.deadline || '—'}</strong></span>
+                      <span>Deadline: <strong>{p.deadline || 'â€”'}</strong></span>
                     </div>
                   </div>
                 ))
@@ -1024,8 +1024,8 @@ function BusinessReportsDirectory() {
                     </div>
 
                     <div className="flex items-center justify-between text-[10px] font-semibold text-[#171717]/70 pt-1">
-                      <span>Mulai: <strong>{s.start_date || '—'}</strong></span>
-                      <span>Jatuh Tempo: <strong>{s.due_date || '—'}</strong></span>
+                      <span>Mulai: <strong>{s.start_date || 'â€”'}</strong></span>
+                      <span>Jatuh Tempo: <strong>{s.due_date || 'â€”'}</strong></span>
                     </div>
                   </div>
                 ))
@@ -1120,7 +1120,7 @@ export default function Reports() {
 
   // Pimpinan & Admin get toggle between Weekly Project Reports and Business Intelligence Reports
   return (
-    <div className="min-h-screen bg-[#F5F1E9]">
+    <div className="w-full bg-[#F5F1E9]">
       <PageHeader
         tag="PEMANTAUAN & LAPORAN"
         title="Laporan & Analitik"

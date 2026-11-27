@@ -14,7 +14,7 @@ import PageLoading from '../../components/ui/PageLoading'
 import PageHeader from '../../components/ui/PageHeader'
 
 const formatDateIndo = (d) => {
-  if (!d) return '—'
+  if (!d) return 'â€”'
   const s = String(d).includes('T') ? String(d).split('T')[0] : String(d)
   const parts = s.split('-')
   if (parts.length < 3) return s
@@ -51,8 +51,8 @@ const KR_STATUS_CONFIG = {
 }
 
 const METRIC_TYPE_LABELS = {
-  numeric_increase: 'Peningkatan Angka (Target ↑)',
-  numeric_decrease: 'Penurunan Angka (Target ↓)',
+  numeric_increase: 'Peningkatan Angka (Target â†‘)',
+  numeric_decrease: 'Penurunan Angka (Target â†“)',
   boolean: 'Status Tercapai / Belum (Ya/Tidak)',
   milestone_based: 'Penyelesaian Milestone',
 }
@@ -283,7 +283,7 @@ export default function StrategicObjectives() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F1E9] p-4 md:p-8 space-y-6">
+    <div className="w-full bg-[#F5F1E9] p-4 md:p-8 space-y-6">
 
       {/* HEADER SECTION */}
       <PageHeader
@@ -446,7 +446,7 @@ export default function StrategicObjectives() {
                   </div>
 
                   <div className="text-xs font-semibold text-[#666] flex items-center gap-3">
-                    <span>Target: {formatDateIndo(obj.period_start)} – {formatDateIndo(obj.period_end)}</span>
+                    <span>Target: {formatDateIndo(obj.period_start)} â€“ {formatDateIndo(obj.period_end)}</span>
                     <span>Sponsor: <strong className="text-[#171717]">{obj.owner?.name || 'Direksi PKM'}</strong></span>
                   </div>
                 </div>
@@ -579,9 +579,9 @@ export default function StrategicObjectives() {
         </div>
       )}
 
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {/* MODAL: DETAIL & PENGELOLAAN OBJECTIVE */}
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {selectedObjective && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-2 md:p-4 overflow-y-auto">
           <div className="bg-white border-[3px] border-[#171717] shadow-[8px_8px_0px_#171717] w-full max-w-4xl max-h-[92vh] overflow-y-auto my-auto p-6 md:p-8 space-y-6">
@@ -648,7 +648,7 @@ export default function StrategicObjectives() {
                         <div>
                           <div className="font-black text-sm text-[#171717]">{kr.title}</div>
                           <div className="text-[11px] text-[#666]">
-                            Metrik: {METRIC_TYPE_LABELS[kr.metric_type] || kr.metric_type} · Bobot: {kr.weight}
+                            Metrik: {METRIC_TYPE_LABELS[kr.metric_type] || kr.metric_type} Â· Bobot: {kr.weight}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -718,7 +718,7 @@ export default function StrategicObjectives() {
                       <div>
                         <div className="font-mono font-bold text-xs">{p.code}</div>
                         <div className="font-bold text-sm text-[#171717]">{p.name}</div>
-                        <div className="text-[11px] text-[#666]">Status: {p.status} · Progres: {p.progress}%</div>
+                        <div className="text-[11px] text-[#666]">Status: {p.status} Â· Progres: {p.progress}%</div>
                       </div>
                       {isLeaderOrAdmin && (
                         <button
@@ -743,9 +743,9 @@ export default function StrategicObjectives() {
         </div>
       )}
 
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {/* MODAL: BUAT OBJECTIVE BARU */}
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-[#F5F1E9] border-[3px] border-[#171717] shadow-[8px_8px_0px_#171717] w-full max-w-xl max-h-[90vh] overflow-y-auto my-auto p-6 space-y-4">
@@ -860,9 +860,9 @@ export default function StrategicObjectives() {
         </div>
       )}
 
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {/* MODAL: TAMBAH KEY RESULT */}
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {showAddKrModal && selectedObjective && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-[#F5F1E9] border-[3px] border-[#171717] shadow-[8px_8px_0px_#171717] w-full max-w-lg max-h-[90vh] overflow-y-auto my-auto p-6 space-y-4">
@@ -891,8 +891,8 @@ export default function StrategicObjectives() {
                   onChange={(e) => setKrForm({ ...krForm, metric_type: e.target.value })}
                   className="w-full border-2 border-[#171717] p-2 font-bold bg-white focus:outline-none"
                 >
-                  <option value="numeric_increase">Peningkatan Angka (Target ↑)</option>
-                  <option value="numeric_decrease">Penurunan Angka (Target ↓)</option>
+                  <option value="numeric_increase">Peningkatan Angka (Target â†‘)</option>
+                  <option value="numeric_decrease">Penurunan Angka (Target â†“)</option>
                   <option value="boolean">Status Ya/Tidak (Tercapai / Belum)</option>
                   <option value="milestone_based">Penyelesaian Milestone</option>
                 </select>
@@ -976,9 +976,9 @@ export default function StrategicObjectives() {
         </div>
       )}
 
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {/* MODAL: CHECK-IN KEY RESULT */}
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {showCheckinModal && selectedKr && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-[#F5F1E9] border-[3px] border-[#171717] shadow-[8px_8px_0px_#171717] w-full max-w-md max-h-[90vh] overflow-y-auto my-auto p-6 space-y-4">
@@ -1054,9 +1054,9 @@ export default function StrategicObjectives() {
         </div>
       )}
 
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {/* MODAL: HUBUNGKAN PROYEK PENDUKUNG */}
-      {/* ───────────────────────────────────────────────────────────── */}
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {showLinkProjectModal && selectedObjective && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-[#F5F1E9] border-[3px] border-[#171717] shadow-[8px_8px_0px_#171717] w-full max-w-md max-h-[90vh] overflow-y-auto my-auto p-6 space-y-4">
@@ -1074,10 +1074,10 @@ export default function StrategicObjectives() {
                   onChange={(e) => setLinkProjectForm({ ...linkProjectForm, project_id: e.target.value })}
                   className="w-full border-2 border-[#171717] p-2 font-bold bg-white focus:outline-none"
                 >
-                  <option value="">— Pilih Proyek —</option>
+                  <option value="">â€” Pilih Proyek â€”</option>
                   {projectsList.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.code} — {p.name} ({p.progress}%)
+                      {p.code} â€” {p.name} ({p.progress}%)
                     </option>
                   ))}
                 </select>

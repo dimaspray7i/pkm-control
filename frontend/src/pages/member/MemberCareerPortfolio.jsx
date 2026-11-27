@@ -386,7 +386,7 @@ export default function MemberCareerPortfolio() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F1E9] text-[#171717] pb-16 font-sans">
+    <div className="w-full bg-[#F5F1E9] text-[#171717] pb-16 font-sans">
       {/* Toast Notification */}
       {toastMsg && (
         <div className="fixed top-5 right-5 z-50 animate-bounce">
@@ -1119,7 +1119,7 @@ export default function MemberCareerPortfolio() {
                       <div>
                         <div className="font-black text-[#171717]">{cert.title}</div>
                         <div className="text-neutral-500 text-[11px] mt-0.5">
-                          {cert.activity_date} • {cert.duration_minutes ? `${cert.duration_minutes} Menit` : 'Pelatihan'}
+                          {cert.activity_date} â€¢ {cert.duration_minutes ? `${cert.duration_minutes} Menit` : 'Pelatihan'}
                         </div>
                       </div>
                       <a
@@ -1234,7 +1234,7 @@ export default function MemberCareerPortfolio() {
                   <h2 className="text-3xl font-black text-[#171717]">{presentation.profile?.name}</h2>
                   <p className="text-base font-bold text-[#FF2F92] mt-1">{presentation.profile?.headline}</p>
                   <p className="text-xs text-neutral-600 mt-1">
-                    {presentation.profile?.email} {presentation.profile?.phone ? `• ${presentation.profile.phone}` : ''}
+                    {presentation.profile?.email} {presentation.profile?.phone ? `â€¢ ${presentation.profile.phone}` : ''}
                   </p>
                 </div>
                 <div className="text-right">
@@ -1358,7 +1358,7 @@ export default function MemberCareerPortfolio() {
                     <div key={p.id} className="p-4 border-2 border-[#171717] bg-[#FAF7F2]">
                       <div className="font-black text-sm text-[#171717]">{p.name}</div>
                       <div className="text-xs text-neutral-600 mt-1">
-                        Klien: {p.client} • Status: {p.status}
+                        Klien: {p.client} â€¢ Status: {p.status}
                       </div>
                     </div>
                   ))}

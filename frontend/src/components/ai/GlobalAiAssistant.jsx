@@ -1,43 +1,64 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Sparkles, X, Send, Bot, Maximize2, Loader2, ArrowRight, ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Sparkles, X, Send, Bot, Maximize2, Loader2, ArrowRight, ChevronDown, CheckCircle2, AlertTriangle, RotateCcw } from 'lucide-react'
 import api from '../../services/api'
 import { useAuth } from '../../contexts/AuthContext'
 import MarkdownRenderer from '../ui/MarkdownRenderer'
+
+const getWibTimestamp = (date = new Date()) => {
+  return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' WIB'
+}
 
 export default function GlobalAiAssistant() {
   const { user } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
 
-  // Floating button position & drag state
+  // Track mobile viewport (< 640px)
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 640 : false)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  // Floating button position & drag state (desktop only)
   const [position, setPosition] = useState(() => {
     try {
       const saved = localStorage.getItem('pkm_ai_floating_pos')
       if (saved) {
         const parsed = JSON.parse(saved)
-        // Ensure within window bounds
-        const x = Math.min(Math.max(16, parsed.x), window.innerWidth - 70)
-        const y = Math.min(Math.max(16, parsed.y), window.innerHeight - 70)
+        const x = Math.min(Math.max(16, parsed.x), window.innerWidth - 72)
+        const y = Math.min(Math.max(16, parsed.y), window.innerHeight - 72)
         return { x, y }
       }
     } catch {}
-    // Default: bottom-right
     return {
-      x: typeof window !== 'undefined' ? window.innerWidth - 80 : 1200,
-      y: typeof window !== 'undefined' ? window.innerHeight - 80 : 700,
+      x: typeof window !== 'undefined' ? Math.max(16, window.innerWidth - 80) : 1200,
+      y: typeof window !== 'undefined' ? Math.max(16, window.innerHeight - 80) : 700,
     }
   })
 
   const [isOpen, setIsOpen] = useState(false)
-  const [messages, setMessages] = useState([
-    {
-      id: 'init',
-      sender: 'ai',
-      text: 'Halo! Saya Global AI Assistant PKM. Tanyakan kondisi proyek, prioritas tugas, atau analisis laporan.',
-      time: 'Baru saja'
-    }
-  ])
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pkm_ai_floating_history')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch {}
+    return [
+      {
+        id: 'init',
+        sender: 'ai',
+        text: 'Halo! Saya Global AI Assistant PKM. Tanyakan kondisi bisnis, prioritas tugas, performa tim, atau rekomendasi strategi.',
+        time: getWibTimestamp()
+      }
+    ]
+  })
+
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [engineMode, setEngineMode] = useState('Rule-Based Engine')
@@ -49,6 +70,15 @@ export default function GlobalAiAssistant() {
   const startBtnPos = useRef({ x: 0, y: 0 })
   const movedDistance = useRef(0)
   const messagesEndRef = useRef(null)
+
+  // Persist messages in localStorage
+  useEffect(() => {
+    try {
+      if (messages.length > 0) {
+        localStorage.setItem('pkm_ai_floating_history', JSON.stringify(messages.slice(-20)))
+      }
+    } catch {}
+  }, [messages])
 
   // Fetch engine mode on mount
   useEffect(() => {
@@ -63,8 +93,8 @@ export default function GlobalAiAssistant() {
   useEffect(() => {
     const handleViewportResize = () => {
       setPosition(prev => ({
-        x: Math.min(Math.max(16, prev.x), window.innerWidth - 70),
-        y: Math.min(Math.max(16, prev.y), window.innerHeight - 70),
+        x: Math.min(Math.max(16, prev.x), window.innerWidth - 72),
+        y: Math.min(Math.max(16, prev.y), window.innerHeight - 72),
       }))
     }
     window.addEventListener('resize', handleViewportResize)
@@ -81,6 +111,17 @@ export default function GlobalAiAssistant() {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages, isOpen, loading])
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen])
 
   // Context-aware page prompts
   const getContextSuggestions = () => {
@@ -142,12 +183,26 @@ export default function GlobalAiAssistant() {
     } catch {}
 
     // Save position if dragged
-    if (movedDistance.current > 5) {
+    if (movedDistance.current > 8) {
       localStorage.setItem('pkm_ai_floating_pos', JSON.stringify(position))
     } else {
-      // Toggle modal on pure click
+      // Toggle modal on click/tap
       setIsOpen(prev => !prev)
     }
+  }
+
+  // Reset conversation
+  const handleResetChat = () => {
+    const initialMsg = {
+      id: 'init_' + Date.now(),
+      sender: 'ai',
+      text: 'Riwayat percakapan telah dibersihkan. Tanyakan apa saja terkait proyek, tugas, atau operasional PKM.',
+      time: getWibTimestamp()
+    }
+    setMessages([initialMsg])
+    try {
+      localStorage.removeItem('pkm_ai_floating_history')
+    } catch {}
   }
 
   // Handle Sending Message
@@ -155,10 +210,8 @@ export default function GlobalAiAssistant() {
     const text = (textToSend || input).trim()
     if (!text || loading) return
 
-    const now = new Date()
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-
-    const newMsg = { id: Date.now(), sender: 'user', text, time: timeStr }
+    const timeStr = getWibTimestamp()
+    const newMsg = { id: 'usr_' + Date.now(), sender: 'user', text, time: timeStr }
     setMessages(prev => [...prev, newMsg])
     setInput('')
     setLoading(true)
@@ -173,27 +226,34 @@ export default function GlobalAiAssistant() {
         }))
       })
 
+      const replyText = res.data.reply || res.data.answer || 'Analisis selesai.'
+
       setMessages(prev => [
         ...prev,
         {
-          id: Date.now() + 1,
+          id: 'ai_' + Date.now(),
           sender: 'ai',
-          text: res.data.reply || res.data.answer || 'Analisis selesai.',
+          text: replyText,
           summary: res.data.summary,
           findings: res.data.findings || [],
           recommendations: res.data.recommendations || [],
           time: res.data.timestamp || timeStr,
-          mode: res.data.mode
+          mode: res.data.mode,
+          sourceType: res.data.source_type,
+          routingMode: res.data.routing_mode,
+          responseType: res.data.type
         }
       ])
-    } catch {
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.response?.data?.error || 'Maaf, terjadi gangguan saat menghubungi analitik AI PKM.'
       setMessages(prev => [
         ...prev,
         {
-          id: Date.now() + 1,
+          id: 'err_' + Date.now(),
           sender: 'ai',
-          text: 'Maaf, terjadi gangguan saat menghubungi analitik AI PKM.',
-          time: timeStr
+          text: errMsg,
+          time: timeStr,
+          isError: true
         }
       ])
     } finally {
@@ -208,33 +268,47 @@ export default function GlobalAiAssistant() {
       state: {
         fromGlobal: true,
         history: messages.map(m => ({
+          id: m.id || 'msg_' + Math.random(),
           type: m.sender,
           text: m.sender === 'user' ? m.text : undefined,
           answer: m.sender === 'ai' ? m.text : undefined,
+          summary: m.summary,
           findings: m.findings,
           recommendations: m.recommendations,
+          mode: m.mode,
+          sourceType: m.sourceType,
+          routingMode: m.routingMode,
+          responseType: m.responseType,
           timestamp: m.time
         }))
       }
     })
   }
 
-  // If user role is not allowed full AI Analyst, they still have quick assistant but button clarifies
+  // Role access check
   const canAccessFullAnalyst = user && ['admin', 'pimpinan', 'project_manager'].includes(user.role)
 
-  // Sembunyikan floating assistant untuk role yang tidak memiliki akses AI Analyst (Member)
   if (!canAccessFullAnalyst) {
     return null
   }
 
-  // Sembunyikan floating assistant khusus ketika berada di Dashboard utama (karena sudah ada panel AI terdedikasi)
   if (location.pathname === '/' || location.pathname === '/dashboard') {
     return null
   }
 
+  // Safe desktop floating calculation
+  const desktopModalStyle = {
+    position: 'fixed',
+    right: Math.max(16, Math.min(window.innerWidth - 400, window.innerWidth - position.x - 20)),
+    bottom: Math.max(16, Math.min(window.innerHeight - 560, window.innerHeight - position.y + 10)),
+    width: '380px',
+    height: '520px',
+    maxHeight: 'calc(100vh - 40px)',
+  }
+
   return (
     <>
-      {/* Draggable Floating Button */}
+      {/* Draggable Floating Button: z-30 keeps it under Sidebar drawer (z-40) */}
       <div
         ref={dragRef}
         onPointerDown={handlePointerDown}
@@ -246,81 +320,96 @@ export default function GlobalAiAssistant() {
           top: `${position.y}px`,
           touchAction: 'none'
         }}
-        className="z-40 group cursor-grab active:cursor-grabbing select-none"
+        className="z-30 group cursor-grab active:cursor-grabbing select-none"
         title="Geser untuk pindah posisi, Klik untuk buka PKM AI Assistant"
       >
         <div className="relative">
           {/* Main Round Neo-Brutalist Pill */}
-          <div className="w-14 h-14 bg-[#FF2F92] hover:bg-[#FF439D] active:scale-95 text-white border-2 border-[#171717] rounded-full flex items-center justify-center shadow-[4px_4px_0px_#171717] transition-transform">
-            <Sparkles size={24} className="text-white animate-pulse" />
+          <div className="w-13 h-13 sm:w-14 sm:h-14 bg-[#FF2F92] hover:bg-[#FF439D] active:scale-95 text-white border-2 border-[#171717] rounded-full flex items-center justify-center shadow-[3px_3px_0px_#171717] sm:shadow-[4px_4px_0px_#171717] transition-transform">
+            <Sparkles size={22} className="text-white animate-pulse" />
           </div>
 
           {/* Online status indicator dot */}
-          <span className="absolute top-0 right-0 w-4 h-4 bg-[#10B981] border-2 border-[#171717] rounded-full" />
+          <span className="absolute top-0 right-0 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-[#10B981] border-2 border-[#171717] rounded-full" />
         </div>
       </div>
 
-      {/* Floating Chat Modal Panel */}
+      {/* Mobile Backdrop Overlay: Tapping outside closes modal */}
+      {isOpen && isMobile && (
+        <div
+          className="fixed inset-0 bg-[#171717]/40 backdrop-blur-xs z-40 sm:hidden transition-opacity"
+          onClick={() => setIsOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Floating Chat Modal Panel: Mobile Sheet vs Desktop Floating */}
       {isOpen && (
         <div
-          style={{
-            position: 'fixed',
-            right: position.x > window.innerWidth / 2 ? Math.max(16, window.innerWidth - position.x - 20) : 'auto',
-            left: position.x <= window.innerWidth / 2 ? Math.max(16, position.x) : 'auto',
-            bottom: Math.max(16, window.innerHeight - position.y + 10) > window.innerHeight - 560
-              ? 20
-              : Math.max(16, window.innerHeight - position.y + 10)
-          }}
-          className="z-40 w-[380px] max-w-[92vw] h-[520px] max-h-[85vh] bg-[#F5F1E9] border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          style={isMobile ? undefined : desktopModalStyle}
+          className={`z-50 bg-[#F5F1E9] border-2 border-[#171717] rounded-xl shadow-[6px_6px_0px_#171717] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 ${
+            isMobile
+              ? 'fixed inset-x-3 bottom-3 w-auto max-w-[calc(100vw-24px)] h-[min(540px,calc(100dvh-80px))]'
+              : ''
+          }`}
         >
           {/* Modal Header */}
-          <div className="bg-[#171717] text-white px-4 py-3 flex items-center justify-between border-b-2 border-[#171717]">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-[#FF2F92] text-white rounded flex items-center justify-center font-bold text-xs border border-white/20">
+          <div className="bg-[#171717] text-white px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between border-b-2 border-[#171717] shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 bg-[#FF2F92] text-white rounded flex items-center justify-center font-bold text-xs border border-white/20 shrink-0">
                 AI
               </div>
-              <div>
-                <h3 className="font-display text-sm tracking-wide leading-none text-white uppercase">
+              <div className="min-w-0">
+                <h3 className="font-display text-sm tracking-wide leading-none text-white uppercase truncate">
                   PKM AI ASSISTANT
                 </h3>
-                <p className="text-[10px] text-white/70 font-sans mt-0.5 truncate max-w-[190px]">
+                <p className="text-[9.5px] sm:text-[10px] text-white/70 font-sans mt-0.5 truncate max-w-[170px] sm:max-w-[210px]">
                   {engineMode}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={handleResetChat}
+                title="Bersihkan Percakapan"
+                className="p-1 hover:bg-white/20 text-white rounded transition cursor-pointer"
+              >
+                <RotateCcw size={14} />
+              </button>
               {canAccessFullAnalyst && (
                 <button
                   onClick={handleOpenFullAnalyst}
                   title="Buka AI Analyst Lengkap"
                   className="p-1 hover:bg-white/20 text-white rounded transition cursor-pointer"
                 >
-                  <Maximize2 size={15} />
+                  <Maximize2 size={14} />
                 </button>
               )}
               <button
                 onClick={() => setIsOpen(false)}
-                title="Tutup"
+                title="Tutup / Minimize"
                 className="p-1 hover:bg-white/20 text-white rounded transition cursor-pointer"
               >
-                <X size={16} />
+                <ChevronDown size={17} />
               </button>
             </div>
           </div>
 
-          {/* Context Notice & Quick Suggestions */}
-          <div className="bg-[#FAF7F2] border-b border-[#171717]/20 p-2.5">
-            <p className="text-[9.5px] font-black uppercase text-[#171717]/60 tracking-wider mb-1.5 flex items-center gap-1">
-              <Sparkles size={11} className="text-[#FF2F92]" /> REKOMENDASI HALAMAN INI:
-            </p>
-            <div className="flex flex-wrap gap-1">
+          {/* Context Notice & Quick Suggestions: Swipeable horizontal row */}
+          <div className="bg-[#FAF7F2] border-b border-[#171717]/20 p-2 shrink-0">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[9px] font-black uppercase text-[#171717]/60 tracking-wider flex items-center gap-1">
+                <Sparkles size={11} className="text-[#FF2F92]" /> REKOMENDASI HALAMAN INI:
+              </p>
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
               {getContextSuggestions().map((s, idx) => (
                 <button
                   key={idx}
                   onClick={() => handleSendMessage(s)}
                   disabled={loading}
-                  className="text-left text-[10.5px] font-bold px-2 py-1 bg-white hover:bg-[#FFD83D]/40 border border-[#171717] rounded shadow-[1px_1px_0px_#171717] text-[#171717] transition cursor-pointer disabled:opacity-50"
+                  className="shrink-0 text-left text-[10px] font-bold px-2 py-1 bg-white hover:bg-[#FFD83D]/40 border border-[#171717] rounded shadow-[1px_1px_0px_#171717] text-[#171717] transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
                 >
                   {s}
                 </button>
@@ -329,23 +418,25 @@ export default function GlobalAiAssistant() {
           </div>
 
           {/* Conversation Stream */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-[#F5F1E9]">
+          <div className="flex-1 overflow-y-auto min-h-0 p-3 space-y-3 bg-[#F5F1E9]">
             {messages.map((m) => (
               <div
                 key={m.id}
                 className={`flex flex-col ${m.sender === 'user' ? 'items-end' : 'items-start'}`}
               >
                 <div
-                  className={`max-w-[88%] p-2.5 rounded-lg text-xs leading-relaxed ${
+                  className={`max-w-[90%] sm:max-w-[88%] p-2.5 rounded-lg text-xs leading-relaxed break-words min-w-0 ${
                     m.sender === 'user'
                       ? 'bg-[#171717] text-white shadow-[2px_2px_0px_#FF2F92]'
-                      : 'bg-white text-[#171717] border border-[#171717] shadow-[2px_2px_0px_#171717]'
+                      : m.isError
+                        ? 'bg-[#FFF8E6] text-[#171717] border border-[#EF4444] shadow-[2px_2px_0px_#171717]'
+                        : 'bg-white text-[#171717] border border-[#171717] shadow-[2px_2px_0px_#171717]'
                   }`}
                 >
                   {m.sender === 'ai' && (
-                    <div className="flex items-center justify-between text-[9px] font-bold text-[#FF2F92] uppercase mb-1">
-                      <span>PKM Intelligence</span>
-                      {m.time && <span className="text-[#171717]/40 font-normal">{m.time}</span>}
+                    <div className="flex items-center justify-between text-[9px] font-bold text-[#FF2F92] uppercase mb-1 gap-2">
+                      <span className="truncate">{m.isError ? 'Terjadi Kendala' : 'PKM Intelligence'}</span>
+                      {m.time && <span className="text-[#171717]/40 font-normal shrink-0">{m.time}</span>}
                     </div>
                   )}
 
@@ -357,14 +448,14 @@ export default function GlobalAiAssistant() {
                     </div>
                   )}
 
-                  {/* Structured findings in quick bubble */}
-                  {m.findings && m.findings.length > 0 && (
+                  {/* Structured findings: only if not already duplicated in reply text */}
+                  {m.findings && m.findings.length > 0 && !m.text?.includes(m.findings[0]) && (
                     <div className="mt-2 pt-2 border-t border-[#171717]/10 space-y-1">
                       <p className="text-[9px] font-bold uppercase text-[#171717]/70">Poin Analisis:</p>
                       {m.findings.slice(0, 3).map((f, fi) => (
                         <div key={fi} className="text-[10.5px] text-[#171717] flex items-start gap-1">
-                          <span className="text-[#FF2F92] font-black">•</span>
-                          <span>{f}</span>
+                          <span className="text-[#FF2F92] font-black shrink-0">•</span>
+                          <span className="leading-snug">{f}</span>
                         </div>
                       ))}
                     </div>
@@ -380,8 +471,8 @@ export default function GlobalAiAssistant() {
             ))}
 
             {loading && (
-              <div className="flex items-center gap-2 p-2 bg-white/70 border border-[#171717] rounded-lg max-w-[200px] shadow-[2px_2px_0px_#171717]">
-                <Loader2 size={14} className="animate-spin text-[#FF2F92]" />
+              <div className="flex items-center gap-2 p-2 bg-white/80 border border-[#171717] rounded-lg max-w-[200px] shadow-[2px_2px_0px_#171717]">
+                <Loader2 size={14} className="animate-spin text-[#FF2F92] shrink-0" />
                 <span className="text-[11px] font-bold text-[#171717]">Menganalisis data...</span>
               </div>
             )}
@@ -389,11 +480,11 @@ export default function GlobalAiAssistant() {
           </div>
 
           {/* Modal Footer: Full Analyst Link & Input */}
-          <div className="p-2.5 bg-white border-t-2 border-[#171717] space-y-2">
+          <div className="p-2 sm:p-2.5 bg-white border-t-2 border-[#171717] space-y-2 shrink-0">
             {canAccessFullAnalyst && (
               <button
                 onClick={handleOpenFullAnalyst}
-                className="w-full py-1 px-2 bg-[#B8A0F0] hover:bg-[#A68AE6] text-[#171717] border border-[#171717] rounded text-[11px] font-black uppercase flex items-center justify-center gap-1 shadow-[2px_2px_0px_#171717] transition cursor-pointer"
+                className="w-full py-1 px-2 bg-[#B8A0F0] hover:bg-[#A68AE6] text-[#171717] border border-[#171717] rounded text-[10.5px] font-black uppercase flex items-center justify-center gap-1 shadow-[2px_2px_0px_#171717] transition cursor-pointer min-h-[32px]"
               >
                 <span>Buka AI Analyst Penuh</span>
                 <ArrowRight size={13} />
@@ -413,12 +504,13 @@ export default function GlobalAiAssistant() {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Tanyakan apa saja..."
                 disabled={loading}
-                className="flex-1 px-2.5 py-1.5 bg-[#FAF7F2] border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#FF2F92] disabled:opacity-50"
+                className="flex-1 px-2.5 py-1.5 bg-[#FAF7F2] border border-[#171717] rounded text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#FF2F92] disabled:opacity-50 min-h-[36px]"
               />
               <button
                 type="submit"
                 disabled={loading || !input.trim()}
-                className="p-1.5 bg-[#FF2F92] hover:bg-[#FF439D] text-white border border-[#171717] rounded shadow-[2px_2px_0px_#171717] transition cursor-pointer disabled:opacity-50"
+                className="p-2 bg-[#FF2F92] hover:bg-[#FF439D] text-white border border-[#171717] rounded shadow-[2px_2px_0px_#171717] transition cursor-pointer disabled:opacity-50 shrink-0 min-h-[36px] min-w-[36px] flex items-center justify-center"
+                title="Kirim Pesan"
               >
                 <Send size={14} />
               </button>

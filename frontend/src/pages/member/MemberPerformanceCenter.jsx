@@ -157,7 +157,7 @@ export default function MemberPerformanceCenter() {
   // Tampilan Loading Awal
   if (loading && !refreshing && !data) {
     return (
-      <div className="min-h-screen bg-[#F5F1E9] p-4 sm:p-6 lg:p-8">
+      <div className="w-full bg-[#F5F1E9] p-4 sm:p-6 lg:p-8">
         <PageLoading message="Menghitung analitik produktivitas personal Anda..." />
       </div>
     )
@@ -186,7 +186,7 @@ export default function MemberPerformanceCenter() {
   const insights = data?.personal_insights || []
 
   return (
-    <div className="min-h-screen bg-[#F5F1E9] text-[#171717] p-3 sm:p-5 lg:p-7 space-y-6">
+    <div className="w-full bg-[#F5F1E9] text-[#171717] p-3 sm:p-5 lg:p-7 space-y-6">
       {/* Header Utama Halaman */}
       <PageHeader
         title="PERFORMA SAYA"
@@ -714,7 +714,7 @@ export default function MemberPerformanceCenter() {
                     </span>
                     {act.project_name && (
                       <span className="text-[10px] text-[#171717]/60 font-bold truncate max-w-[200px]">
-                        • {act.project_name}
+                        â€¢ {act.project_name}
                       </span>
                     )}
                   </div>
